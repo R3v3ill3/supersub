@@ -1,0 +1,20 @@
+RECIPIENT_NAME: {{recipient_name}}
+SUBJECT: {{subject}}
+
+APPLICANT_NAME: {{applicant_name}}
+APPLICATION_NUMBER: {{application_number}}
+SITE_ADDRESS: {{site_address}}
+
+APPROVED_FACTS:
+{{{approved_facts}}}
+
+SELECTED_CONCERNS:
+{{#each selected_concerns}}
+- KEY: {{this.key}}
+  BODY: |
+{{{indent this.body 2}}}
+{{/each}}
+
+USER_STYLE_SAMPLE:
+{{{user_style_sample}}}
+

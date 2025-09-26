@@ -1,0 +1,6 @@
+  cors@2.8.5:
+    resolution: {integrity: sha512-Dr3CcfmlojWda17j9XHAXgF9zR7kHpNHIcBGek9tl8YjRkUFh9bVY7tQQTzOt4+E8ikQC5Te1s7qvS9Uu2yM3w==}
+  cors@^2.8.5:
+    dependencies:
+      object-assign: 4.1.1
+      vary: 1.1.2

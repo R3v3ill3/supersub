@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/api/src/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "apps/api/public/**",
+          "packages/templates/**",
+          "packages/prompts/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "apps/api/src/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "apps/api/src/index.ts"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "apps/api/src/index.ts": {
+      "maxDuration": 30
+    }
+  }
+}

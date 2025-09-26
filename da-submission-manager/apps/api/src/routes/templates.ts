@@ -1,0 +1,484 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { z } from 'zod';
+import { DocumentAnalysisService } from '../services/documentAnalysis';
+import { getSupabase } from '../lib/supabase';
+import { UploadService } from '../services/upload';
+import { extractDocxPlaceholders, extractTextPlaceholders } from '../services/templateParser';
+import { normalizePlaceholders } from '../services/templateNormalizer';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+const router = Router();
+let documentAnalysis: DocumentAnalysisService | null = null;
+let uploadService: UploadService | null = null;
+
+function getDocumentAnalysis(): DocumentAnalysisService {
+  if (!documentAnalysis) {
+    documentAnalysis = new DocumentAnalysisService();
+  }
+  return documentAnalysis;
+}
+
+function getUploadService(): UploadService {
+  if (!uploadService) {
+    uploadService = new UploadService();
+  }
+  return uploadService;
+}
+
+// Validation schemas
+const analyzeTemplateSchema = z.object({
+  googleDocId: z.string().min(1, 'Google Doc ID is required'),
+  projectId: z.string().uuid().optional(),
+  version: z.string().default('v1')
+});
+const uploadTemplateSchema = z.object({
+  projectId: z.string().uuid(),
+  templateType: z.enum(['submission_format', 'grounds', 'council_email', 'supporter_email']),
+  version: z.string().default('v1'),
+  versionNotes: z.string().optional(),
+  canonicalMappings: z.record(z.string()).optional()
+});
+
+const canonicalFieldSchema = z.object({
+  canonical: z.string().optional()
+});
+
+const validateTemplateSchema = z.object({
+  googleDocId: z.string().min(1, 'Google Doc ID is required')
+});
+
+const generateSurveySchema = z.object({
+  googleDocId: z.string().min(1, 'Google Doc ID is required'),
+  projectId: z.string().uuid('Invalid project ID'),
+  version: z.string().default('v1'),
+  saveToDatabase: z.boolean().default(true)
+});
+
+/**
+ * Validate a Google Doc template (admin only)
+ * GET /api/templates/validate?googleDocId=xxx
+ */
+router.get('/validate', async (req, res) => {
+  try {
+    const { googleDocId } = validateTemplateSchema.parse(req.query);
+    
+    const validation = await getDocumentAnalysis().validateTemplate(googleDocId);
+    
+    res.json({
+      success: true,
+      data: validation
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Template validation failed'
+    });
+  }
+});
+
+/**
+ * Preview analysis of a Google Doc template
+ * GET /api/templates/preview?googleDocId=xxx
+ */
+router.get('/preview', async (req, res) => {
+  try {
+    const { googleDocId } = validateTemplateSchema.parse(req.query);
+    
+    const previewResult = await getDocumentAnalysis().previewAnalysis(googleDocId);
+    
+    res.json({
+      success: true,
+      data: previewResult
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Template preview failed'
+    });
+  }
+});
+
+/**
+ * Analyze a Google Doc and extract concerns
+ * POST /api/templates/analyze
+ */
+router.post('/analyze', async (req, res) => {
+  try {
+    const { googleDocId, projectId, version } = analyzeTemplateSchema.parse(req.body);
+    
+    // Perform analysis
+    const analysisResult = await getDocumentAnalysis().analyzeGroundsTemplate(googleDocId);
+    
+    // Optionally save to database if projectId provided
+    let savedConcerns = null;
+    if (projectId) {
+      try {
+        savedConcerns = await getDocumentAnalysis().generateSurveyFromAnalysis(
+          analysisResult,
+          projectId,
+          version
+        );
+      } catch (saveError: any) {
+        console.warn('Failed to save concerns to database:', saveError.message);
+        // Continue without saving - return analysis result anyway
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        analysis: analysisResult,
+        savedConcerns: savedConcerns || undefined
+      }
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Document analysis failed'
+    });
+  }
+});
+
+/**
+ * Generate and save survey from analyzed document
+ * POST /api/templates/generate-survey
+ */
+router.post('/generate-survey', async (req, res) => {
+  try {
+    const { googleDocId, projectId, version, saveToDatabase } = generateSurveySchema.parse(req.body);
+    
+    // First analyze the document
+    const analysisResult = await getDocumentAnalysis().analyzeGroundsTemplate(googleDocId);
+    
+    let savedConcerns = null;
+    if (saveToDatabase) {
+      savedConcerns = await getDocumentAnalysis().generateSurveyFromAnalysis(
+        analysisResult,
+        projectId,
+        version
+      );
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        analysis: analysisResult,
+        concerns: savedConcerns || analysisResult.extractedConcerns,
+        generated: saveToDatabase
+      }
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Survey generation failed'
+    });
+  }
+});
+
+/**
+ * Upload a template file
+ * POST /api/templates/upload
+ */
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    const body = uploadTemplateSchema.parse({ ...req.body, canonicalMappings: req.body?.canonicalMappings ? JSON.parse(req.body.canonicalMappings) : undefined });
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'File is required' });
+    }
+
+    const fileResult = await getUploadService().uploadTemplateFile(
+      body.projectId,
+      body.templateType,
+      req.file.buffer,
+      req.file.mimetype,
+      req.file.originalname
+    );
+
+    const placeholderSummary = await summarizePlaceholders(req.file.buffer, req.file.mimetype, body.canonicalMappings || {});
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+
+    const { data: templateFile, error: upsertError } = await supabase
+      .from('template_files')
+      .upsert({
+        project_id: body.projectId,
+        template_type: body.templateType,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'project_id,template_type'
+      })
+      .select()
+      .single();
+
+    if (upsertError) {
+      throw new Error(upsertError.message);
+    }
+
+    const { data: version, error: versionError } = await supabase
+      .from('template_versions')
+      .insert({
+        template_file_id: templateFile.id,
+        version_label: body.version,
+        storage_path: fileResult.storagePath,
+        mimetype: fileResult.mimetype,
+        original_filename: fileResult.originalFilename,
+        merge_fields: placeholderSummary.placeholders,
+        version_notes: body.versionNotes,
+      })
+      .select()
+      .single();
+
+    if (versionError) {
+      throw new Error(versionError.message);
+    }
+
+    await supabase
+      .from('template_files')
+      .update({ active_version_id: version.id })
+      .eq('id', templateFile.id);
+
+    res.status(201).json({ success: true, data: version });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message || 'Template upload failed' });
+  }
+});
+
+async function summarizePlaceholders(buffer: Buffer, mimetype: string, mapping: Record<string, string>) {
+  const summary = mimetype === 'application/pdf'
+    ? extractTextPlaceholders(buffer.toString('utf8'))
+    : await extractDocxPlaceholders(buffer);
+
+  return {
+    placeholders: summary.placeholders.map(({ placeholder }) => ({
+      placeholder,
+      canonical_field: mapping[placeholder],
+    })),
+  };
+}
+
+/**
+ * Get existing concern templates for a version
+ * GET /api/templates/concerns?version=v1
+ */
+router.get('/concerns', async (req, res) => {
+  try {
+    const { version = 'v1' } = req.query;
+    const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+    
+    const { data: concerns, error } = await supabase
+      .from('concern_templates')
+      .select('*')
+      .eq('version', version)
+      .eq('is_active', true)
+      .order('key');
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        version,
+        concerns: concerns || []
+      }
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to fetch concern templates'
+    });
+  }
+});
+
+/**
+ * Update or create concern templates
+ * PUT /api/templates/concerns
+ */
+router.put('/concerns', async (req, res) => {
+  try {
+    const concernsSchema = z.object({
+      version: z.string().default('v1'),
+      concerns: z.array(z.object({
+        key: z.string().min(1),
+        label: z.string().min(1),
+        body: z.string().min(1),
+        is_active: z.boolean().default(true)
+      }))
+    });
+    
+    const { version, concerns } = concernsSchema.parse(req.body);
+    const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+    
+    const { data, error } = await supabase
+      .from('concern_templates')
+      .upsert(concerns.map(concern => ({
+        version,
+        key: concern.key,
+        label: concern.label,
+        body: concern.body,
+        is_active: concern.is_active
+      })), {
+        onConflict: 'version,key'
+      })
+      .select();
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        updated: data?.length || 0,
+        concerns: data || []
+      }
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to update concern templates'
+    });
+  }
+});
+
+/**
+ * Delete concern template
+ * DELETE /api/templates/concerns/:version/:key
+ */
+router.delete('/concerns/:version/:key', async (req, res) => {
+  try {
+    const { version, key } = req.params;
+    const supabase = getSupabase();
+    
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+    
+    const { error } = await supabase
+      .from('concern_templates')
+      .delete()
+      .eq('version', version)
+      .eq('key', key);
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Concern template deleted successfully'
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to delete concern template'
+    });
+  }
+});
+
+router.get('/files/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+
+    const { data, error } = await supabase
+      .from('template_files')
+      .select('id, template_type, active_version_id, template_versions(id, version_label, original_filename, mimetype, merge_fields, created_at, version_notes)')
+      .eq('project_id', projectId)
+      .order('template_type');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({ success: true, data: data || [] });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message || 'Failed to fetch template files' });
+  }
+});
+
+router.post('/files/:fileId/activate', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const { versionId } = z.object({ versionId: z.string().uuid() }).parse(req.body);
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+
+    const { error } = await supabase
+      .from('template_files')
+      .update({ active_version_id: versionId, updated_at: new Date().toISOString() })
+      .eq('id', fileId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message || 'Failed to activate template version' });
+  }
+});
+
+router.delete('/files/:fileId/version/:versionId', async (req, res) => {
+  try {
+    const { fileId, versionId } = req.params;
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: 'Database not configured' });
+    }
+
+    const { data: file } = await supabase
+      .from('template_files')
+      .select('active_version_id')
+      .eq('id', fileId)
+      .single();
+
+    if (file?.active_version_id === versionId) {
+      return res.status(400).json({ success: false, error: 'Cannot delete the active version. Activate a different version first.' });
+    }
+
+    const { error } = await supabase
+      .from('template_versions')
+      .delete()
+      .eq('id', versionId)
+      .eq('template_file_id', fileId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ success: false, error: error.message || 'Failed to delete template version' });
+  }
+});
+
+export default router;

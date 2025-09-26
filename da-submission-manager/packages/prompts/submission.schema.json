@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "final_text": { "type": "string" }
+  },
+  "required": ["final_text"],
+  "additionalProperties": false
+}
+

@@ -1,0 +1,103 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { config, getActionNetworkClientForProject, getGlobalActionNetworkClient, ProjectWithApiKey } from '../lib/config';
+import { ActionNetworkClient } from '../services/actionNetwork';
+import { getSupabase } from '../lib/supabase';
+// import { requireAuth } from '../middleware/auth'; // Disabled for development
+
+const router = Router();
+
+async function getClient(projectId?: string): Promise<ActionNetworkClient> {
+  if (projectId) {
+    // Get project-specific API key
+    const supabase = getSupabase();
+    if (!supabase) {
+      throw new Error('Database not configured');
+    }
+    
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('id, name, slug, action_network_config, action_network_api_key_encrypted')
+      .eq('id', projectId)
+      .single();
+    
+    if (error) {
+      throw new Error(`Failed to fetch project: ${error.message}`);
+    }
+    
+    if (!project) {
+      throw new Error(`Project not found: ${projectId}`);
+    }
+    
+    return getActionNetworkClientForProject(project as ProjectWithApiKey);
+  } else {
+    // Use global API key for backward compatibility
+    return getGlobalActionNetworkClient();
+  }
+}
+
+router.get('/api/integrations/action-network/forms', async (req, res) => {
+  try {
+    const projectId = req.query.project_id as string | undefined;
+    const client = await getClient(projectId);
+    const forms = await client.listForms();
+    res.json({ forms });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/api/integrations/action-network/lists', async (req, res) => {
+  try {
+    const projectId = req.query.project_id as string | undefined;
+    const client = await getClient(projectId);
+    const lists = await client.listLists();
+    res.json({ lists });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/api/integrations/action-network/tags', async (req, res) => {
+  try {
+    const projectId = req.query.project_id as string | undefined;
+    const client = await getClient(projectId);
+    const tags = await client.listTags();
+    res.json({ tags });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/api/integrations/action-network/tags', async (req, res) => {
+  try {
+    const projectId = req.query.project_id as string | undefined;
+    const client = await getClient(projectId);
+    const body = z.object({
+      name: z.string().min(1),
+      description: z.string().optional(),
+    }).parse(req.body);
+
+    const tag = await client.createTag(body.name, body.description);
+    res.status(201).json({ tag });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/api/integrations/action-network/groups', async (req, res) => {
+  try {
+    const projectId = req.query.project_id as string | undefined;
+    const client = await getClient(projectId);
+    const groups = await client.listGroups();
+    res.json({ groups });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+export default router;
+

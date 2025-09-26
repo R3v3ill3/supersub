@@ -1,0 +1,71 @@
+# DA Submission Manager Environment Configuration
+# Copy this file to .env and update with your actual values
+
+# Server Configuration
+PORT=3500          # API server port
+NODE_ENV=development
+VITE_API_URL=http://localhost:3500/api
+VITE_WEB_URL=http://localhost:3500
+
+# Authentication Configuration
+JWT_SECRET=your_super_secure_jwt_secret_key_here
+JWT_EXPIRES_IN=7d
+ADMIN_ORIGIN=http://localhost:5173
+WEB_ORIGIN=http://localhost:5174
+
+# Database Configuration (Supabase)
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_ANON_KEY=your_anon_key
+
+# AI Configuration - OpenAI (Primary Provider)
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_TEMPERATURE=0.2
+OPENAI_MAX_TOKENS=900
+OPENAI_ENABLED=true
+
+# AI Configuration - Google Gemini (Fallback Provider)
+# Get your API key from: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-1.5-flash
+GEMINI_TEMPERATURE=0.2
+GEMINI_MAX_TOKENS=900
+GEMINI_ENABLED=true
+
+# Global AI Settings
+WORD_LIMIT=600
+
+# Template Configuration
+TEMPLATE_VERSION=v1
+
+# Google APIs Configuration (for document generation)
+# Get this from Google Cloud Console service account JSON
+GOOGLE_CREDENTIALS_JSON={"type":"service_account","project_id":"your-project","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"your-service-account@your-project.iam.gserviceaccount.com","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}
+GOOGLE_DRIVE_FOLDER_ID=optional_folder_id_for_generated_documents
+
+# Email Configuration
+# Use 'disabled' for test deployments (no real emails sent; JSON output only)
+EMAIL_PROVIDER=disabled
+
+# For SMTP (Gmail example):
+# EMAIL_PROVIDER=smtp
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_SECURE=false
+# SMTP_USER=your_email@gmail.com
+# SMTP_PASSWORD=your_gmail_app_password
+
+# For SendGrid:
+# EMAIL_PROVIDER=sendgrid
+# SENDGRID_API_KEY=your_sendgrid_api_key
+
+# Default Email Settings
+DEFAULT_FROM_EMAIL=noreply@yourorganization.org
+DEFAULT_FROM_NAME=DA Submission Manager
+
+# Webhook Security (optional, for Action Network integration)
+ACTION_NETWORK_WEBHOOK_SECRET=your_webhook_secret_if_needed
+
+# Gold Coast Council Specific (set by setup script)
+# DEFAULT_PROJECT_ID=will_be_set_automatically

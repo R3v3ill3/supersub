@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DA Submission Manager - Dev UI</title>
+    <style>
+      body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial; margin: 20px; }
+      label { display: block; margin-top: 10px; }
+      textarea { width: 100%; height: 120px; }
+      pre { background: #f5f5f5; padding: 10px; white-space: pre-wrap; }
+      .row { display: flex; gap: 16px; }
+      .col { flex: 1; min-width: 300px; }
+      button { margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <h1>DA Submission Manager - Dev UI</h1>
+    <div>
+      <button id="create-submission">Create Test Submission</button>
+      <span id="submission-id"></span>
+    </div>
+
+    <div class="row" style="margin-top: 20px;">
+      <div class="col">
+        <h3>Survey</h3>
+        <div>
+          <label>Selected Keys (comma-separated)</label>
+          <input id="keys" value="traffic_safety,noise" />
+          <label>In your own words</label>
+          <textarea id="sample">In my own words about traffic and noise impacts...</textarea>
+          <button id="save-survey">Save Survey</button>
+        </div>
+        <pre id="survey-result"></pre>
+      </div>
+      <div class="col">
+        <h3>Generate & Process</h3>
+        <div>
+          <label>
+            <input type="checkbox" id="process-workflow" checked>
+            Process document workflow after generation
+          </label>
+          <div style="margin-top: 10px;">
+            <label>Pathway:</label>
+            <select id="pathway">
+              <option value="review">Review (send edit link to user)</option>
+              <option value="direct">Direct (send to council immediately)</option>
+              <option value="draft">Draft (send with info pack)</option>
+            </select>
+          </div>
+        </div>
+        <button id="generate">Generate Draft</button>
+        <pre id="generate-result"></pre>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h3>Document Management</h3>
+      <div class="row">
+        <div class="col">
+          <h4>Process Document</h4>
+          <div>
+            <label>Submission ID:</label>
+            <input id="process-submission-id" placeholder="UUID">
+            <label>Pathway:</label>
+            <select id="process-pathway">
+              <option value="review">Review</option>
+              <option value="direct">Direct</option>
+              <option value="draft">Draft</option>
+            </select>
+            <button id="process-document">Process Document</button>
+          </div>
+          <pre id="process-result"></pre>
+        </div>
+        <div class="col">
+          <h4>Finalize Submission</h4>
+          <div>
+            <label>Submission ID:</label>
+            <input id="finalize-submission-id" placeholder="UUID">
+            <button id="finalize-document">Finalize & Send to Council</button>
+          </div>
+          <pre id="finalize-result"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 30px;">
+      <h3>Webhook Test</h3>
+      <div>
+        <label>Test webhook payload (Action Network format):</label>
+        <textarea id="webhook-payload" style="height: 200px;">{
+  "event_type": "osdi:advocacy_campaign_submission",
+  "person": {
+    "email_addresses": [{"address": "test@example.com"}],
+    "given_name": "John",
+    "family_name": "Doe"
+  },
+  "submission": {
+    "person": {
+      "email_addresses": [{"address": "test@example.com"}],
+      "given_name": "John",
+      "family_name": "Doe"
+    },
+    "responses": {
+      "site_address": "123 Test Street",
+      "pathway": "review"
+    }
+  }
+}</textarea>
+        <button id="test-webhook">Test Webhook</button>
+      </div>
+      <pre id="webhook-result"></pre>
+    </div>
+
+    <script>
+      const el = (id) => document.getElementById(id);
+      let submissionId = '';
+
+      el('create-submission').onclick = async () => {
+        const res = await fetch('/api/dev/submissions', { method: 'POST' });
+        const json = await res.json();
+        submissionId = json.submissionId || '';
+        el('submission-id').textContent = submissionId ? `Submission: ${submissionId}` : 'Failed';
+      };
+
+      el('save-survey').onclick = async () => {
+        if (!submissionId) { alert('Create a submission first'); return; }
+        const keys = el('keys').value.split(',').map(s => s.trim()).filter(Boolean);
+        const sample = el('sample').value;
+        const res = await fetch(`/api/survey/${submissionId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version: 'v1', selected_keys: keys, user_style_sample: sample })
+        });
+        el('survey-result').textContent = JSON.stringify(await res.json(), null, 2);
+      };
+
+      el('generate').onclick = async () => {
+        if (!submissionId) { alert('Create a submission first'); return; }
+        const processWorkflow = el('process-workflow').checked;
+        const pathway = el('pathway').value;
+        
+        let url = `/api/generate/${submissionId}`;
+        if (processWorkflow) {
+          url += '?process_document=true';
+        }
+        
+        const body = processWorkflow ? { pathway } : {};
+        
+        const res = await fetch(url, { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        el('generate-result').textContent = JSON.stringify(await res.json(), null, 2);
+      };
+
+      // New functionality handlers
+      el('process-document').onclick = async () => {
+        const subId = el('process-submission-id').value;
+        if (!subId) { alert('Enter submission ID'); return; }
+        
+        const pathway = el('process-pathway').value;
+        const res = await fetch(`/api/documents/process/${subId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathway })
+        });
+        el('process-result').textContent = JSON.stringify(await res.json(), null, 2);
+      };
+
+      el('finalize-document').onclick = async () => {
+        const subId = el('finalize-submission-id').value;
+        if (!subId) { alert('Enter submission ID'); return; }
+        
+        const res = await fetch(`/api/documents/finalize/${subId}`, { method: 'POST' });
+        el('finalize-result').textContent = JSON.stringify(await res.json(), null, 2);
+      };
+
+      el('test-webhook').onclick = async () => {
+        try {
+          const payload = JSON.parse(el('webhook-payload').value);
+          const res = await fetch('/api/webhooks/action-network', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          el('webhook-result').textContent = JSON.stringify(await res.json(), null, 2);
+        } catch (err) {
+          el('webhook-result').textContent = 'Error: ' + err.message;
+        }
+      };
+    </script>
+  </body>
+</html>
