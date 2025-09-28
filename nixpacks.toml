@@ -1,19 +1,19 @@
 [project]
-root = "da-submission-manager"
 
 [phases.setup]
 nixPkgs = ['nodejs']
 
 [phases.install]
 cmds = [
+  "cd da-submission-manager",
   "corepack enable",
   "corepack prepare pnpm@9.12.0 --activate", 
   "pnpm install --frozen-lockfile"
 ]
 
 [phases.build]
-cmd = "pnpm --filter @dasub/api build"
+cmd = "cd da-submission-manager && pnpm --filter @dasub/api build"
 
 [start]
-cmd = "pnpm --filter @dasub/api start"
+cmd = "cd da-submission-manager && pnpm --filter @dasub/api start"
 
