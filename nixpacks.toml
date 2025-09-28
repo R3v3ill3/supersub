@@ -1,0 +1,12 @@
+[project]
+root = "da-submission-manager"
+
+[phases.install]
+cmd = "pnpm install --frozen-lockfile"
+
+[phases.build]
+cmd = "pnpm --filter @dasub/api build"
+
+[start]
+cmd = "pnpm --filter @dasub/api start"
+
