@@ -13,6 +13,10 @@ import submissionsRoutes from './routes/submissions';
 import templatesRoutes from './routes/templates';
 import dashboardRoutes from './routes/dashboard';
 import integrationsRoutes from './routes/integrations';
+import monitoringRoutes from './routes/monitoring';
+import healthRoutes from './routes/health';
+import { EmailQueueService } from './services/emailQueue';
+import { errorHandler } from './services/errorHandler';
 // import authRoutes from './routes/auth'; // Disabled for development
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,7 +47,12 @@ app.use(projectsRoutes);
 app.use(submissionsRoutes);
 app.use(dashboardRoutes);
 app.use(integrationsRoutes);
+app.use(monitoringRoutes);
+app.use(healthRoutes);
 app.use('/api/templates', templatesRoutes);
+
+// Centralized error handling middleware (must be last)
+app.use(errorHandler.middleware());
 
 // Serve simple dev UI from public (resolve relative to this file)
 const publicDir = path.resolve(__dirname, '../public');
@@ -53,6 +62,13 @@ const port = Number(process.env.PORT || 3001);
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`[api] listening on :${port}`);
+
+  // Start the email queue processor
+  const emailQueue = new EmailQueueService();
+  setInterval(() => {
+    emailQueue.processQueue();
+  }, 60 * 1000); // Process every 60 seconds
+  console.log('[api] Email queue processor started.');
 });
 
 export default app;

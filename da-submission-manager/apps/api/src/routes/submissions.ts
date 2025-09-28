@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getSupabase } from '../lib/supabase';
 import { config, ProjectActionNetworkConfig, getActionNetworkClientForProject, ProjectWithApiKey } from '../lib/config';
 import { ActionNetworkClient } from '../services/actionNetwork';
+import { TemplateCombinerService, DualTrackConfig } from '../services/templateCombiner';
 
 const router = Router();
 
@@ -27,7 +28,9 @@ const createSubmissionSchema = z.object({
   plan_number: z.string().optional(),
   site_address: z.string().min(1),
   application_number: z.string().optional(), // User can override default
-  submission_pathway: z.enum(['direct', 'review', 'draft']).default('review')
+  submission_pathway: z.enum(['direct', 'review', 'draft']).default('review'),
+  submission_track: z.enum(['followup', 'comprehensive', 'single']).optional(),
+  is_returning_submitter: z.boolean().optional(),
 });
 
 type ActionNetworkSyncResult = {
@@ -53,7 +56,7 @@ router.post('/api/submissions', async (req, res) => {
     const identifier = body.project_identifier;
     let projectQuery = supabase
       .from('projects')
-      .select('id, name, slug, action_network_config, action_network_api_key_encrypted, default_application_number')
+      .select('id, name, slug, action_network_config, action_network_api_key_encrypted, default_application_number, is_dual_track, dual_track_config')
       .eq('is_active', true)
       .limit(1);
 
@@ -100,6 +103,8 @@ router.post('/api/submissions', async (req, res) => {
         site_address: body.site_address,
         application_number: body.application_number || project.default_application_number,
         submission_pathway: body.submission_pathway,
+        submission_track: body.submission_track || (project.is_dual_track ? 'comprehensive' : 'single'),
+        is_returning_submitter: body.is_returning_submitter ?? false,
         status: 'NEW',
         action_network_sync_status: 'pending',
         updated_at: now.toISOString()

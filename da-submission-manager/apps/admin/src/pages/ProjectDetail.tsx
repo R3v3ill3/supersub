@@ -75,6 +75,26 @@ export default function ProjectDetail() {
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-6">
+        {projectResponse ? (
+          <section className="bg-white shadow-sm rounded-lg p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">Dual-track configuration</h2>
+                <p className="text-sm text-gray-600">Control whether supporters can choose between comprehensive and follow-up submissions.</p>
+              </div>
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                  projectResponse.is_dual_track ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {projectResponse.is_dual_track ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+
+            <DualTrackSettings project={projectResponse} onStatus={(value) => setMessage(value)} />
+          </section>
+        ) : null}
+
         <section className="bg-white shadow-sm rounded-lg p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Action Network Integration</h2>
 

@@ -4,8 +4,16 @@ import { z } from 'zod';
 import { DocumentAnalysisService } from '../services/documentAnalysis';
 import { getSupabase } from '../lib/supabase';
 import { UploadService } from '../services/upload';
-import { extractDocxPlaceholders, extractTextPlaceholders } from '../services/templateParser';
-import { normalizePlaceholders } from '../services/templateNormalizer';
+import {
+  extractDocxPlaceholders,
+  extractPdfPlaceholders,
+  extractTextPlaceholders,
+} from '../services/templateParser';
+import {
+  listCanonicalMergeFields,
+  normalizePlaceholders,
+} from '../services/templateNormalizer';
+import type { CanonicalMergeFieldDefinition } from '../services/templateNormalizer';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -196,7 +204,11 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       req.file.originalname
     );
 
-    const placeholderSummary = await summarizePlaceholders(req.file.buffer, req.file.mimetype, body.canonicalMappings || {});
+    const placeholderSummary = await summarizePlaceholders(
+      req.file.buffer,
+      req.file.mimetype,
+      body.canonicalMappings || {}
+    );
 
     const supabase = getSupabase();
     if (!supabase) {
@@ -242,23 +254,58 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       .update({ active_version_id: version.id })
       .eq('id', templateFile.id);
 
-    res.status(201).json({ success: true, data: version });
+    res.status(201).json({
+      success: true,
+      data: {
+        version,
+        placeholders: placeholderSummary.placeholders,
+        canonicalFields: placeholderSummary.canonical_fields,
+      },
+    });
   } catch (error: any) {
     res.status(400).json({ success: false, error: error.message || 'Template upload failed' });
   }
 });
 
-async function summarizePlaceholders(buffer: Buffer, mimetype: string, mapping: Record<string, string>) {
-  const summary = mimetype === 'application/pdf'
-    ? extractTextPlaceholders(buffer.toString('utf8'))
-    : await extractDocxPlaceholders(buffer);
+type UploadPlaceholderSummary = {
+  placeholders: Array<{ placeholder: string; canonical_field?: string }>;
+  canonical_fields: CanonicalMergeFieldDefinition[];
+};
+
+async function summarizePlaceholders(
+  buffer: Buffer,
+  mimetype: string,
+  mapping: Record<string, string>
+) : Promise<UploadPlaceholderSummary> {
+  const summary = await extractPlaceholders(buffer, mimetype);
+
+  const normalized = normalizePlaceholders(summary.placeholders.map(({ placeholder }) => placeholder));
+
+  const merged = normalized.map(({ placeholder, canonical_field }) => ({
+    placeholder,
+    canonical_field: mapping[placeholder] || canonical_field,
+  }));
 
   return {
-    placeholders: summary.placeholders.map(({ placeholder }) => ({
-      placeholder,
-      canonical_field: mapping[placeholder],
-    })),
+    placeholders: merged,
+    canonical_fields: listCanonicalMergeFields(),
   };
+}
+
+async function extractPlaceholders(buffer: Buffer, mimetype: string) {
+  if (mimetype === 'application/pdf') {
+    return extractPdfPlaceholders(buffer);
+  }
+
+  if (
+    mimetype ===
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    mimetype === 'application/msword'
+  ) {
+    return extractDocxPlaceholders(buffer);
+  }
+
+  return extractTextPlaceholders(buffer.toString('utf8'));
 }
 
 /**

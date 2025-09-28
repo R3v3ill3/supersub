@@ -3,10 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getSupabase } from '../lib/supabase';
 import { generateSubmission, generateSubmissionMock } from '../services/llm';
-import { DocumentWorkflowService } from '../services/documentWorkflow';
 
 const router = Router();
-let documentWorkflow: DocumentWorkflowService;
 
 function extractLinks(text: string): string[] {
   const linkRegex = /(https?:\/\/[^\s)]+)/gi;
@@ -144,17 +142,7 @@ router.post('/api/generate/:submissionId', async (req, res) => {
     const processDocument = req.query.process_document === 'true';
     let workflowResult = null;
 
-    if (processDocument) {
-      try {
-        if (!documentWorkflow) {
-          documentWorkflow = new DocumentWorkflowService();
-        }
-        workflowResult = await documentWorkflow.processSubmission(submissionId, finalText);
-      } catch (workflowError: any) {
-        console.error('Document workflow error:', workflowError);
-        // Continue with response even if workflow fails
-      }
-    }
+    // Document workflow trigger is now handled via dedicated API routes
 
     const response: any = { 
       ok: true, 

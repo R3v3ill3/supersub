@@ -4,6 +4,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { api } from '../lib/api';
 
+type SubmissionTrack = 'followup' | 'comprehensive';
+
 interface FormData {
   applicant_first_name: string;
   applicant_last_name: string;
@@ -26,6 +28,8 @@ interface FormData {
   site_address: string;
   application_number: string;
   submission_pathway: 'direct' | 'review' | 'draft';
+  submission_track: SubmissionTrack;
+  is_returning_submitter: boolean;
 }
 
 interface ProjectResponse {
@@ -37,6 +41,15 @@ interface ProjectResponse {
     test_submission_email?: string | null;
     default_application_number: string;
     default_pathway: 'direct' | 'review' | 'draft';
+    is_dual_track?: boolean;
+    dual_track_config?: {
+      track_selection_prompt?: string;
+      track_descriptions?: {
+        followup: string;
+        comprehensive: string;
+      };
+      default_track?: SubmissionTrack;
+    } | null;
     action_network_config?: {
       form_url?: string;
       action_url?: string;
@@ -56,7 +69,13 @@ interface SurveyData {
   user_style_sample: string;
   ordered_keys: string[];
   custom_grounds: string;
+  submission_track: SubmissionTrack;
 }
+
+const TRACK_LABELS: Record<SubmissionTrack, { title: string; badge: string }> = {
+  followup: { title: 'Follow-up submission', badge: 'Returning supporters' },
+  comprehensive: { title: 'Comprehensive submission', badge: 'Full submission' },
+};
 
 export default function SubmissionForm() {
   const { projectSlug } = useParams();
@@ -88,12 +107,15 @@ export default function SubmissionForm() {
     site_address: '',
     application_number: '',
     submission_pathway: 'review',
+    submission_track: 'comprehensive',
+    is_returning_submitter: false,
   });
   const [surveyData, setSurveyData] = useState<SurveyData>({
     selected_keys: [],
     user_style_sample: '',
     ordered_keys: [],
     custom_grounds: '',
+    submission_track: 'comprehensive',
   });
   const [submissionId, setSubmissionId] = useState<string>('');
   const [actionNetworkResult, setActionNetworkResult] = useState<ActionNetworkSyncResult | null>(null);
@@ -159,9 +181,9 @@ export default function SubmissionForm() {
 
   // Load survey templates
   const { data: surveyTemplates, isLoading: loadingSurvey } = useQuery({
-    queryKey: ['survey-templates'],
+    queryKey: ['survey-templates', surveyData.submission_track],
     queryFn: async () => {
-      const response = await api.survey.getTemplates();
+      const response = await api.survey.getTemplates({ track: surveyData.submission_track });
       return response.data;
     },
   });
@@ -193,6 +215,8 @@ export default function SubmissionForm() {
         site_address: data.site_address,
         application_number: data.application_number,
         submission_pathway: data.submission_pathway,
+        submission_track: data.submission_track,
+        is_returning_submitter: data.is_returning_submitter,
       });
       return response.data;
     },
@@ -210,6 +234,9 @@ export default function SubmissionForm() {
         version: 'v1',
         selected_keys: data.selected_keys,
         user_style_sample: data.user_style_sample,
+        submission_track: data.submission_track,
+        ordered_keys: data.ordered_keys,
+        custom_grounds: data.custom_grounds,
       });
       return response.data;
     },

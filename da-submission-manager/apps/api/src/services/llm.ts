@@ -4,6 +4,8 @@ import Handlebars from 'handlebars';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { sanitizeAndValidate } from './contentRules';
+import { retryService } from './retryService';
+import { errorHandler, ErrorType, ErrorCode } from './errorHandler';
 
 type GenerateArgs = {
   meta: {
@@ -25,42 +27,64 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
   const temperature = Number(process.env.OPENAI_TEMPERATURE || 0.2);
   const maxTokens = Number(process.env.OPENAI_MAX_TOKENS || 900);
 
-  const base = process.cwd();
-  const schemaPath = path.resolve(base, 'packages/prompts/submission.schema.json');
-  const schemaStr = await fs.readFile(schemaPath, 'utf8');
+  return await retryService.executeWithRetry(
+    async () => {
+      const base = process.cwd();
+      const schemaPath = path.resolve(base, 'packages/prompts/submission.schema.json');
+      const schemaStr = await fs.readFile(schemaPath, 'utf8');
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const response = await client.chat.completions.create({
-    model,
-    temperature,
-    max_tokens: maxTokens,
-    messages: [
-      { role: 'system', content: system.replace('{{MAX_WORDS}}', String(maxWords)) },
-      { role: 'user', content: user }
-    ],
-    response_format: { type: 'json_schema', json_schema: JSON.parse(schemaStr) }
-  });
+      const response = await client.chat.completions.create({
+        model,
+        temperature,
+        max_tokens: maxTokens,
+        messages: [
+          { role: 'system', content: system.replace('{{MAX_WORDS}}', String(maxWords)) },
+          { role: 'user', content: user }
+        ],
+        response_format: { type: 'json_schema', json_schema: JSON.parse(schemaStr) }
+      });
 
-  const msg = response.choices[0]?.message?.content ?? '{}';
-  let parsed: any;
-  try {
-    parsed = JSON.parse(msg);
-  } catch {
-    throw new Error('OpenAI returned invalid JSON');
-  }
-  const finalText = String(parsed.final_text ?? '');
+      const msg = response.choices[0]?.message?.content ?? '{}';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(msg);
+      } catch {
+        throw new Error('OpenAI returned invalid JSON');
+      }
+      const finalText = String(parsed.final_text ?? '');
 
-  return {
-    finalText,
-    usage: {
-      prompt: response.usage?.prompt_tokens ?? null,
-      completion: response.usage?.completion_tokens ?? null
+      return {
+        finalText,
+        usage: {
+          prompt: response.usage?.prompt_tokens ?? null,
+          completion: response.usage?.completion_tokens ?? null
+        },
+        model,
+        temperature,
+        provider: 'openai'
+      };
     },
-    model,
-    temperature,
-    provider: 'openai'
-  };
+    {
+      operationName: 'openai_generate',
+      retryConfig: {
+        maxRetries: 2,
+        initialDelayMs: 1000,
+        maxDelayMs: 8000
+      },
+      errorContext: {
+        operation: 'generate_submission_openai',
+        metadata: { 
+          model,
+          temperature,
+          maxTokens,
+          maxWords,
+          applicantName: args.meta.applicant_name
+        }
+      }
+    }
+  );
 }
 
 async function generateWithGemini(args: GenerateArgs, system: string, user: string, maxWords: number) {
@@ -72,17 +96,19 @@ async function generateWithGemini(args: GenerateArgs, system: string, user: stri
   const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   const temperature = Number(process.env.GEMINI_TEMPERATURE || 0.2);
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const geminiModel = genAI.getGenerativeModel({ 
-    model,
-    generationConfig: {
-      temperature,
-      maxOutputTokens: Number(process.env.GEMINI_MAX_TOKENS || 900),
-    }
-  });
+  return await retryService.executeWithRetry(
+    async () => {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const geminiModel = genAI.getGenerativeModel({ 
+        model,
+        generationConfig: {
+          temperature,
+          maxOutputTokens: Number(process.env.GEMINI_MAX_TOKENS || 900),
+        }
+      });
 
-  // Combine system and user prompts for Gemini
-  const prompt = `${system.replace('{{MAX_WORDS}}', String(maxWords))}
+      // Combine system and user prompts for Gemini
+      const prompt = `${system.replace('{{MAX_WORDS}}', String(maxWords))}
 
 ${user}
 
@@ -91,38 +117,57 @@ Please respond with ONLY valid JSON in this exact format:
   "final_text": "your generated submission text here"
 }`;
 
-  const result = await geminiModel.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
+      const result = await geminiModel.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
 
-  // Extract JSON from response (Gemini might include extra text)
-  let jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Gemini did not return valid JSON format');
-  }
+      // Extract JSON from response (Gemini might include extra text)
+      let jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Gemini did not return valid JSON format');
+      }
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch {
-    throw new Error('Gemini returned invalid JSON');
-  }
-  
-  const finalText = String(parsed.final_text ?? '');
-  if (!finalText) {
-    throw new Error('Gemini response missing final_text field');
-  }
+      let parsed: any;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        throw new Error('Gemini returned invalid JSON');
+      }
+      
+      const finalText = String(parsed.final_text ?? '');
+      if (!finalText) {
+        throw new Error('Gemini response missing final_text field');
+      }
 
-  return {
-    finalText,
-    usage: {
-      prompt: null, // Gemini doesn't provide token counts in the same way
-      completion: null
+      return {
+        finalText,
+        usage: {
+          prompt: null, // Gemini doesn't provide token counts in the same way
+          completion: null
+        },
+        model,
+        temperature,
+        provider: 'gemini'
+      };
     },
-    model,
-    temperature,
-    provider: 'gemini'
-  };
+    {
+      operationName: 'gemini_generate',
+      retryConfig: {
+        maxRetries: 2,
+        initialDelayMs: 1000,
+        maxDelayMs: 8000
+      },
+      errorContext: {
+        operation: 'generate_submission_gemini',
+        metadata: { 
+          model,
+          temperature,
+          maxWords,
+          applicantName: args.meta.applicant_name
+        }
+      }
+    }
+  );
 }
 
 export async function generateSubmission(args: GenerateArgs) {
@@ -133,7 +178,16 @@ export async function generateSubmission(args: GenerateArgs) {
   const geminiEnabled = process.env.GEMINI_ENABLED !== 'false';
   
   if (!openaiEnabled && !geminiEnabled) {
-    throw new Error('Both OpenAI and Gemini are disabled');
+    const error = await errorHandler.handleError(
+      ErrorType.SYSTEM,
+      ErrorCode.CONFIGURATION_ERROR,
+      'Both OpenAI and Gemini are disabled',
+      {
+        operation: 'generate_submission',
+        metadata: { openaiEnabled, geminiEnabled }
+      }
+    );
+    throw error;
   }
 
   Handlebars.registerHelper('indent', function (this: any, text: string, spaces: number) {
@@ -173,6 +227,22 @@ export async function generateSubmission(args: GenerateArgs) {
       console.log(`✅ OpenAI generation successful with ${result.model}`);
     } catch (error: any) {
       console.warn('⚠️ OpenAI generation failed:', error.message);
+      
+      // Log OpenAI specific error
+      await errorHandler.handleError(
+        ErrorType.INTEGRATION,
+        ErrorCode.OPENAI_API_ERROR,
+        `OpenAI generation failed: ${error.message}`,
+        {
+          operation: 'generate_submission_openai',
+          metadata: { 
+            applicantName: args.meta.applicant_name,
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini'
+          }
+        },
+        error
+      );
+      
       lastError = error;
     }
   }
@@ -185,13 +255,47 @@ export async function generateSubmission(args: GenerateArgs) {
       console.log(`✅ Gemini generation successful with ${result.model}`);
     } catch (error: any) {
       console.warn('⚠️ Gemini generation failed:', error.message);
+      
+      // Log Gemini specific error
+      await errorHandler.handleError(
+        ErrorType.INTEGRATION,
+        ErrorCode.GEMINI_API_ERROR,
+        `Gemini generation failed: ${error.message}`,
+        {
+          operation: 'generate_submission_gemini',
+          metadata: { 
+            applicantName: args.meta.applicant_name,
+            model: process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+          }
+        },
+        error
+      );
+      
       lastError = error;
     }
   }
 
-  // If both failed, throw the last error
+  // If both failed, throw a comprehensive error
   if (!result) {
-    throw new Error(`All AI providers failed. Last error: ${lastError?.message || 'Unknown error'}`);
+    const error = await errorHandler.handleError(
+      ErrorType.INTEGRATION,
+      openaiEnabled && geminiEnabled ? ErrorCode.OPENAI_API_ERROR : 
+        (openaiEnabled ? ErrorCode.OPENAI_API_ERROR : ErrorCode.GEMINI_API_ERROR),
+      `All AI providers failed. Last error: ${lastError?.message || 'Unknown error'}`,
+      {
+        operation: 'generate_submission',
+        retryable: true,
+        metadata: { 
+          applicantName: args.meta.applicant_name,
+          openaiEnabled,
+          geminiEnabled,
+          openaiKey: !!process.env.OPENAI_API_KEY,
+          geminiKey: !!process.env.GEMINI_API_KEY
+        }
+      },
+      lastError || new Error('All AI providers failed')
+    );
+    throw error;
   }
 
   const sanitized = sanitizeAndValidate(result.finalText, { maxWords, allowedLinks: args.allowedLinks ?? [] });

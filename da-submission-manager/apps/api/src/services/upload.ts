@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
 
-export type TemplateUploadType = 'submission_format' | 'grounds' | 'council_email' | 'supporter_email';
+export type TemplateUploadType = 'submission_format' | 'grounds' | 'council_email' | 'supporter_email' | 'followup_grounds' | 'combined_grounds';
 
 export interface TemplateUploadResult {
   storagePath: string;

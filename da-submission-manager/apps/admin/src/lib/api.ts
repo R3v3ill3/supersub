@@ -49,6 +49,12 @@ export const api = {
       apiClient.get(`/projects/${id}/submissions`, { params }),
     updateActionNetworkConfig: (id: string, data: any) => apiClient.post(`/projects/${id}/action-network`, data),
     testActionNetworkSync: (id: string) => apiClient.post(`/projects/${id}/action-network/test`),
+    updateDualTrack: (id: string, data: { is_dual_track: boolean; dual_track_config?: any }) =>
+      apiClient.put(`/projects/${id}/dual-track`, data),
+    validateDualTrack: (id: string, config: any) =>
+      apiClient.post(`/projects/${id}/dual-track/validate`, { dual_track_config: config }),
+    previewTrackTemplate: (id: string, track: 'followup' | 'comprehensive') =>
+      apiClient.get(`/projects/${id}/template-preview/${track}`),
   },
 
   // Submissions
@@ -101,6 +107,10 @@ export const api = {
     getConcerns: (version = 'v1') => 
       apiClient.get('/templates/concerns', { params: { version } }),
     listFiles: (projectId: string) => apiClient.get(`/templates/files/${projectId}`),
+    activateVersion: (fileId: string, versionId: string) =>
+      apiClient.post(`/templates/files/${fileId}/activate`, { versionId }),
+    deleteVersion: (fileId: string, versionId: string) =>
+      apiClient.delete(`/templates/files/${fileId}/version/${versionId}`),
     updateConcerns: (data: { version?: string; concerns: any[] }) => 
       apiClient.put('/templates/concerns', data),
     deleteConcern: (version: string, key: string) => 
@@ -118,6 +128,27 @@ export const api = {
   // Dashboard
   dashboard: {
     getStats: () => apiClient.get('/stats'),
+  },
+
+  // Admin Monitoring APIs
+  admin: {
+    getSubmissionOverview: (params?: { project_id?: string; start?: string; end?: string }) => 
+      apiClient.get('/admin/submissions/overview', { params }),
+    getRecentSubmissions: (params?: { limit?: number; offset?: number; status?: string; project_id?: string }) =>
+      apiClient.get('/admin/submissions/recent', { params }),
+    getFailedSubmissions: (params?: { limit?: number; offset?: number; project_id?: string }) =>
+      apiClient.get('/admin/submissions/failed', { params }),
+    getDetailedHealth: () => apiClient.get('/admin/health/detailed'),
+    retrySubmission: (submissionId: string) => apiClient.post(`/admin/submissions/${submissionId}/retry`),
+    getAnalytics: (params?: { start?: string; end?: string; project_id?: string }) =>
+      apiClient.get('/admin/analytics', { params }),
+  },
+
+  // Health endpoints
+  health: {
+    getSystemHealth: () => apiClient.get('/health/system'),
+    getIntegrationHealth: () => apiClient.get('/health/integrations'),
+    getAIProviders: () => apiClient.get('/health/ai-providers'),
   },
 
   actionNetwork: {

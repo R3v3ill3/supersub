@@ -5,7 +5,9 @@ import {
   FolderIcon,
   DocumentTextIcon,
   CogIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  HeartIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 // import { useAuth } from '../contexts/AuthContext'; // Disabled for development
 
@@ -17,7 +19,9 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Submissions', href: '/submissions', icon: ClipboardDocumentListIcon },
+  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Templates', href: '/templates', icon: DocumentTextIcon },
+  { name: 'System Health', href: '/system-health', icon: HeartIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];
 

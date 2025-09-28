@@ -1,5 +1,7 @@
 import { google } from 'googleapis';
 import type { docs_v1, drive_v3 } from 'googleapis';
+import { retryService } from './retryService';
+import { errorHandler, ErrorType, ErrorCode } from './errorHandler';
 
 type DocumentPlaceholders = {
   applicant_name: string;
@@ -41,23 +43,35 @@ export class GoogleDocsService {
    * Export a Google Doc as plain text for analysis
    */
   async exportToText(documentId: string): Promise<string> {
-    try {
-      const response = await this.drive.files.export({
-        fileId: documentId,
-        mimeType: 'text/plain'
-      }, {
-        responseType: 'stream'
-      });
+    return retryService.executeWithRetry(
+      async () => {
+        const response = await this.drive.files.export({
+          fileId: documentId,
+          mimeType: 'text/plain'
+        }, {
+          responseType: 'stream'
+        });
 
-      const chunks: Buffer[] = [];
-      return new Promise((resolve, reject) => {
-        response.data.on('data', (chunk: Buffer) => chunks.push(chunk));
-        response.data.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-        response.data.on('error', reject);
-      });
-    } catch (error: any) {
-      throw new Error(`Failed to export document to text: ${error.message}`);
-    }
+        const chunks: Buffer[] = [];
+        return new Promise<string>((resolve, reject) => {
+          response.data.on('data', (chunk: Buffer) => chunks.push(chunk));
+          response.data.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+          response.data.on('error', reject);
+        });
+      },
+      {
+        operationName: 'google_docs_export_text',
+        retryConfig: {
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          maxDelayMs: 10000
+        },
+        errorContext: {
+          operation: 'export_document_to_text',
+          metadata: { documentId }
+        }
+      }
+    );
   }
 
   private getCredentials() {
@@ -81,43 +95,55 @@ export class GoogleDocsService {
     placeholders: DocumentPlaceholders,
     title: string
   ): Promise<DocumentResult> {
-    try {
-      // 1. Copy the template document
-      const parents = process.env.GOOGLE_DRIVE_FOLDER_ID ? [process.env.GOOGLE_DRIVE_FOLDER_ID] : undefined;
-      const copyResponse = await this.drive.files.copy({
-        fileId: templateId,
-        requestBody: {
-          name: title,
-          parents // Optional: specify folder
+    return retryService.executeWithRetry(
+      async () => {
+        // 1. Copy the template document
+        const parents = process.env.GOOGLE_DRIVE_FOLDER_ID ? [process.env.GOOGLE_DRIVE_FOLDER_ID] : undefined;
+        const copyResponse = await this.drive.files.copy({
+          fileId: templateId,
+          requestBody: {
+            name: title,
+            parents // Optional: specify folder
+          }
+        });
+
+        const newDocId = copyResponse.data.id!;
+
+        // 2. Replace placeholders in the copied document
+        await this.replacePlaceholders(newDocId, placeholders);
+
+        // 3. Set permissions for the document (make it editable by anyone with link)
+        await this.drive.permissions.create({
+          fileId: newDocId,
+          requestBody: {
+            role: 'writer',
+            type: 'anyone'
+          }
+        });
+
+        // 4. Generate URLs
+        const editUrl = `https://docs.google.com/document/d/${newDocId}/edit`;
+        const viewUrl = `https://docs.google.com/document/d/${newDocId}/view`;
+
+        return {
+          documentId: newDocId,
+          editUrl,
+          viewUrl
+        };
+      },
+      {
+        operationName: 'google_docs_create_from_template',
+        retryConfig: {
+          maxRetries: 3,
+          initialDelayMs: 2000,
+          maxDelayMs: 15000
+        },
+        errorContext: {
+          operation: 'create_document_from_template',
+          metadata: { templateId, title }
         }
-      });
-
-      const newDocId = copyResponse.data.id!;
-
-      // 2. Replace placeholders in the copied document
-      await this.replacePlaceholders(newDocId, placeholders);
-
-      // 3. Set permissions for the document (make it editable by anyone with link)
-      await this.drive.permissions.create({
-        fileId: newDocId,
-        requestBody: {
-          role: 'writer',
-          type: 'anyone'
-        }
-      });
-
-      // 4. Generate URLs
-      const editUrl = `https://docs.google.com/document/d/${newDocId}/edit`;
-      const viewUrl = `https://docs.google.com/document/d/${newDocId}/view`;
-
-      return {
-        documentId: newDocId,
-        editUrl,
-        viewUrl
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to create document from template: ${error.message}`);
-    }
+      }
+    );
   }
 
   /**
@@ -141,12 +167,26 @@ export class GoogleDocsService {
     }
 
     if (requests.length > 0) {
-      await this.docs.documents.batchUpdate({
-        documentId,
-        requestBody: {
-          requests
+      await retryService.executeWithRetry(
+        () => this.docs.documents.batchUpdate({
+          documentId,
+          requestBody: {
+            requests
+          }
+        }),
+        {
+          operationName: 'google_docs_replace_placeholders',
+          retryConfig: {
+            maxRetries: 2,
+            initialDelayMs: 1000,
+            maxDelayMs: 5000
+          },
+          errorContext: {
+            operation: 'replace_document_placeholders',
+            metadata: { documentId, placeholderCount: requests.length }
+          }
         }
-      });
+      );
     }
   }
 
@@ -154,65 +194,89 @@ export class GoogleDocsService {
    * Export a Google Doc as PDF
    */
   async exportToPdf(documentId: string): Promise<Buffer> {
-    try {
-      const response = await this.drive.files.export({
-        fileId: documentId,
-        mimeType: 'application/pdf'
-      }, {
-        responseType: 'stream'
-      });
+    return retryService.executeWithRetry(
+      async () => {
+        const response = await this.drive.files.export({
+          fileId: documentId,
+          mimeType: 'application/pdf'
+        }, {
+          responseType: 'stream'
+        });
 
-      const chunks: Buffer[] = [];
-      return new Promise((resolve, reject) => {
-        response.data.on('data', (chunk: Buffer) => {
-          chunks.push(chunk);
+        const chunks: Buffer[] = [];
+        return new Promise<Buffer>((resolve, reject) => {
+          response.data.on('data', (chunk: Buffer) => {
+            chunks.push(chunk);
+          });
+          
+          response.data.on('end', () => {
+            resolve(Buffer.concat(chunks));
+          });
+          
+          response.data.on('error', reject);
         });
-        
-        response.data.on('end', () => {
-          resolve(Buffer.concat(chunks));
-        });
-        
-        response.data.on('error', reject);
-      });
-    } catch (error: any) {
-      throw new Error(`Failed to export document to PDF: ${error.message}`);
-    }
+      },
+      {
+        operationName: 'google_docs_export_pdf',
+        retryConfig: {
+          maxRetries: 3,
+          initialDelayMs: 2000,
+          maxDelayMs: 15000
+        },
+        errorContext: {
+          operation: 'export_document_to_pdf',
+          metadata: { documentId }
+        }
+      }
+    );
   }
 
   /**
    * Upload PDF to Google Drive and get shareable link
    */
   async uploadPdfToDrive(pdfBuffer: Buffer, fileName: string): Promise<{ fileId: string; url: string }> {
-    try {
-      const parents = process.env.GOOGLE_DRIVE_FOLDER_ID ? [process.env.GOOGLE_DRIVE_FOLDER_ID] : undefined;
-      const response = await this.drive.files.create({
-        requestBody: {
-          name: fileName,
-          parents // Optional: specify folder
+    return retryService.executeWithRetry(
+      async () => {
+        const parents = process.env.GOOGLE_DRIVE_FOLDER_ID ? [process.env.GOOGLE_DRIVE_FOLDER_ID] : undefined;
+        const response = await this.drive.files.create({
+          requestBody: {
+            name: fileName,
+            parents // Optional: specify folder
+          },
+          media: {
+            mimeType: 'application/pdf',
+            body: pdfBuffer
+          }
+        });
+
+        const fileId = response.data.id!;
+
+        // Make the PDF viewable by anyone with the link
+        await this.drive.permissions.create({
+          fileId,
+          requestBody: {
+            role: 'reader',
+            type: 'anyone'
+          }
+        });
+
+        const url = `https://drive.google.com/file/d/${fileId}/view`;
+
+        return { fileId, url };
+      },
+      {
+        operationName: 'google_drive_upload_pdf',
+        retryConfig: {
+          maxRetries: 3,
+          initialDelayMs: 2000,
+          maxDelayMs: 15000
         },
-        media: {
-          mimeType: 'application/pdf',
-          body: pdfBuffer
+        errorContext: {
+          operation: 'upload_pdf_to_drive',
+          metadata: { fileName, sizeBytes: pdfBuffer.length }
         }
-      });
-
-      const fileId = response.data.id!;
-
-      // Make the PDF viewable by anyone with the link
-      await this.drive.permissions.create({
-        fileId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone'
-        }
-      });
-
-      const url = `https://drive.google.com/file/d/${fileId}/view`;
-
-      return { fileId, url };
-    } catch (error: any) {
-      throw new Error(`Failed to upload PDF to Drive: ${error.message}`);
-    }
+      }
+    );
   }
 
   /**

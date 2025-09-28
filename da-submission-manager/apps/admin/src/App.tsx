@@ -10,6 +10,8 @@ import CreateProject from './pages/CreateProject';
 import Submissions from './pages/Submissions';
 import Templates from './pages/Templates';
 import Settings from './pages/Settings';
+import SystemHealth from './pages/SystemHealth';
+import Analytics from './pages/Analytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +37,8 @@ function App() {
                 <Route path="/submissions" element={<Submissions />} />
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/system-health" element={<SystemHealth />} />
+                <Route path="/analytics" element={<Analytics />} />
               </Routes>
             </SimpleLayout>
           {/* </ProtectedRoute> */}

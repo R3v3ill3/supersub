@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import pdfParse from 'pdf-parse';
 
 export type TemplatePlaceholderSummary = {
-  placeholders: Array<{ placeholder: string; canonical_field?: string }>;
+  placeholders: Array<{ placeholder: string }>;
 };
 
 const PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_\.]+)\s*}}/g;
@@ -29,10 +29,6 @@ export async function extractDocxPlaceholders(buffer: Buffer): Promise<TemplateP
 }
 
 export function extractTextPlaceholders(text: string): TemplatePlaceholderSummary {
-export async function extractPdfPlaceholders(buffer: Buffer): Promise<TemplatePlaceholderSummary> {
-  const result = await pdfParse(buffer);
-  return extractTextPlaceholders(result.text || '');
-}
   const matches = new Set<string>();
   let match: RegExpExecArray | null;
   PLACEHOLDER_REGEX.lastIndex = 0;
@@ -44,4 +40,9 @@ export async function extractPdfPlaceholders(buffer: Buffer): Promise<TemplatePl
       .sort()
       .map((name) => ({ placeholder: name })),
   };
+}
+
+export async function extractPdfPlaceholders(buffer: Buffer): Promise<TemplatePlaceholderSummary> {
+  const result = await pdfParse(buffer);
+  return extractTextPlaceholders(result.text || '');
 }

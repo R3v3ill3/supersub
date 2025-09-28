@@ -6,31 +6,37 @@ import { getSupabase } from '../lib/supabase';
 
 const router = Router();
 
-const qVersion = z.object({ version: z.string().default('v1') });
+const qVersion = z.object({
+  version: z.string().default('v1'),
+  track: z.enum(['followup', 'comprehensive', 'single']).optional(),
+});
 
 router.get('/api/survey/templates', async (req, res) => {
   try {
-    const { version } = qVersion.parse(req.query);
+    const { version, track } = qVersion.parse(req.query);
     const supabase = getSupabase();
 
     // Try DB first (active concerns for version)
     if (supabase) {
       const { data: rows, error } = await supabase
         .from('concern_templates')
-        .select('key,label,body,is_active,version')
+        .select('key,label,body,is_active,version,metadata')
         .eq('version', version)
         .eq('is_active', true)
         .order('key');
 
       if (!error && rows && rows.length) {
-        return res.json({ version, concerns: rows.map(r => ({ key: r.key, label: r.label, body: r.body })) });
+        const filtered = filterConcernsByTrack(rows, track);
+        return res.json({ version, concerns: filtered });
       }
     }
 
     // Fallback to file
     const file = path.resolve(process.cwd(), `packages/templates/concerns.${version}.json`);
-    const data = JSON.parse(await fs.readFile(file, 'utf8')) as Array<{ key: string; label: string; body: string }>;
-    const list = data.map((d) => ({ key: d.key, label: d.label, body: d.body }));
+    const data = JSON.parse(await fs.readFile(file, 'utf8')) as Array<{ key: string; label: string; body: string; track?: string }>;
+    const list = data
+      .filter((d) => isConcernApplicableToTrack(d.track, track))
+      .map((d) => ({ key: d.key, label: d.label, body: d.body }));
     res.json({ version, concerns: list });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load templates' });

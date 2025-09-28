@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  DocumentTextIcon, 
-  BeakerIcon, 
-  CheckCircleIcon, 
+import {
+  DocumentTextIcon,
+  BeakerIcon,
+  CheckCircleIcon,
   ExclamationCircleIcon,
   PlusIcon,
   TrashIcon,
   EyeIcon,
-  SparklesIcon
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { api } from '../lib/api';
 import { MergeFieldEditor } from '../components/MergeFieldEditor';
 import { MergeFieldPalette } from '../components/MergeFieldPalette';
 import type { TemplateType } from '../../api/src/types/templates';
+import { useTemplateUploads } from '../hooks/useTemplateUploads';
 
 const templateUploadPanels: Array<{ key: TemplateType; title: string; description: string }> = [
   { key: 'submission_format', title: 'Submission Format Template', description: 'Defines the overall council submission format. Optional; defaults to Gold Coast template if not provided.' },
@@ -22,43 +23,11 @@ const templateUploadPanels: Array<{ key: TemplateType; title: string; descriptio
   { key: 'supporter_email', title: 'Supporter Email Template', description: 'Optional template sent directly to supporters.' },
 ];
 
-function TemplateUploadPanel({ projectId, templateType, onUploaded }: { projectId: string; templateType: TemplateType; onUploaded: () => void }) {
-  const mutation = useMutation({
-    mutationFn: (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('projectId', projectId);
-      formData.append('templateType', templateType);
-      return api.templates.upload(formData);
-    },
-    onSuccess: onUploaded,
-  });
-
-  return (
-    <div className="bg-white shadow rounded-lg p-6 space-y-4">
-      <div className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:border-blue-400" onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
-        e.preventDefault();
-        const file = e.dataTransfer.files?.[0];
-        if (file) mutation.mutate(file);
-      }}>
-        <p className="text-sm text-gray-600">Drag and drop a DOCX or PDF here<br />or click to choose a file.</p>
-        <input type="file" accept=".docx,.pdf" className="hidden" onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) mutation.mutate(file);
-        }} />
-      </div>
-      {mutation.isPending && <p className="text-sm text-gray-500">Uploading…</p>}
-      {mutation.isError && <p className="text-sm text-red-600">Upload failed: {mutation.error instanceof Error ? mutation.error.message : 'Unknown error'}</p>}
-      {mutation.isSuccess && <p className="text-sm text-green-600">Upload complete.</p>}
-    </div>
-  );
-}
-
-type TemplateType = 'cover' | 'grounds';
+type AnalysisTemplateType = 'cover' | 'grounds';
 
 interface TemplateAnalysisState {
   googleDocId: string;
-  type: TemplateType;
+  type: AnalysisTemplateType;
   validation?: TemplateValidation;
   analysis?: DocumentAnalysisResult;
   isAnalyzing: boolean;
@@ -80,6 +49,10 @@ export default function Templates() {
   const [coverDocId, setCoverDocId] = useState('');
   const [groundsDocId, setGroundsDocId] = useState('');
   const [surveyVersion, setSurveyVersion] = useState('v1');
+
+  const templateUploads = useTemplateUploads(selectedProject);
+  const templateFiles = templateUploads.versions || [];
+  const refetchTemplateFiles = templateUploads.refetch;
 
   // Fetch projects for project selection
   const { data: projectsResponse } = useQuery({
@@ -192,7 +165,7 @@ export default function Templates() {
   });
 
   // Handle template validation
-  const handleValidateTemplate = (googleDocId: string, templateType: TemplateType) => {
+  const handleValidateTemplate = (googleDocId: string, templateType: AnalysisTemplateType) => {
     if (!googleDocId.trim()) return;
     
     setTemplateAnalysis(prev => ({
@@ -433,7 +406,24 @@ export default function Templates() {
           {/* Template Upload */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {templateUploadPanels.map((panel) => (
-              <TemplateUploadPanel key={panel.key} projectId={selectedProject} templateType={panel.key} onUploaded={() => refetchTemplates()} />
+              <TemplateUploadPanel
+                key={panel.key}
+                projectId={selectedProject}
+                templateType={panel.key}
+                title={panel.title}
+                description={panel.description}
+                templateFile={templateFiles.find((file: any) => file.template_type === panel.key)}
+                isLoading={templateUploads.isFetching}
+                onUploaded={() => refetchTemplateFiles?.()}
+                onActivateVersion={async (fileId, versionId) => {
+                  await templateUploads.activateVersion({ fileId, versionId });
+                }}
+                onDeleteVersion={async (fileId, versionId) => {
+                  await templateUploads.deleteVersion({ fileId, versionId });
+                }}
+                activating={templateUploads.activatePending}
+                deleting={templateUploads.deletingVersion}
+              />
             ))}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { getSupabase } from '../lib/supabase';
 import { config } from '../lib/config';
 import { encryptApiKey } from '../lib/encryption';
 import { ActionNetworkClient } from '../services/actionNetwork';
+import { TemplateCombinerService, DualTrackConfig } from '../services/templateCombiner';
 // import { requireAuth } from '../middleware/auth'; // Disabled for development
 
 const router = Router();
@@ -15,6 +16,16 @@ const actionNetworkConfigSchema = z.object({
   list_hrefs: z.array(z.string().url()).optional(),
   tag_hrefs: z.array(z.string().url()).optional(),
   custom_fields: z.record(z.string()).optional(),
+});
+
+const dualTrackSettingsSchema = z.object({
+  original_grounds_template_id: z.string().min(1, 'Original template ID is required'),
+  followup_grounds_template_id: z.string().min(1, 'Follow-up template ID is required'),
+  track_selection_prompt: z.string().min(1, 'Track selection prompt is required'),
+  track_descriptions: z.object({
+    followup: z.string().min(1, 'Follow-up track description is required'),
+    comprehensive: z.string().min(1, 'Comprehensive track description is required')
+  })
 });
 
 const projectSchema = z.object({
@@ -39,9 +50,20 @@ const projectSchema = z.object({
   is_active: z.boolean().default(true),
   action_network_api_key: z.string().optional(),
   action_network_config: actionNetworkConfigSchema.optional(),
+  is_dual_track: z.boolean().default(false),
+  dual_track_config: dualTrackSettingsSchema.optional()
 });
 
 const updateProjectSchema = projectSchema.partial();
+
+const dualTrackUpdateSchema = z.object({
+  is_dual_track: z.boolean(),
+  dual_track_config: dualTrackSettingsSchema.optional().nullable()
+});
+
+const dualTrackValidationSchema = z.object({
+  dual_track_config: dualTrackSettingsSchema
+});
 
 /**
  * Get all projects (admin only)
@@ -193,6 +215,10 @@ router.post('/api/projects', async (req, res) => {
 
     // Prepare the project data for insertion
     const insertData: any = { ...projectData };
+
+    if (insertData.dual_track_config && !insertData.is_dual_track) {
+      insertData.is_dual_track = true;
+    }
     
     // Encrypt the API key if provided
     if (projectData.action_network_api_key) {
@@ -307,6 +333,122 @@ router.patch('/api/projects/:projectId', async (req, res) => {
         details: error.errors 
       });
     }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/api/projects/:projectId/dual-track', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { is_dual_track, dual_track_config } = dualTrackUpdateSchema.parse(req.body);
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    const updates: Record<string, unknown> = {
+      is_dual_track,
+      dual_track_config: dual_track_config ?? null,
+      updated_at: new Date().toISOString()
+    };
+
+    if (!is_dual_track) {
+      updates.dual_track_config = null;
+    }
+
+    const { data: project, error } = await supabase
+      .from('projects')
+      .update(updates)
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      throw new Error(`Failed to update dual-track configuration: ${error.message}`);
+    }
+
+    res.json({ project });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: error.errors
+      });
+    }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/api/projects/:projectId/dual-track/validate', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { dual_track_config } = dualTrackValidationSchema.parse(req.body);
+
+    const combiner = new TemplateCombinerService();
+    const validation = await combiner.validateDualTrackConfig(projectId, dual_track_config as DualTrackConfig);
+
+    res.json(validation);
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: error.errors
+      });
+    }
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/api/projects/:projectId/template-preview/:track', async (req, res) => {
+  try {
+    const { projectId, track } = req.params;
+    if (!['followup', 'comprehensive'].includes(track)) {
+      return res.status(400).json({ error: 'Invalid track specified' });
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('id, is_dual_track, dual_track_config')
+      .eq('id', projectId)
+      .single();
+
+    if (error || !project) {
+      if (error?.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      throw new Error(`Failed to load project: ${error?.message ?? 'unknown error'}`);
+    }
+
+    if (!project.is_dual_track) {
+      return res.status(400).json({ error: 'Project is not configured for dual-track submissions' });
+    }
+
+    const dualTrackConfig = project.dual_track_config as DualTrackConfig | null;
+    if (!dualTrackConfig) {
+      return res.status(400).json({ error: 'Dual-track configuration is missing' });
+    }
+
+    const combiner = new TemplateCombinerService();
+    const preview = await combiner.getTrackSpecificTemplate(projectId, track as 'followup' | 'comprehensive', dualTrackConfig);
+
+    res.json({
+      track,
+      preview,
+      metadata: {
+        prompt: dualTrackConfig.track_selection_prompt,
+        descriptions: dualTrackConfig.track_descriptions
+      }
+    });
+  } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
 });

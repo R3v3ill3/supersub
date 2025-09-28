@@ -9,6 +9,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
+export interface DualTrackConfig {
+  followup_label?: string;
+  comprehensive_label?: string;
+  track_description?: string;
+  default_track?: 'followup' | 'comprehensive';
+  survey_versions?: {
+    followup?: string;
+    comprehensive?: string;
+  };
+  template_keys?: {
+    followup?: string;
+    comprehensive?: string;
+  };
+}
+
 export interface ProjectActionNetworkConfig {
   action_url?: string;
   form_url?: string;
@@ -24,6 +39,8 @@ export interface ProjectWithApiKey {
   slug: string;
   action_network_config: ProjectActionNetworkConfig;
   action_network_api_key_encrypted?: string;
+  is_dual_track?: boolean;
+  dual_track_config?: DualTrackConfig | null;
 }
 
 export interface AppConfig {
