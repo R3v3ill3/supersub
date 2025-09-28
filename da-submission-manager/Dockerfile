@@ -6,16 +6,14 @@ RUN npm install -g pnpm@9.12.0
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-workspace.yaml ./
-COPY apps/api/package.json ./apps/api/
-COPY packages/ ./packages/
+# Copy the entire monorepo structure
+COPY . .
+
+# Change to the da-submission-manager directory
+WORKDIR /app/da-submission-manager
 
 # Install dependencies
 RUN pnpm install
-
-# Copy source code
-COPY apps/api/ ./apps/api/
 
 # Build the API
 RUN pnpm --filter @dasub/api build

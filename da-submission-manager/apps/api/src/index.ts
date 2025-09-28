@@ -17,7 +17,7 @@ import monitoringRoutes from './routes/monitoring';
 import healthRoutes from './routes/health';
 import { EmailQueueService } from './services/emailQueue';
 import { errorHandler } from './services/errorHandler';
-// import authRoutes from './routes/auth'; // Disabled for development
+import authRoutes from './routes/auth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +37,7 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-// app.use(authRoutes); // Disabled for development
+app.use('/api/auth', authRoutes);
 app.use(surveyRoutes);
 app.use(generateRoutes);
 app.use(devRoutes);
@@ -58,7 +58,7 @@ app.use(errorHandler.middleware());
 const publicDir = path.resolve(__dirname, '../public');
 app.use(express.static(publicDir));
 
-const port = Number(process.env.PORT || 3001);
+const port = Number(process.env.PORT || 3500);
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`[api] listening on :${port}`);

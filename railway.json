@@ -1,0 +1,6 @@
+{
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "da-submission-manager/Dockerfile"
+  }
+}
