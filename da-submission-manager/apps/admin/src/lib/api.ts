@@ -10,13 +10,17 @@ export const apiClient = axios.create({
 
 import { supabase } from './supabase';
 
-// Request interceptor
+// Request interceptor - add auth tokens
 apiClient.interceptors.request.use(
   async (config) => {
-    // Add Supabase auth token if available
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
+    try {
+      // Get current session from Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to get auth token:', error);
     }
     return config;
   },

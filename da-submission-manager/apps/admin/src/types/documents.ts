@@ -10,7 +10,7 @@ export type DocumentReviewStatus =
 
 export type SubmissionPathway = 'direct' | 'review' | 'draft';
 
-export interface SubmissionStatusSummary {
+export type SubmissionStatusSummary = {
   submissionId: string;
   status: string;
   pathway: SubmissionPathway;
@@ -18,9 +18,9 @@ export interface SubmissionStatusSummary {
   submittedAt?: string | null;
   reviewStartedAt?: string | null;
   reviewCompletedAt?: string | null;
-}
+};
 
-export interface DocumentStatusSummary {
+export type DocumentStatusSummary = {
   documentId?: string;
   docType?: 'cover' | 'grounds';
   googleDocId?: string;
@@ -30,27 +30,27 @@ export interface DocumentStatusSummary {
   reviewStartedAt?: string | null;
   reviewCompletedAt?: string | null;
   lastModifiedAt?: string | null;
-}
+};
 
-export interface DocumentReviewSummary {
+export type DocumentReviewSummary = {
   submission: SubmissionStatusSummary;
   documents: DocumentStatusSummary[];
-}
+};
 
-export interface FinalizationResult {
+export type FinalizationResult = {
   success: boolean;
   submissionId: string;
   councilSubmissionId?: string;
   message: string;
   timestamp: string;
-}
+};
 
-export interface ValidationResult {
+export type ValidationResult = {
   isValid: boolean;
   issues: string[];
-}
+};
 
-export interface ReviewDocumentState {
+export type ReviewDocumentState = {
   submission: SubmissionStatusSummary | null;
   documents: DocumentStatusSummary[];
   status: 'loading' | 'ready' | 'submitting' | 'completed' | 'error';
@@ -58,4 +58,4 @@ export interface ReviewDocumentState {
   previewOpen: boolean;
   submissionComplete: boolean;
   validationResult: ValidationResult | null;
-}
+};

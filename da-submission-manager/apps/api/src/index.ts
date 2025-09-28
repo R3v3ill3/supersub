@@ -23,11 +23,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(cors({
-  origin: [
-    process.env.ADMIN_ORIGIN || 'http://localhost:5173',
-    process.env.WEB_ORIGIN || 'http://localhost:5174'
-  ],
+  origin: true, // Allow all origins for development
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.get('/health', (_req, res) => {
