@@ -5,8 +5,8 @@ import {
   ChartBarIcon,
   FunnelIcon,
   ArrowDownTrayIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   UserGroupIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
@@ -112,7 +112,7 @@ export default function Analytics() {
           trend: successRate > 80 ? 'up' as const : 'down' as const,
           period: 'vs last period'
         },
-        icon: TrendingUpIcon
+        icon: ArrowTrendingUpIcon
       },
       {
         title: 'Avg Processing Time',
@@ -344,9 +344,9 @@ export default function Analytics() {
                       <td className="py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {project.success_rate > 90 ? (
-                            <TrendingUpIcon className="w-4 h-4 text-green-500" />
+                            <ArrowTrendingUpIcon className="w-4 h-4 text-green-500" />
                           ) : project.success_rate < 70 ? (
-                            <TrendingDownIcon className="w-4 h-4 text-red-500" />
+                            <ArrowTrendingDownIcon className="w-4 h-4 text-red-500" />
                           ) : null}
                           {project.success_rate.toFixed(1)}%
                         </div>
