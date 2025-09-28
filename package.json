@@ -1,6 +1,0 @@
-{
-  "devDependencies": {
-    "@playwright/mcp": "^0.0.40"
-  },
-  "packageManager": "pnpm@9.12.0"
-}

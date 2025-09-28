@@ -1,0 +1,18 @@
+[
+  {
+    "key": "traffic_safety",
+    "label": "Traffic safety and pedestrian access",
+    "body": "Increased vehicle movements near the site will affect pedestrian safety, school access, and local crossings. Sightlines at intersections are limited during peak periods."
+  },
+  {
+    "key": "noise",
+    "label": "Construction and operational noise impacts",
+    "body": "Construction noise will occur early mornings and weekends if conditions allow. Operational plant may create tonal noise that carries into residential streets, especially in calm conditions."
+  },
+  {
+    "key": "heritage",
+    "label": "Heritage and neighbourhood character",
+    "body": "The proposal sits within a recognised local character area. Bulk and scale should be sympathetic to surrounding built form, setbacks, and sightlines from heritage-significant properties."
+  }
+]
+

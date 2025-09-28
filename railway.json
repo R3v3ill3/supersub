@@ -1,9 +1,0 @@
-{
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "da-submission-manager/Dockerfile"
-  },
-  "deploy": {
-    "startCommand": "cd da-submission-manager && pnpm --filter @dasub/api start"
-  }
-}

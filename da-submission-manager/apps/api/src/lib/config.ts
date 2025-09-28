@@ -4,10 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { ActionNetworkConfig, ActionNetworkClient } from '../services/actionNetwork';
 import { decryptApiKey } from './encryption';
 
-// Load .env from project root (three levels up from `apps/api/src/lib`)
+// Load .env from current working directory (Railway will set env vars directly)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+// Try to load .env file if it exists, but don't fail if it doesn't (Railway provides env vars)
+try {
+  dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+} catch (e) {
+  // Ignore - Railway provides env vars directly
+}
 
 export interface DualTrackConfig {
   followup_label?: string;

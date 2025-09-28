@@ -2,7 +2,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import surveyRoutes from './routes/survey';
 import generateRoutes from './routes/generate';
 import devRoutes from './routes/dev';
@@ -17,14 +16,12 @@ import monitoringRoutes from './routes/monitoring';
 import healthRoutes from './routes/health';
 import { EmailQueueService } from './services/emailQueue';
 import { errorHandler } from './services/errorHandler';
-import authRoutes from './routes/auth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
-app.use(cookieParser());
 app.use(cors({
   origin: [
     process.env.ADMIN_ORIGIN || 'http://localhost:5173',
@@ -37,7 +34,6 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.use('/api/auth', authRoutes);
 app.use(surveyRoutes);
 app.use(generateRoutes);
 app.use(devRoutes);

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { config, getActionNetworkClientForProject, getGlobalActionNetworkClient, ProjectWithApiKey } from '../lib/config';
 import { ActionNetworkClient } from '../services/actionNetwork';
 import { getSupabase } from '../lib/supabase';
-// import { requireAuth } from '../middleware/auth'; // Disabled for development
 
 const router = Router();
 

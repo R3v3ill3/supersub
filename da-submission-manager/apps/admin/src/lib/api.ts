@@ -8,13 +8,15 @@ export const apiClient = axios.create({
   },
 });
 
+import { supabase } from './supabase';
+
 // Request interceptor
 apiClient.interceptors.request.use(
-  (config) => {
-    // Add auth token if available
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    // Add Supabase auth token if available
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
     }
     return config;
   },
@@ -27,11 +29,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only clear localStorage on 401, but don't redirect automatically
-    // Let the AuthContext handle authentication state management
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-    }
+    // Let the AuthContext handle 401 responses - Supabase will auto-refresh tokens
     return Promise.reject(error);
   }
 );

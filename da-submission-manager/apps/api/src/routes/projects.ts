@@ -5,7 +5,6 @@ import { config } from '../lib/config';
 import { encryptApiKey } from '../lib/encryption';
 import { ActionNetworkClient } from '../services/actionNetwork';
 import { TemplateCombinerService, DualTrackConfig } from '../services/templateCombiner';
-// import { requireAuth } from '../middleware/auth'; // Disabled for development
 
 const router = Router();
 
