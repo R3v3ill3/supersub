@@ -1,4 +1,10 @@
-export type TemplateType = 'submission_format' | 'grounds' | 'council_email' | 'supporter_email' | 'followup_grounds' | 'combined_grounds';
+export type TemplateType =
+  | 'submission_format'
+  | 'grounds'
+  | 'council_email'
+  | 'supporter_email'
+  | 'followup_grounds'
+  | 'combined_grounds';
 
 export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   submission_format: 'Submission Format',

@@ -7,7 +7,7 @@ ALTER TABLE projects
 
 -- Add submission track tracking fields to submissions
 ALTER TABLE submissions
-  ADD COLUMN IF NOT EXISTS submission_track TEXT CHECK (submission_track IN ('followup', 'comprehensive', 'single')),
+  ADD COLUMN IF NOT EXISTS submission_track TEXT DEFAULT 'single' CHECK (submission_track IN ('followup', 'comprehensive', 'single')),
   ADD COLUMN IF NOT EXISTS is_returning_submitter BOOLEAN NOT NULL DEFAULT false;
 
 -- Ensure the default track for existing records is 'single'

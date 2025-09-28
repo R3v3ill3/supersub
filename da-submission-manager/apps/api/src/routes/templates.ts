@@ -43,7 +43,7 @@ const analyzeTemplateSchema = z.object({
 });
 const uploadTemplateSchema = z.object({
   projectId: z.string().uuid(),
-  templateType: z.enum(['submission_format', 'grounds', 'council_email', 'supporter_email']),
+  templateType: z.enum(['submission_format', 'grounds', 'council_email', 'supporter_email', 'followup_grounds', 'combined_grounds']),
   version: z.string().default('v1'),
   versionNotes: z.string().optional(),
   canonicalMappings: z.record(z.string()).optional()
