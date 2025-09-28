@@ -311,4 +311,26 @@ export type TemplateAnalysisPreview = {
   validation: TemplateValidation;
 };
 
+export type DocumentReviewSummary = {
+  submission_id: string;
+  status: string;
+  last_updated: string;
+  review_pathway: 'followup' | 'comprehensive' | 'direct_review';
+  document_url?: string | null;
+  pdf_url?: string | null;
+  reviewer_name?: string | null;
+  reviewer_email?: string | null;
+  submitted_at?: string | null;
+  council_response_received_at?: string | null;
+  issues_found?: number;
+  priority_concerns?: Array<{
+    key: string;
+    label: string;
+    category?: string;
+    severity?: 'low' | 'medium' | 'high';
+  }>;
+  next_steps?: string | null;
+  summary?: string | null;
+};
+
 // Types are already exported inline above, no need for duplicate exports
