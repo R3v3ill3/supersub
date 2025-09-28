@@ -1,21 +1,21 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient } from '../lib/api';
 
-export interface User {
+export type User = {
   id: string;
   email: string;
   name: string;
   role: 'admin' | 'super_admin';
-}
+};
 
-export interface AuthContextType {
+export type AuthContextType = {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-}
+};
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
