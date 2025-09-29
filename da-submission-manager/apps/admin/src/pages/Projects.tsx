@@ -1,10 +1,172 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useState, type CSSProperties } from 'react';
+import { AddIcon, ViewIcon, EditIcon, DeleteIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
 import type { Project } from '../lib/api';
 import { getProjectPublicUrl } from '../lib/urls';
+
+// Inline styles to avoid Tailwind dependency
+const pageStyle: CSSProperties = {
+  padding: '24px',
+};
+
+const headerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: '24px',
+};
+
+const titleStyle: CSSProperties = {
+  fontSize: '24px',
+  fontWeight: 'bold',
+  color: '#111827',
+  margin: 0,
+};
+
+const subtitleStyle: CSSProperties = {
+  color: '#6b7280',
+  marginTop: '4px',
+};
+
+const buttonStyle: CSSProperties = {
+  backgroundColor: '#2563eb',
+  color: 'white',
+  padding: '8px 16px',
+  borderRadius: '6px',
+  fontSize: '14px',
+  fontWeight: '500',
+  display: 'flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const iconStyle: CSSProperties = {
+  width: '16px',
+  height: '16px',
+  marginRight: '8px',
+};
+
+const smallIconStyle: CSSProperties = {
+  width: '16px',
+  height: '16px',
+};
+
+const emptyStateStyle: CSSProperties = {
+  textAlign: 'center',
+  padding: '48px 0',
+};
+
+const emptyIconStyle: CSSProperties = {
+  width: '48px',
+  height: '48px',
+  color: '#9ca3af',
+  margin: '0 auto 16px',
+};
+
+const projectListStyle: CSSProperties = {
+  backgroundColor: 'white',
+  borderRadius: '8px',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+  overflow: 'hidden',
+};
+
+const projectItemStyle: CSSProperties = {
+  padding: '16px 24px',
+  borderBottom: '1px solid #e5e7eb',
+};
+
+const projectHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+};
+
+const projectTitleStyle: CSSProperties = {
+  fontSize: '18px',
+  fontWeight: '500',
+  color: '#111827',
+  margin: 0,
+};
+
+const statusBadgeStyle = (isActive: boolean): CSSProperties => ({
+  marginLeft: '8px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '2px 10px',
+  borderRadius: '9999px',
+  fontSize: '12px',
+  fontWeight: '500',
+  backgroundColor: isActive ? '#dcfce7' : '#f3f4f6',
+  color: isActive ? '#166534' : '#374151',
+});
+
+const slugStyle: CSSProperties = {
+  backgroundColor: '#f3f4f6',
+  padding: '4px 8px',
+  borderRadius: '4px',
+  fontSize: '12px',
+  fontFamily: 'monospace',
+  color: '#6b7280',
+  marginLeft: '8px',
+};
+
+const descriptionStyle: CSSProperties = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '4px 0 8px 0',
+};
+
+const metaStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  fontSize: '14px',
+  color: '#6b7280',
+  marginBottom: '12px',
+};
+
+const linkStyle: CSSProperties = {
+  color: '#2563eb',
+  textDecoration: 'none',
+  wordBreak: 'break-all',
+};
+
+const copyButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '4px 8px',
+  fontSize: '12px',
+  fontWeight: '500',
+  color: '#374151',
+  backgroundColor: 'white',
+  border: '1px solid #d1d5db',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  marginLeft: '8px',
+};
+
+const actionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  marginLeft: '16px',
+};
+
+const actionButtonStyle = (color: string): CSSProperties => ({
+  color,
+  padding: '8px',
+  borderRadius: '50%',
+  border: 'none',
+  backgroundColor: 'transparent',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+});
 
 export default function Projects() {
   const [copiedProjectId, setCopiedProjectId] = useState<string | null>(null);
@@ -42,14 +204,9 @@ export default function Projects() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
-            ))}
-          </div>
+      <div style={pageStyle}>
+        <div style={{ padding: '48px 0', textAlign: 'center', color: '#6b7280' }}>
+          Loading projects...
         </div>
       </div>
     );
@@ -57,10 +214,17 @@ export default function Projects() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <h3 className="text-sm font-medium text-red-800">Error loading projects</h3>
-          <p className="text-sm text-red-600 mt-1">
+      <div style={pageStyle}>
+        <div style={{
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '6px',
+          padding: '16px'
+        }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#991b1b', margin: 0 }}>
+            Error loading projects
+          </h3>
+          <p style={{ fontSize: '14px', color: '#dc2626', marginTop: '4px', margin: 0 }}>
             {error instanceof Error ? error.message : 'Failed to load projects'}
           </p>
         </div>
@@ -69,154 +233,130 @@ export default function Projects() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div style={pageStyle}>
+      <div style={headerStyle}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
-          <p className="text-gray-600">Manage your DA submission projects</p>
+          <h1 style={titleStyle}>Projects</h1>
+          <p style={subtitleStyle}>Manage your DA submission projects</p>
         </div>
-        <Link
-          to="/projects/new"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center"
-        >
-          <PlusIcon className="h-4 w-4 mr-2" />
+        <Link to="/projects/new" style={buttonStyle}>
+          <AddIcon style={iconStyle} />
           New Project
         </Link>
       </div>
 
       {projects.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="mx-auto h-12 w-12 text-gray-400">
-            <svg
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                vectorEffect="non-scaling-stroke"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-              />
-            </svg>
+        <div style={emptyStateStyle}>
+          <div style={emptyIconStyle}>
+            <AddIcon className="h-12 w-12 text-gray-400" />
           </div>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No projects</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 style={{ marginTop: '8px', fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+            No projects
+          </h3>
+          <p style={{ marginTop: '4px', fontSize: '14px', color: '#6b7280' }}>
             Get started by creating your first project.
           </p>
-          <div className="mt-6">
-            <Link
-              to="/projects/new"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              <PlusIcon className="h-4 w-4 mr-2 inline" />
+          <div style={{ marginTop: '24px' }}>
+            <Link to="/projects/new" style={buttonStyle}>
+              <AddIcon style={iconStyle} />
               New Project
             </Link>
           </div>
         </div>
       ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            {projects.map((project) => (
-              <li key={project.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center">
-                        <h3 className="text-lg font-medium text-gray-900 truncate">
-                          {project.name}
-                        </h3>
-                        <span
-                          className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            project.is_active
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {project.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                        <code className="rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-600">
-                          /{project.slug}
-                        </code>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {project.description || 'No description'}
-                      </p>
-                      <div className="mt-2 flex items-center text-sm text-gray-500">
-                        <span>Council: {project.council_name}</span>
-                        <span className="mx-2">•</span>
-                        <span>Submissions: {project.submission_counts?.total || 0}</span>
-                        <span className="mx-2">•</span>
-                        <span className="capitalize">Default: {project.default_pathway}</span>
-                        {project.test_submission_email && (
-                          <>
-                            <span className="mx-2">•</span>
-                            <span className="text-xs text-purple-600">Test email: {project.test_submission_email}</span>
-                          </>
-                        )}
-                        {project.action_network_config?.action_url && (
-                          <>
-                            <span className="mx-2">•</span>
-                            <span className="text-xs text-blue-600">Action Network linked</span>
-                          </>
-                        )}
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                        <span className="text-gray-600">Public link:</span>
-                        <a
-                          href={getProjectPublicUrl(project.slug)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline break-all"
-                        >
-                          {getProjectPublicUrl(project.slug)}
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyLink(project.id, getProjectPublicUrl(project.slug))}
-                          className="inline-flex items-center rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                        >
-                          {copiedProjectId === project.id ? 'Copied!' : 'Copy link'}
-                        </button>
-                      </div>
+        <div style={projectListStyle}>
+          {projects.map((project, index) => (
+            <div key={project.id} style={{
+              ...projectItemStyle,
+              borderBottom: index === projects.length - 1 ? 'none' : '1px solid #e5e7eb'
+            }}>
+              <div style={projectHeaderStyle}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <h3 style={projectTitleStyle}>
+                        {project.name}
+                      </h3>
+                      <span style={statusBadgeStyle(project.is_active)}>
+                        {project.is_active ? 'Active' : 'Inactive'}
+                      </span>
                     </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Link
-                        to={`/projects/${project.id}`}
-                        className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"
-                        title="View project"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </Link>
-                      <Link
-                        to={`/projects/${project.id}/edit`}
-                        className="text-gray-600 hover:text-gray-800 p-2 rounded-full hover:bg-gray-50"
-                        title="Edit project"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </Link>
-                      <button
-                        className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50"
-                        title="Delete project"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this project?')) {
-                            // Handle delete
-                            console.log('Delete project', project.id);
-                          }
-                        }}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <code style={slugStyle}>
+                      /{project.slug}
+                    </code>
+                  </div>
+                  <p style={descriptionStyle}>
+                    {project.description || 'No description'}
+                  </p>
+                  <div style={metaStyle}>
+                    <span>Council: {project.council_name}</span>
+                    <span style={{ margin: '0 8px' }}>•</span>
+                    <span>Submissions: {project.submission_counts?.total || 0}</span>
+                    <span style={{ margin: '0 8px' }}>•</span>
+                    <span style={{ textTransform: 'capitalize' }}>Default: {project.default_pathway}</span>
+                    {project.test_submission_email && (
+                      <>
+                        <span style={{ margin: '0 8px' }}>•</span>
+                        <span style={{ fontSize: '12px', color: '#7c3aed' }}>Test email: {project.test_submission_email}</span>
+                      </>
+                    )}
+                    {project.action_network_config?.action_url && (
+                      <>
+                        <span style={{ margin: '0 8px' }}>•</span>
+                        <span style={{ fontSize: '12px', color: '#2563eb' }}>Action Network linked</span>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                    <span style={{ color: '#6b7280' }}>Public link:</span>
+                    <a
+                      href={getProjectPublicUrl(project.slug)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={linkStyle}
+                    >
+                      {getProjectPublicUrl(project.slug)}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink(project.id, getProjectPublicUrl(project.slug))}
+                      style={copyButtonStyle}
+                    >
+                      {copiedProjectId === project.id ? 'Copied!' : 'Copy link'}
+                    </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+                <div style={actionsStyle}>
+                  <Link
+                    to={`/projects/${project.id}`}
+                    style={actionButtonStyle('#2563eb')}
+                    title="View project"
+                  >
+                    <ViewIcon style={smallIconStyle} />
+                  </Link>
+                  <Link
+                    to={`/projects/${project.id}/edit`}
+                    style={actionButtonStyle('#6b7280')}
+                    title="Edit project"
+                  >
+                    <EditIcon style={smallIconStyle} />
+                  </Link>
+                  <button
+                    style={actionButtonStyle('#dc2626')}
+                    title="Delete project"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this project?')) {
+                        // Handle delete
+                        console.log('Delete project', project.id);
+                      }
+                    }}
+                  >
+                    <DeleteIcon style={smallIconStyle} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

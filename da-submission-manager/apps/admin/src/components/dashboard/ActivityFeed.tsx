@@ -1,12 +1,12 @@
 import React from 'react';
 import { Card } from '../ui/card';
 import {
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  InformationCircleIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
+  SuccessIcon,
+  ErrorIcon,
+  PendingIcon,
+  InfoIcon,
+  WarningIcon,
+} from '@da/ui/icons';
 
 interface ActivityItem {
   id: string;
@@ -33,15 +33,15 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return { icon: CheckCircleIcon, color: 'text-green-500' };
+        return { icon: SuccessIcon, color: 'text-green-500' };
       case 'error':
-        return { icon: XCircleIcon, color: 'text-red-500' };
+        return { icon: ErrorIcon, color: 'text-red-500' };
       case 'warning':
-        return { icon: ExclamationTriangleIcon, color: 'text-yellow-500' };
+        return { icon: WarningIcon, color: 'text-yellow-500' };
       case 'pending':
-        return { icon: ClockIcon, color: 'text-blue-500' };
+        return { icon: PendingIcon, color: 'text-blue-500' };
       default:
-        return { icon: InformationCircleIcon, color: 'text-gray-500' };
+        return { icon: InfoIcon, color: 'text-gray-500' };
     }
   };
 
@@ -90,7 +90,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
       
       {displayItems.length === 0 ? (
         <div className="text-center py-8">
-          <InformationCircleIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <InfoIcon className="w-8 h-8 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-500 text-sm">No recent activity to display</p>
         </div>
       ) : (

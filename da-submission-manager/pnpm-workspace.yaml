@@ -2,3 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+# Package linking configuration  
+link-workspace-packages: true
+shared-workspace-lockfile: true
+

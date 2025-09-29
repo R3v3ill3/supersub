@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Checking for direct Heroicons imports..."
+
+if grep -r "@heroicons/react" apps/*/src --include="*.tsx" --include="*.ts" -l; then
+  echo ""
+  echo "❌ Direct Heroicons imports detected!"
+  echo "   Use @da/ui/icons instead for consistency and version safety."
+  echo ""
+  echo "   Example:"
+  echo "   ❌ import { CheckCircleIcon } from '@heroicons/react/24/outline';"
+  echo "   ✅ import { SuccessIcon } from '@da/ui/icons';"
+  echo ""
+  exit 1
+fi
+
+echo "✅ No direct Heroicons imports found"
+echo "🧪 Running linter..."
+
+pnpm lint
+
+

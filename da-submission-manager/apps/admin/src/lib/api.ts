@@ -242,6 +242,16 @@ export type ActionNetworkItem = {
   description?: string;
 };
 
+export type DualTrackConfig = {
+  original_grounds_template_id: string;
+  followup_grounds_template_id: string;
+  track_selection_prompt: string;
+  track_descriptions: {
+    followup: string;
+    comprehensive: string;
+  };
+};
+
 export type CreateProjectData = {
   name: string;
   slug: string;
@@ -270,6 +280,8 @@ export type CreateProjectData = {
     tag_hrefs?: string[];
     custom_fields?: Record<string, string>;
   };
+  is_dual_track?: boolean;
+  dual_track_config?: DualTrackConfig;
 };
 
 export type ExtractedConcern = {
@@ -313,26 +325,6 @@ export type TemplateAnalysisPreview = {
   validation: TemplateValidation;
 };
 
-export type DocumentReviewSummary = {
-  submission_id: string;
-  status: string;
-  last_updated: string;
-  review_pathway: 'followup' | 'comprehensive' | 'direct_review';
-  document_url?: string | null;
-  pdf_url?: string | null;
-  reviewer_name?: string | null;
-  reviewer_email?: string | null;
-  submitted_at?: string | null;
-  council_response_received_at?: string | null;
-  issues_found?: number;
-  priority_concerns?: Array<{
-    key: string;
-    label: string;
-    category?: string;
-    severity?: 'low' | 'medium' | 'high';
-  }>;
-  next_steps?: string | null;
-  summary?: string | null;
-};
+// DocumentReviewSummary is now defined in types/documents.ts to avoid conflicts
 
 // Types are already exported inline above, no need for duplicate exports

@@ -1,16 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
-  FolderPlusIcon,
-  ClipboardDocumentListIcon,
-  DocumentTextIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
+  FolderAddIcon,
+  FormIcon,
+  DocumentIcon,
+  SuccessIcon,
   HeartIcon,
   ChartBarIcon,
-  ExclamationCircleIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+  AlertIcon,
+  RefreshIcon,
+} from '@da/ui/icons';
 import { 
   MetricCard, 
   StatusIndicator, 
@@ -28,7 +26,7 @@ import {
 import { Button } from '../components/ui/button';
 
 export default function Dashboard() {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [, setRefreshKey] = useState(0);
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
 
   // Data hooks
@@ -64,7 +62,7 @@ export default function Dashboard() {
           trend: 'up' as const,
           period: 'last week'
         },
-        icon: ClipboardDocumentListIcon
+        icon: FormIcon
       },
       {
         title: 'Success Rate',
@@ -74,12 +72,12 @@ export default function Dashboard() {
           trend: 'up' as const,
           period: 'last month'
         },
-        icon: CheckCircleIcon
+        icon: SuccessIcon
       },
       {
         title: 'Active Projects',
         value: dash.projects?.active || 0,
-        icon: FolderPlusIcon
+        icon: FolderAddIcon
       },
       {
         title: 'Failed Today',
@@ -89,7 +87,7 @@ export default function Dashboard() {
           trend: 'down' as const,
           period: 'yesterday'
         } : undefined,
-        icon: ExclamationCircleIcon
+        icon: AlertIcon
       }
     ];
   }, [submissionStats, dashboardStats, failedSubmissions]);
@@ -101,14 +99,14 @@ export default function Dashboard() {
       title: 'Create New Project',
       description: 'Set up a new DA submission project',
       href: '/projects/new',
-      icon: FolderPlusIcon,
+      icon: FolderAddIcon,
     },
     {
       id: 'view-submissions',
       title: 'Monitor Submissions',
       description: 'View and manage all submissions',
       href: '/submissions',
-      icon: ClipboardDocumentListIcon,
+      icon: FormIcon,
       badge: failedSubmissions?.length ? {
         text: `${failedSubmissions.length} failed`,
         variant: 'error' as const
@@ -130,7 +128,7 @@ export default function Dashboard() {
       title: 'Manage Templates',
       description: 'Update document templates and surveys',
       href: '/templates',
-      icon: DocumentTextIcon,
+      icon: DocumentIcon,
     },
     {
       id: 'analytics',
@@ -214,7 +212,7 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleRefresh}>
-            <ArrowPathIcon className="w-4 h-4 mr-2" />
+            <RefreshIcon className="w-4 h-4 mr-2" />
             Refresh
           </Button>
           {systemHealth && (
@@ -237,7 +235,7 @@ export default function Dashboard() {
             {
               label: 'View Details',
               onClick: () => window.location.href = '/system-health',
-              variant: 'primary'
+              variant: 'default'
             }
           ]}
         />

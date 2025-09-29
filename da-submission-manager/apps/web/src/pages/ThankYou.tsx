@@ -1,10 +1,10 @@
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import { SuccessIcon } from '@da/ui/icons';
 
 export default function ThankYou() {
   return (
     <div className="max-w-2xl mx-auto py-12 px-4">
       <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-        <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500 mb-6" />
+        <SuccessIcon className="mx-auto h-16 w-16 text-green-500 mb-6" />
         <h1 className="text-3xl font-bold text-gray-900 mb-4">
           Submission Complete!
         </h1>

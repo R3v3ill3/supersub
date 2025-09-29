@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './hooks/useAuth';
 import SimpleLayout from './components/SimpleLayout';
-import Dashboard from './pages/Dashboard';
+import SimpleDashboard from './pages/SimpleDashboard';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import CreateProject from './pages/CreateProject';
@@ -44,7 +44,7 @@ export default function AppRoutes() {
               element={
                 <SimpleLayout>
                   <Routes>
-                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/" element={<SimpleDashboard />} />
                     <Route path="/projects" element={<Projects />} />
                     <Route path="/projects/new" element={<CreateProject />} />
                     <Route path="/projects/:id" element={<ProjectDetail />} />

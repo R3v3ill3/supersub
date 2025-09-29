@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import { SuccessIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
@@ -837,7 +837,7 @@ export default function SubmissionForm() {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500 mb-4" />
+          <SuccessIcon className="mx-auto h-16 w-16 text-green-500 mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             Ready to Generate Your Submission
           </h1>

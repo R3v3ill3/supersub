@@ -26,7 +26,8 @@ router.get('/api/health/system', async (_req, res) => {
       metrics: healthResult.metrics
     };
 
-    const statusCode = healthResult.overall === 'unhealthy' ? 503 : 200;
+    // Return 200 as long as database is healthy (admin dashboard only needs core services)
+    const statusCode = healthResult.checks.database?.status === 'unhealthy' ? 503 : 200;
     res.status(statusCode).json(response);
   } catch (error: any) {
     logger.error('System health check failed', error);

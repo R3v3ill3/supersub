@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import pRetry from 'p-retry';
+import pRetry, { Options as PRetryOptions } from 'p-retry';
 
 export interface ActionNetworkConfig {
   apiKey: string;
@@ -32,7 +32,7 @@ export interface SubmissionPayload {
 
 type RequestFn<T> = () => Promise<T>;
 
-async function withRetry<T>(fn: RequestFn<T>, opts?: pRetry.Options) {
+async function withRetry<T>(fn: RequestFn<T>, opts?: PRetryOptions) {
   return pRetry(fn, {
     retries: 3,
     minTimeout: 500,

@@ -1,14 +1,15 @@
-import { ReactNode, useState } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   FolderIcon,
-  DocumentTextIcon,
-  CogIcon,
-  Bars3Icon,
-  XMarkIcon,
-  ClipboardDocumentListIcon
-} from '@heroicons/react/24/outline';
+  DocumentIcon,
+  ConfigIcon,
+  MenuIcon,
+  CloseIcon,
+  FormIcon,
+} from '@da/ui/icons';
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,9 +18,9 @@ interface LayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
-  { name: 'Submissions', href: '/submissions', icon: ClipboardDocumentListIcon },
-  { name: 'Templates', href: '/templates', icon: DocumentTextIcon },
-  { name: 'Settings', href: '/settings', icon: CogIcon },
+  { name: 'Submissions', href: '/submissions', icon: FormIcon },
+  { name: 'Templates', href: '/templates', icon: DocumentIcon },
+  { name: 'Settings', href: '/settings', icon: ConfigIcon },
 ];
 
 function classNames(...classes: string[]) {
@@ -47,7 +48,7 @@ export default function Layout({ children }: LayoutProps) {
               className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
               onClick={() => setSidebarOpen(false)}
             >
-              <XMarkIcon className="h-6 w-6 text-white" />
+              <CloseIcon className="h-6 w-6 text-white" />
             </button>
           </div>
           <div className="flex-shrink-0 flex items-center px-4">
@@ -111,7 +112,7 @@ export default function Layout({ children }: LayoutProps) {
             className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
             onClick={() => setSidebarOpen(true)}
           >
-            <Bars3Icon className="h-6 w-6" />
+            <MenuIcon className="h-6 w-6" />
           </button>
         </div>
 

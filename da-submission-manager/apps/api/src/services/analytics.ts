@@ -86,39 +86,6 @@ export class AnalyticsService {
     return result;
   }
 
-  static async getTrackBreakdown(projectId: string): Promise<{
-    followup_submissions: number;
-    comprehensive_submissions: number;
-    track_conversion_rates: Record<string, number>;
-  }> {
-    const key = buildCacheKey({
-      key: 'track-breakdown',
-      projectId,
-    });
-
-    const cached = cache.get(key);
-    if (cached) return cached as any;
-
-    const supabase = this.ensureSupabase();
-    const { data, error } = await supabase.rpc('get_submission_track_breakdown', {
-      p_project_id: projectId,
-    });
-
-    if (error) {
-      logger.error('Failed to load track breakdown', { error: error.message, projectId });
-      throw new Error(`Failed to load track breakdown: ${error.message}`);
-    }
-
-    const breakdown = data?.[0] ?? {
-      followup_submissions: 0,
-      comprehensive_submissions: 0,
-      track_conversion_rates: {},
-    };
-
-    cache.set(key, breakdown);
-    return breakdown;
-  }
-
   static async getTrackBreakdown(projectId?: string) {
     const key = buildCacheKey({
       key: 'track-breakdown',

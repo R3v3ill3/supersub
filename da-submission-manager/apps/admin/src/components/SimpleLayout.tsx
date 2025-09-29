@@ -1,14 +1,14 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   FolderIcon,
-  DocumentTextIcon,
-  CogIcon,
-  ClipboardDocumentListIcon,
+  DocumentIcon,
+  ConfigIcon,
+  FormIcon,
   HeartIcon,
-  ChartBarIcon
-} from '@heroicons/react/24/outline';
+  ChartBarIcon,
+} from '@da/ui/icons';
 // import { useAuth } from '../contexts/AuthContext'; // Disabled for development
 
 interface LayoutProps {
@@ -18,11 +18,11 @@ interface LayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
-  { name: 'Submissions', href: '/submissions', icon: ClipboardDocumentListIcon },
+  { name: 'Submissions', href: '/submissions', icon: FormIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
-  { name: 'Templates', href: '/templates', icon: DocumentTextIcon },
+  { name: 'Templates', href: '/templates', icon: DocumentIcon },
   { name: 'System Health', href: '/system-health', icon: HeartIcon },
-  { name: 'Settings', href: '/settings', icon: CogIcon },
+  { name: 'Settings', href: '/settings', icon: ConfigIcon },
 ];
 
 export default function SimpleLayout({ children }: LayoutProps) {

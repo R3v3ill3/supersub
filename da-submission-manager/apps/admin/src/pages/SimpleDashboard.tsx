@@ -1,13 +1,22 @@
 import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import {
+  FolderAddIcon,
+  FormIcon,
+  DocumentIcon,
+  SuccessIcon,
+} from '@da/ui/icons';
 import { 
-  FolderPlusIcon, 
-  ClipboardDocumentListIcon,
-  DocumentTextIcon,
-  CheckCircleIcon,
-  ClockIcon
-} from '@heroicons/react/24/outline';
+  useSubmissionStats, 
+  useRecentSubmissions, 
+  useDashboardAnalytics 
+} from '../hooks/useMonitoringData';
 
 export default function SimpleDashboard() {
+  // Data hooks
+  const { data: submissionStats, isLoading: statsLoading } = useSubmissionStats();
+  const { data: recentSubmissions, isLoading: recentLoading } = useRecentSubmissions(6);
+  const { data: dashboardStats, isLoading: dashboardLoading } = useDashboardAnalytics();
   const containerStyle: React.CSSProperties = {
     padding: '24px'
   };
@@ -80,31 +89,58 @@ export default function SimpleDashboard() {
     color: '#3b82f6'
   };
 
-  const stats = [
-    { label: 'Total Projects', value: 3 },
-    { label: 'Active Projects', value: 2 },
-    { label: 'Pending Submissions', value: 12 },
-    { label: 'Completed', value: 32 }
-  ];
+  // Compute stats from live data
+  const stats = useMemo(() => {
+    if (statsLoading || dashboardLoading) {
+      return [
+        { label: 'Total Projects', value: '...' },
+        { label: 'Active Projects', value: '...' },
+        { label: 'Pending Submissions', value: '...' },
+        { label: 'Completed', value: '...' }
+      ];
+    }
+
+    const submissionData = submissionStats?.stats;
+    const dashData = dashboardStats;
+
+    return [
+      { 
+        label: 'Total Projects', 
+        value: dashData?.projects?.total || 0 
+      },
+      { 
+        label: 'Active Projects', 
+        value: dashData?.projects?.active || 0 
+      },
+      { 
+        label: 'Pending Submissions', 
+        value: Object.entries(submissionData?.byStatus || {}).find(([status]) => status === 'PENDING')?.[1] || 0
+      },
+      { 
+        label: 'Completed', 
+        value: Object.entries(submissionData?.byStatus || {}).find(([status]) => status === 'COMPLETED')?.[1] || 0
+      }
+    ];
+  }, [submissionStats, dashboardStats, statsLoading, dashboardLoading]);
 
   const quickActions = [
     {
       title: 'Create New Project',
       description: 'Set up a new DA submission project',
       href: '/projects/new',
-      icon: FolderPlusIcon,
+        icon: FolderAddIcon,
     },
     {
       title: 'View Submissions',
       description: 'Monitor and manage submissions',
       href: '/submissions',
-      icon: ClipboardDocumentListIcon,
+        icon: FormIcon,
     },
     {
       title: 'Manage Templates',
       description: 'Update document templates and surveys',
       href: '/templates',
-      icon: DocumentTextIcon,
+        icon: DocumentIcon,
     },
   ];
 
@@ -168,35 +204,39 @@ export default function SimpleDashboard() {
           Recent Activity
         </h2>
         <div style={cardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-            <CheckCircleIcon style={{ width: '20px', height: '20px', color: '#10b981', marginRight: '12px' }} />
-            <div>
-              <p style={{ margin: 0, fontSize: '14px', color: '#111827' }}>
-                New submission received for <strong>Central Park Development</strong>
-              </p>
-              <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>2 hours ago</p>
+          {recentLoading ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+              Loading recent activity...
             </div>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-            <FolderPlusIcon style={{ width: '20px', height: '20px', color: '#3b82f6', marginRight: '12px' }} />
-            <div>
-              <p style={{ margin: 0, fontSize: '14px', color: '#111827' }}>
-                Project <strong>Riverside Housing</strong> was created
-              </p>
-              <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>1 day ago</p>
+          ) : recentSubmissions && recentSubmissions.length > 0 ? (
+            recentSubmissions.slice(0, 3).map((submission, index) => (
+              <div key={submission.id} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                marginBottom: index < 2 ? '16px' : '0' 
+              }}>
+                <SuccessIcon style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                color: submission.status === 'COMPLETED' ? '#10b981' : 
+                       submission.status === 'FAILED' ? '#ef4444' : '#3b82f6', 
+                  marginRight: '12px' 
+                }} />
+                <div>
+                  <p style={{ margin: 0, fontSize: '14px', color: '#111827' }}>
+                    New submission: <strong>{submission.applicant_name}</strong>
+                  </p>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>
+                    {submission.project_name} - {new Date(submission.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+              No recent activity
             </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <ClockIcon style={{ width: '20px', height: '20px', color: '#f59e0b', marginRight: '12px' }} />
-            <div>
-              <p style={{ margin: 0, fontSize: '14px', color: '#111827' }}>
-                System running normally - all services operational
-              </p>
-              <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>3 days ago</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

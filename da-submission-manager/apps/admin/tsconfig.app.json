@@ -19,7 +19,9 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@da/ui": ["../../packages/ui/src"],
+      "@da/ui/*": ["../../packages/ui/src/*"]
     },
 
     /* Linting */

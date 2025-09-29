@@ -12,22 +12,19 @@ export const apiClient = axios.create({
 export const api = {
   projects: {
     getConfig: (slug: string) => apiClient.get(`/api/projects/${slug}/public-config`),
+    get: (slug: string) => apiClient.get(`/api/projects/${slug}`),
   },
 
   survey: {
-    getTemplates: (params: { version?: string; track?: string }) => 
+    getTemplates: (params: { version?: string; track?: string }) =>
       apiClient.get('/api/survey/templates', { params }),
-    saveResponse: (submissionId: string, data: any) => 
+    saveResponse: (submissionId: string, data: any) =>
       apiClient.post(`/api/survey/${submissionId}`, data),
   },
 
   generation: {
-    generate: (submissionId: string, params?: any) => 
+    generate: (submissionId: string, params?: any) =>
       apiClient.post(`/api/generate/${submissionId}`, {}, { params }),
-  },
-
-  projects: {
-    get: (slug: string) => apiClient.get(`/api/projects/${slug}`),
   },
 
   submissions: {
@@ -41,10 +38,6 @@ export const api = {
       applicant_postal_region?: string;
       applicant_postal_postcode?: string;
       applicant_postal_country?: string;
-      applicant_postal_city?: string;
-      applicant_postal_region?: string;
-      applicant_postal_postcode?: string;
-      applicant_postal_country?: string;
       site_address: string;
       application_number?: string;
       submission_pathway: 'direct' | 'review' | 'draft';
@@ -54,7 +47,7 @@ export const api = {
   },
 
   documents: {
-    getStatus: (submissionId: string) => 
+    getStatus: (submissionId: string) =>
       apiClient.get(`/api/documents/${submissionId}/status`),
     getPreview: (submissionId: string) =>
       apiClient.get(`/api/documents/${submissionId}/preview`),

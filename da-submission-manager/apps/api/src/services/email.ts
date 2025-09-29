@@ -45,7 +45,7 @@ type ReviewCompletionOptions = {
   submittedAt: string;
 };
 
-type EmailResult = {
+export type EmailResult = {
   messageId: string;
   accepted: string[];
   rejected: string[];
@@ -330,12 +330,12 @@ export class EmailService {
       postalAddress?: string;
       applicationNumber?: string;
     }
-  ): Promise<void> {
+  ): Promise<EmailResult> {
     const context = {
       ...applicantDetails,
       submissionBody: bodyText,
     };
-    return this.enqueueTemplatedEmail('direct-submission', context, {
+    await this.enqueueTemplatedEmail('direct-submission', context, {
         to: councilEmail,
         from: fromEmail,
         fromName: fromName,
@@ -346,6 +346,7 @@ export class EmailService {
         }],
         submissionId: submissionId,
     });
+    return { messageId: 'queued', accepted: [], rejected: [], pending: [] };
   }
 
   /**
@@ -362,17 +363,18 @@ export class EmailService {
       name: string;
       siteAddress: string;
     }
-  ): Promise<void> {
+  ): Promise<EmailResult> {
     const context = {
         ...applicantDetails,
         editUrl: editUrl,
     };
-    return this.enqueueTemplatedEmail('review-link', context, {
+    await this.enqueueTemplatedEmail('review-link', context, {
         to: userEmail,
         from: fromEmail,
         fromName: fromName,
         submissionId: submissionId,
     });
+    return { messageId: 'queued', accepted: [], rejected: [], pending: [] };
   }
 
   /**
@@ -390,18 +392,19 @@ export class EmailService {
       name: string;
       siteAddress: string;
     }
-  ): Promise<void> {
+  ): Promise<EmailResult> {
     const context = {
         ...applicantDetails,
         editUrl: editUrl,
         infoPack: infoPack,
     };
-    return this.enqueueTemplatedEmail('draft-with-info-pack', context, {
+    await this.enqueueTemplatedEmail('draft-with-info-pack', context, {
         to: userEmail,
         from: fromEmail,
         fromName: fromName,
         submissionId: submissionId,
     });
+    return { messageId: 'queued', accepted: [], rejected: [], pending: [] };
   }
 
   async sendReviewDeadlineReminder(options: ReviewReminderOptions): Promise<void> {
@@ -436,17 +439,18 @@ export class EmailService {
       postalAddress?: string;
       applicationNumber?: string;
     }
-  ): Promise<void> {
+  ): Promise<EmailResult> {
     const context = {
       ...applicantDetails,
       submissionBody: bodyText,
     };
-    return this.enqueueTemplatedEmail('direct-submission', context, {
+    await this.enqueueTemplatedEmail('direct-submission', context, {
       to: councilEmail,
       from: fromEmail,
       fromName: fromName,
       attachments: attachments.map(a => ({ filename: a.filename, content: a.buffer, contentType: 'application/pdf' })),
       submissionId
     });
+    return { messageId: 'queued', accepted: [], rejected: [], pending: [] };
   }
 }

@@ -1,55 +1,195 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  ArrowDownTrayIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
-  ArrowPathIcon,
-  EyeIcon,
-  PencilIcon
-} from '@heroicons/react/24/outline';
+import {
+  SearchIcon,
+  FilterIcon,
+  SuccessIcon,
+  RefreshIcon,
+  ViewIcon,
+  EditIcon,
+  PendingIcon,
+  WarningIcon,
+} from '@da/ui/icons';
 import { Button } from '../components/ui/button';
-import { Card } from '../components/ui/card';
-import { Checkbox } from '../components/ui/checkbox';
-import { Input } from '../components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
-import { StatusIndicator, MetricCard, AlertBanner } from '../components/dashboard';
+import { StatusIndicator, AlertBanner } from '../components/dashboard';
 import { apiClient } from '../lib/api';
-import { cn } from '../lib/utils';
 
-interface SubmissionItem {
-  id: string;
-  applicant_first_name: string;
-  applicant_last_name: string;
-  applicant_email: string;
-  site_address: string;
-  application_number?: string;
-  project_name: string;
-  pathway: 'direct' | 'review' | 'draft';
-  status: string;
-  created_at: string;
-  updated_at: string;
-  google_doc_url?: string;
-  council_confirmation_id?: string;
-}
+// Inline styles to avoid Tailwind dependency
+const pageStyle: CSSProperties = {
+  padding: '24px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '24px',
+};
+
+const headerStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: '16px',
+};
+
+const titleStyle: CSSProperties = {
+  fontSize: '30px',
+  fontWeight: 'bold',
+  color: '#111827',
+  margin: 0,
+};
+
+const subtitleStyle: CSSProperties = {
+  color: '#6b7280',
+  marginTop: '4px',
+};
+
+const buttonGroupStyle: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+};
+
+const iconStyle: CSSProperties = {
+  width: '16px',
+  height: '16px',
+  marginRight: '8px',
+};
+
+const metricsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: '16px',
+};
+
+const filtersCardStyle: CSSProperties = {
+  backgroundColor: 'white',
+  borderRadius: '8px',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+  padding: '16px',
+};
+
+const filtersGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: '16px',
+};
+
+const fieldStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+};
+
+const labelStyle: CSSProperties = {
+  fontSize: '14px',
+  fontWeight: '500',
+  color: '#374151',
+  marginBottom: '4px',
+};
+
+const inputStyle: CSSProperties = {
+  padding: '8px 12px',
+  border: '1px solid #d1d5db',
+  borderRadius: '6px',
+  fontSize: '14px',
+  width: '100%',
+};
+
+const searchInputStyle: CSSProperties = {
+  paddingLeft: '40px',
+  padding: '8px 12px',
+  border: '1px solid #d1d5db',
+  borderRadius: '6px',
+  fontSize: '14px',
+  width: '100%',
+};
+
+const searchIconContainerStyle: CSSProperties = {
+  position: 'relative',
+};
+
+const searchIconStyle: CSSProperties = {
+  position: 'absolute',
+  left: '12px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  width: '16px',
+  height: '16px',
+  color: '#9ca3af',
+};
+
+const bulkActionsStyle: CSSProperties = {
+  backgroundColor: '#eff6ff',
+  border: '1px solid #bfdbfe',
+  borderRadius: '8px',
+  padding: '16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: '8px',
+};
+
+const bulkTextStyle: CSSProperties = {
+  fontSize: '14px',
+  color: '#1e40af',
+};
+
+const bulkControlsStyle: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  alignItems: 'center',
+};
+
+const tableCardStyle: CSSProperties = {
+  backgroundColor: 'white',
+  borderRadius: '8px',
+  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+  overflow: 'hidden',
+};
+
+const tableStyle: CSSProperties = {
+  width: '100%',
+  fontSize: '14px',
+};
+
+const tableHeaderStyle: CSSProperties = {
+  backgroundColor: '#f9fafb',
+  borderBottom: '1px solid #e5e7eb',
+};
+
+const tableHeaderCellStyle: CSSProperties = {
+  padding: '12px 16px',
+  textAlign: 'left',
+  fontSize: '12px',
+  fontWeight: '500',
+  color: '#6b7280',
+  textTransform: 'uppercase',
+};
+
+const tableRowStyle: CSSProperties = {
+  borderBottom: '1px solid #e5e7eb',
+};
+
+const tableCellStyle: CSSProperties = {
+  padding: '12px 16px',
+};
+
+const paginationStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: '16px',
+};
+
+const paginationTextStyle: CSSProperties = {
+  fontSize: '14px',
+  color: '#374151',
+};
+
+const paginationButtonsStyle: CSSProperties = {
+  display: 'flex',
+  gap: '4px',
+};
 
 interface SubmissionFilters {
   search: string;
@@ -62,268 +202,6 @@ interface SubmissionFilters {
   };
 }
 
-interface SubmissionTimelineEvent {
-  stage: string;
-  status: string;
-  metadata: Record<string, any> | null;
-  occurredAt: string;
-}
-
-interface SubmissionDetails {
-  submissionId: string;
-  projectName: string;
-  projectSlug: string;
-  applicantName: string;
-  applicantEmail: string;
-  siteAddress: string;
-  applicationNumber?: string | null;
-  submissionPathway: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  submittedToCouncilAt?: string | null;
-  actionRequired: boolean;
-  actionNetworkSyncStatus?: string | null;
-  actionNetworkSyncError?: string | null;
-  documents: Array<{
-    id: string;
-    title: string;
-    status: string;
-    updatedAt: string;
-    downloadUrl?: string | null;
-  }>;
-  emails: Array<{
-    id: string;
-    type: string;
-    status: string;
-    subject: string;
-    recipient: string;
-    sentAt?: string | null;
-    error?: string | null;
-  }>;
-  timeline: SubmissionTimelineEvent[];
-  errors: Array<{
-    stage: string;
-    status: string;
-    message?: string;
-    occurredAt: string;
-  }>;
-}
-
-interface BulkOperationState {
-  isLoading: boolean;
-  completed: number;
-  failed: number;
-  errors: Array<{ id: string; error: string }>;
-}
-
-const STATUS_OPTIONS = [
-  { label: 'All Statuses', value: '' },
-  { label: 'New', value: 'NEW' },
-  { label: 'Processing', value: 'PROCESSING' },
-  { label: 'Awaiting Review', value: 'AWAITING_REVIEW' },
-  { label: 'Draft Sent', value: 'DRAFT_SENT' },
-  { label: 'Completed', value: 'COMPLETED' },
-  { label: 'Submitted', value: 'SUBMITTED' },
-  { label: 'Failed', value: 'FAILED' },
-  { label: 'Error', value: 'ERROR' },
-];
-
-const PATHWAY_OPTIONS = [
-  { label: 'All Pathways', value: '' },
-  { label: 'Direct', value: 'direct' },
-  { label: 'Review', value: 'review' },
-  { label: 'Draft', value: 'draft' },
-];
-
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
-
-const STATUS_COLOR_MAP: Record<string, string> = {
-  NEW: 'bg-blue-100 text-blue-800',
-  PROCESSING: 'bg-amber-100 text-amber-800',
-  AWAITING_REVIEW: 'bg-purple-100 text-purple-800',
-  DRAFT_SENT: 'bg-cyan-100 text-cyan-800',
-  COMPLETED: 'bg-emerald-100 text-emerald-800',
-  SUBMITTED: 'bg-emerald-100 text-emerald-800',
-  FAILED: 'bg-red-100 text-red-800',
-  ERROR: 'bg-red-100 text-red-800',
-};
-
-const PATHWAY_COLOR_MAP: Record<string, string> = {
-  direct: 'bg-blue-50 text-blue-700',
-  review: 'bg-violet-50 text-violet-700',
-  draft: 'bg-slate-100 text-slate-700',
-};
-
-const DEFAULT_BULK_STATE: BulkOperationState = {
-  isLoading: false,
-  completed: 0,
-  failed: 0,
-  errors: [],
-};
-
-function useDebouncedValue<T>(value: T, delay = 300) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedValue(value), delay);
-    return () => window.clearTimeout(timeout);
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-}
-
-function formatRelativeTime(value?: string | null) {
-  if (!value) return '—';
-  const date = new Date(value);
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-  const diffMinutes = Math.round(diffMs / 60000);
-  if (diffMinutes < 1) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.round(diffHours / 24);
-  return `${diffDays}d ago`;
-}
-
-function buildQueryParams(params: Record<string, string | number | undefined | null>) {
-  const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') return;
-    searchParams.set(key, String(value));
-  });
-  return searchParams.toString();
-}
-
-async function fetchSubmissions(params: SubmissionFilters & { limit: number; offset: number }) {
-  const query = buildQueryParams({
-    limit: params.limit,
-    offset: params.offset,
-    search: params.search,
-    status: params.status,
-    pathway: params.pathway,
-    project_id: params.projectId,
-    start: params.dateRange.start,
-    end: params.dateRange.end,
-  });
-  const { data } = await apiClient.get(`/admin/submissions/recent?${query}`);
-  return data;
-}
-
-async function fetchFailedSubmissions(limit = 20) {
-  const { data } = await apiClient.get(`/admin/submissions/failed?limit=${limit}`);
-  return data.submissions || [];
-}
-
-async function fetchOverview(params: { projectId?: string; start?: string; end?: string }) {
-  const query = buildQueryParams({
-    project_id: params.projectId,
-    start: params.start,
-    end: params.end,
-  });
-  const { data } = await apiClient.get(`/admin/submissions/overview?${query}`);
-  return data;
-}
-
-async function fetchSubmissionTimeline(submissionId: string) {
-  const { data } = await apiClient.get(`/admin/submissions/${submissionId}/timeline`);
-  return data;
-}
-
-async function fetchSubmissionEmails(submissionId: string) {
-  const { data } = await apiClient.get(`/admin/submissions/${submissionId}/emails`);
-  return data.emails ?? [];
-}
-
-async function fetchSubmissionDocuments(submissionId: string) {
-  const { data } = await apiClient.get(`/documents/${submissionId}/status`);
-  return data.documents ?? [];
-}
-
-async function fetchSubmissionDetails(submissionId: string): Promise<SubmissionDetails> {
-  const [timeline, emails, documents] = await Promise.all([
-    fetchSubmissionTimeline(submissionId),
-    fetchSubmissionEmails(submissionId),
-    fetchSubmissionDocuments(submissionId),
-  ]);
-
-  return {
-    submissionId,
-    projectName: timeline.project?.name ?? 'Unknown project',
-    projectSlug: timeline.project?.slug ?? 'unknown',
-    applicantName: timeline.applicant?.name ?? 'Unknown applicant',
-    applicantEmail: timeline.applicant?.email ?? '—',
-    siteAddress: timeline.submission?.site_address ?? '—',
-    applicationNumber: timeline.submission?.application_number ?? null,
-    submissionPathway: timeline.submission?.submission_pathway ?? '—',
-    status: timeline.submission?.status ?? '—',
-    createdAt: timeline.submission?.created_at ?? '',
-    updatedAt: timeline.submission?.updated_at ?? '',
-    submittedToCouncilAt: timeline.submission?.submitted_to_council_at ?? null,
-    actionRequired: Boolean(timeline.submission?.action_required),
-    actionNetworkSyncStatus: timeline.submission?.action_network_sync_status ?? null,
-    actionNetworkSyncError: timeline.submission?.action_network_sync_error ?? null,
-    documents,
-    emails,
-    timeline: timeline.timeline ?? [],
-    errors:
-      timeline.timeline?.filter((event: SubmissionTimelineEvent) => event.status === 'failed').map((event) => ({
-        stage: event.stage,
-        status: event.status,
-        message: event.metadata?.error_message,
-        occurredAt: event.occurredAt,
-      })) ?? [],
-  };
-}
-
-async function retrySubmission(id: string) {
-  return apiClient.post(`/admin/submissions/${id}/retry`);
-}
-
-async function retrySubmissionsBulk(ids: string[]) {
-  const results = await Promise.allSettled(ids.map((id) => retrySubmission(id)));
-  const summary = results.reduce(
-    (acc, result, index) => {
-      if (result.status === 'fulfilled') {
-        acc.completed += 1;
-      } else {
-        acc.failed += 1;
-        acc.errors.push({ id: ids[index], error: result.reason?.message ?? 'Unknown error' });
-      }
-      return acc;
-    },
-    { completed: 0, failed: 0, errors: [] as Array<{ id: string; error: string }>, isLoading: false }
-  );
-  return summary;
-}
-
-async function updateSubmissionStatus(id: string, status: string) {
-  return apiClient.patch(`/admin/submissions/${id}/status`, { status });
-}
-
-async function exportSubmissions(params: SubmissionFilters & { selectedIds?: string[] }) {
-  const query = buildQueryParams({
-    search: params.search,
-    status: params.status,
-    pathway: params.pathway,
-    project_id: params.projectId,
-    start: params.dateRange.start,
-    end: params.dateRange.end,
-    ids: params.selectedIds?.join(','),
-  });
-  const response = await apiClient.get(`/admin/submissions/export?${query}`, {
-    responseType: 'blob',
-  });
-  return response.data as Blob;
-}
-
 export default function Submissions() {
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(20);
@@ -334,48 +212,47 @@ export default function Submissions() {
     projectId: '',
     dateRange: { start: '', end: '' }
   });
+  const [showFilters, setShowFilters] = useState(false);
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<string>('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
-  
   const queryClient = useQueryClient();
 
-  // Build API parameters
-  const apiParams = useMemo(() => {
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      offset: ((currentPage - 1) * limit).toString(),
-    });
-    
-    if (filters.search) params.set('search', filters.search);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.pathway) params.set('pathway', filters.pathway);
-    if (filters.projectId) params.set('project_id', filters.projectId);
-    if (filters.dateRange.start) params.set('start_date', filters.dateRange.start);
-    if (filters.dateRange.end) params.set('end_date', filters.dateRange.end);
-    
-    return params.toString();
-  }, [filters, currentPage, limit]);
-
-  // Fetch submissions
-  const { 
-    data: submissionsData, 
-    isLoading, 
+  const {
+    data: submissionsData,
+    isLoading,
     error,
-    refetch 
+    refetch
   } = useQuery({
-    queryKey: ['submissions', apiParams],
+    queryKey: ['submissions', filters, currentPage, limit],
     queryFn: async () => {
-      const response = await apiClient.get(`/admin/submissions/recent?${apiParams}`);
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: ((currentPage - 1) * limit).toString(),
+      });
+
+      if (filters.search) params.set('search', filters.search);
+      if (filters.status) params.set('status', filters.status);
+      if (filters.pathway) params.set('pathway', filters.pathway);
+      if (filters.projectId) params.set('project_id', filters.projectId);
+      if (filters.dateRange.start) params.set('start_date', filters.dateRange.start);
+      if (filters.dateRange.end) params.set('end_date', filters.dateRange.end);
+
+      const response = await apiClient.get(`/admin/submissions/recent?${params.toString()}`);
+      const submissions = response.data.submissions ?? [];
+      const total = response.data.total ?? submissions.length;
       return {
-        submissions: response.data.submissions,
-        total: response.data.total || response.data.submissions.length,
+        submissions,
+        total,
         page: currentPage,
         limit,
-        totalPages: Math.ceil((response.data.total || response.data.submissions.length) / limit)
-      } as SubmissionsResponse;
+        totalPages: Math.max(1, Math.ceil(total / limit))
+      } as {
+        submissions: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      };
     },
     refetchInterval: 30000,
   });
@@ -393,7 +270,7 @@ export default function Submissions() {
   const retryMutation = useMutation({
     mutationFn: async (submissionIds: string[]) => {
       const results = await Promise.allSettled(
-        submissionIds.map(id => 
+        submissionIds.map((id) =>
           apiClient.post(`/admin/submissions/${id}/retry`)
         )
       );
@@ -440,15 +317,23 @@ export default function Submissions() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedSubmissions.length === submissionsData?.submissions.length) {
+    if (!submissionsData?.submissions?.length) {
+      setSelectedSubmissions([]);
+      return;
+    }
+
+    if (selectedSubmissions.length === submissionsData.submissions.length) {
       setSelectedSubmissions([]);
     } else {
-      setSelectedSubmissions(submissionsData?.submissions.map(s => s.id) || []);
+      setSelectedSubmissions(submissionsData.submissions.map((s: any) => s.id));
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-AU', {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '—';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('en-AU', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -459,7 +344,7 @@ export default function Submissions() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div style={pageStyle}>
         <AlertBanner
           type="error"
           title="Unable to load submissions"
@@ -471,75 +356,75 @@ export default function Submissions() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div style={pageStyle}>
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div style={headerStyle}>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Submissions</h1>
-          <p className="text-gray-600 mt-1">Monitor and manage all submissions across projects</p>
+          <h1 style={titleStyle}>Submissions</h1>
+          <p style={subtitleStyle}>Monitor and manage all submissions across projects</p>
         </div>
-        <div className="flex gap-2">
+        <div style={buttonGroupStyle}>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <ArrowPathIcon className="w-4 h-4 mr-2" />
+            <RefreshIcon style={iconStyle} />
             Refresh
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-            <FunnelIcon className="w-4 h-4 mr-2" />
+            <FilterIcon style={iconStyle} />
             Filters
           </Button>
         </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard
+      <div style={metricsGridStyle}>
+        <SimpleMetricCard
           title="Total"
-          value={submissionsData?.total || 0}
-          icon={ClockIcon}
+          value={submissionsData?.total ?? 0}
+          icon={PendingIcon}
           loading={isLoading}
         />
-        <MetricCard
+        <SimpleMetricCard
           title="Processing"
-          value={submissionsData?.submissions.filter(s => s.status === 'PROCESSING').length || 0}
-          icon={ClockIcon}
+          value={submissionsData?.submissions.filter((s) => s.status === 'PROCESSING').length ?? 0}
+          icon={PendingIcon}
           loading={isLoading}
         />
-        <MetricCard
+        <SimpleMetricCard
           title="Completed"
-          value={submissionsData?.submissions.filter(s => s.status === 'COMPLETED').length || 0}
-          icon={CheckCircleIcon}
+          value={submissionsData?.submissions.filter((s) => s.status === 'COMPLETED').length ?? 0}
+          icon={SuccessIcon}
           loading={isLoading}
         />
-        <MetricCard
+        <SimpleMetricCard
           title="Failed"
-          value={submissionsData?.submissions.filter(s => s.status === 'FAILED').length || 0}
-          icon={ExclamationTriangleIcon}
+          value={submissionsData?.submissions.filter((s) => s.status === 'FAILED').length ?? 0}
+          icon={WarningIcon}
           loading={isLoading}
         />
       </div>
 
       {/* Filters */}
       {showFilters && (
-        <Card className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div style={filtersCardStyle}>
+          <div style={filtersGridStyle}>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Search</label>
+              <div style={searchIconContainerStyle}>
+                <SearchIcon style={searchIconStyle} />
                 <input
                   type="text"
                   placeholder="Search by name, email, address..."
-                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-md w-full text-sm"
+                  style={searchInputStyle}
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Status</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                style={inputStyle}
                 value={filters.status}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
               >
@@ -552,10 +437,10 @@ export default function Submissions() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pathway</label>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Pathway</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                style={inputStyle}
                 value={filters.pathway}
                 onChange={(e) => handleFilterChange('pathway', e.target.value)}
               >
@@ -566,10 +451,10 @@ export default function Submissions() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Project</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                style={inputStyle}
                 value={filters.projectId}
                 onChange={(e) => handleFilterChange('projectId', e.target.value)}
               >
@@ -580,18 +465,18 @@ export default function Submissions() {
               </select>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Bulk Actions */}
       {selectedSubmissions.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-          <span className="text-sm text-blue-800">
+        <div style={bulkActionsStyle}>
+          <span style={bulkTextStyle}>
             {selectedSubmissions.length} submission{selectedSubmissions.length !== 1 ? 's' : ''} selected
           </span>
-          <div className="flex gap-2">
+          <div style={bulkControlsStyle}>
             <select
-              className="px-3 py-1 border border-blue-300 rounded text-sm"
+              style={{ ...inputStyle, border: '1px solid #bfdbfe' }}
               value={bulkAction}
               onChange={(e) => setBulkAction(e.target.value)}
             >
@@ -611,55 +496,41 @@ export default function Submissions() {
       )}
 
       {/* Submissions Table */}
-      <Card>
+      <div style={tableCardStyle}>
         {isLoading ? (
-          <div className="p-6">
-            <div className="animate-pulse space-y-4">
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                <div key={i} style={{ height: '64px', backgroundColor: '#e5e7eb', borderRadius: '4px' }}></div>
               ))}
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={tableStyle}>
+              <thead style={tableHeaderStyle}>
                 <tr>
-                  <th className="px-4 py-3 text-left">
+                  <th style={tableHeaderCellStyle}>
                     <input
                       type="checkbox"
                       checked={selectedSubmissions.length === submissionsData?.submissions.length}
                       onChange={toggleSelectAll}
-                      className="rounded border-gray-300"
+                      style={{ borderRadius: '4px', border: '1px solid #d1d5db' }}
                     />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Applicant
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Project
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Address
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Pathway
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Created
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
-                  </th>
+                  <th style={tableHeaderCellStyle}>Applicant</th>
+                  <th style={tableHeaderCellStyle}>Project</th>
+                  <th style={tableHeaderCellStyle}>Address</th>
+                  <th style={tableHeaderCellStyle}>Status</th>
+                  <th style={tableHeaderCellStyle}>Pathway</th>
+                  <th style={tableHeaderCellStyle}>Created</th>
+                  <th style={tableHeaderCellStyle}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {submissionsData?.submissions.map((submission) => (
-                  <tr key={submission.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
+              <tbody>
+                {submissionsData?.submissions.map((submission: any) => (
+                  <tr key={submission.id} style={tableRowStyle}>
+                    <td style={tableCellStyle}>
                       <input
                         type="checkbox"
                         checked={selectedSubmissions.includes(submission.id)}
@@ -670,46 +541,55 @@ export default function Submissions() {
                             setSelectedSubmissions(prev => prev.filter(id => id !== submission.id));
                           }
                         }}
-                        className="rounded border-gray-300"
+                        style={{ borderRadius: '4px', border: '1px solid #d1d5db' }}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={tableCellStyle}>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div style={{ fontWeight: '500', color: '#111827' }}>
                           {submission.applicant_first_name} {submission.applicant_last_name}
                         </div>
-                        <div className="text-sm text-gray-500">{submission.applicant_email}</div>
+                        <div style={{ fontSize: '14px', color: '#6b7280' }}>{submission.applicant_email}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{submission.project_name}</div>
+                    <td style={tableCellStyle}>
+                      <div style={{ fontWeight: '500', color: '#111827' }}>{submission.project_name}</div>
                       {submission.application_number && (
-                        <div className="text-sm text-gray-500">#{submission.application_number}</div>
+                        <div style={{ fontSize: '14px', color: '#6b7280' }}>#{submission.application_number}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td style={{ ...tableCellStyle, fontSize: '14px', color: '#111827' }}>
                       {submission.site_address}
                     </td>
-                    <td className="px-4 py-3">
+                    <td style={tableCellStyle}>
                       <StatusIndicator status={getStatusColor(submission.status)} label={submission.status} size="sm" />
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 capitalize">
+                    <td style={tableCellStyle}>
+                      <span style={{
+                        display: 'inline-flex',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        borderRadius: '9999px',
+                        backgroundColor: '#f3f4f6',
+                        color: '#374151',
+                        textTransform: 'capitalize'
+                      }}>
                         {submission.pathway}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td style={{ ...tableCellStyle, fontSize: '14px', color: '#6b7280' }}>
                       {formatDate(submission.created_at)}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
+                    <td style={tableCellStyle}>
+                      <div style={{ display: 'flex', gap: '4px' }}>
                         <Button variant="ghost" size="sm">
-                          <EyeIcon className="w-4 h-4" />
+                          <ViewIcon style={{ width: '16px', height: '16px' }} />
                         </Button>
                         {submission.google_doc_url && (
                           <Button variant="ghost" size="sm" asChild>
                             <a href={submission.google_doc_url} target="_blank" rel="noopener noreferrer">
-                              <PencilIcon className="w-4 h-4" />
+                              <EditIcon style={{ width: '16px', height: '16px' }} />
                             </a>
                           </Button>
                         )}
@@ -720,7 +600,7 @@ export default function Submissions() {
                             onClick={() => retryMutation.mutate([submission.id])}
                             disabled={retryMutation.isPending}
                           >
-                            <ArrowPathIcon className="w-4 h-4" />
+                            <RefreshIcon style={{ width: '16px', height: '16px' }} />
                           </Button>
                         )}
                       </div>
@@ -731,15 +611,15 @@ export default function Submissions() {
             </table>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Pagination */}
       {submissionsData && submissionsData.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-700">
+        <div style={paginationStyle}>
+          <div style={paginationTextStyle}>
             Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, submissionsData.total)} of {submissionsData.total} submissions
           </div>
-          <div className="flex gap-1">
+          <div style={paginationButtonsStyle}>
             <Button
               variant="outline"
               size="sm"
@@ -772,3 +652,72 @@ export default function Submissions() {
     </div>
   );
 }
+
+// Simple MetricCard component with inline styles to avoid Tailwind dependency
+interface SimpleMetricCardProps {
+  title: string;
+  value: string | number;
+  icon?: React.ComponentType<{ style?: CSSProperties }>;
+  loading?: boolean;
+}
+
+const SimpleMetricCard: React.FC<SimpleMetricCardProps> = ({
+  title,
+  value,
+  icon: Icon,
+  loading = false
+}) => {
+  const cardStyle: CSSProperties = {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    padding: '24px',
+  };
+
+  const headerStyle: CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '8px',
+  };
+
+  const iconStyle: CSSProperties = {
+    width: '20px',
+    height: '20px',
+    color: '#6b7280',
+  };
+
+  const titleStyle: CSSProperties = {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+  };
+
+  const valueStyle: CSSProperties = {
+    fontSize: '30px',
+    fontWeight: 'bold',
+    color: '#111827',
+    margin: 0,
+  };
+
+  if (loading) {
+    return (
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ height: '16px', backgroundColor: '#e5e7eb', borderRadius: '4px', width: '50%' }}></div>
+          <div style={{ height: '32px', backgroundColor: '#e5e7eb', borderRadius: '4px', width: '33%' }}></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={cardStyle}>
+      <div style={headerStyle}>
+        {Icon && <Icon style={iconStyle} />}
+        <p style={titleStyle}>{title}</p>
+      </div>
+      <p style={valueStyle}>{value}</p>
+    </div>
+  );
+};

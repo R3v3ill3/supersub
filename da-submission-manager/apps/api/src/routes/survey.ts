@@ -11,6 +11,21 @@ const qVersion = z.object({
   track: z.enum(['followup', 'comprehensive', 'single']).optional(),
 });
 
+function isConcernApplicableToTrack(concernTrack: string | undefined, requestedTrack?: string) {
+  if (!requestedTrack) return true;
+  if (!concernTrack) return true;
+  if (concernTrack === 'all') return true;
+  return concernTrack === requestedTrack;
+}
+
+function filterConcernsByTrack<T extends { track?: string | null }>(concerns: T[], track?: string): T[] {
+  if (!track) return concerns;
+  return concerns.filter((concern) => {
+    const concernTrack = concern.track ?? undefined;
+    return isConcernApplicableToTrack(concernTrack ?? undefined, track);
+  });
+}
+
 router.get('/api/survey/templates', async (req, res) => {
   try {
     const { version, track } = qVersion.parse(req.query);
@@ -20,7 +35,7 @@ router.get('/api/survey/templates', async (req, res) => {
     if (supabase) {
       const { data: rows, error } = await supabase
         .from('concern_templates')
-        .select('key,label,body,is_active,version,metadata')
+        .select('key,label,body,is_active,version,metadata,track')
         .eq('version', version)
         .eq('is_active', true)
         .order('key');

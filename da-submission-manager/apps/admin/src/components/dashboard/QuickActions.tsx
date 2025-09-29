@@ -1,16 +1,14 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
+import type { ComponentType, FC } from 'react';
 
 interface QuickAction {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   href?: string;
   onClick?: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   disabled?: boolean;
   badge?: {
     text: string;
@@ -25,7 +23,7 @@ interface QuickActionsProps {
   columns?: 1 | 2 | 3 | 4;
 }
 
-const QuickActions: React.FC<QuickActionsProps> = ({
+const QuickActions: FC<QuickActionsProps> = ({
   actions,
   title = 'Quick Actions',
   className = '',

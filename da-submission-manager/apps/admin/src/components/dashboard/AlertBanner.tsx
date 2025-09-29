@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  XMarkIcon,
-  InformationCircleIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XCircleIcon
-} from '@heroicons/react/24/outline';
+import {
+  CloseIcon,
+  InfoIcon,
+  WarningIcon,
+  SuccessIcon,
+  ErrorIcon,
+} from '@da/ui/icons';
 import { Button } from '../ui/button';
 
 interface AlertBannerProps {
@@ -17,7 +17,7 @@ interface AlertBannerProps {
   actions?: Array<{
     label: string;
     onClick: () => void;
-    variant?: 'primary' | 'secondary' | 'outline';
+    variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
   }>;
   className?: string;
 }
@@ -39,7 +39,7 @@ const AlertBanner: React.FC<AlertBannerProps> = ({
           iconClass: 'text-green-400',
           titleClass: 'text-green-800',
           messageClass: 'text-green-700',
-          icon: CheckCircleIcon
+          icon: SuccessIcon
         };
       case 'warning':
         return {
@@ -47,7 +47,7 @@ const AlertBanner: React.FC<AlertBannerProps> = ({
           iconClass: 'text-yellow-400',
           titleClass: 'text-yellow-800',
           messageClass: 'text-yellow-700',
-          icon: ExclamationTriangleIcon
+          icon: WarningIcon
         };
       case 'error':
         return {
@@ -55,7 +55,7 @@ const AlertBanner: React.FC<AlertBannerProps> = ({
           iconClass: 'text-red-400',
           titleClass: 'text-red-800',
           messageClass: 'text-red-700',
-          icon: XCircleIcon
+          icon: ErrorIcon
         };
       default: // info
         return {
@@ -63,7 +63,7 @@ const AlertBanner: React.FC<AlertBannerProps> = ({
           iconClass: 'text-blue-400',
           titleClass: 'text-blue-800',
           messageClass: 'text-blue-700',
-          icon: InformationCircleIcon
+          icon: InfoIcon
         };
     }
   };
@@ -110,7 +110,7 @@ const AlertBanner: React.FC<AlertBannerProps> = ({
                 className={`inline-flex rounded-md p-1.5 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.iconClass}`}
               >
                 <span className="sr-only">Dismiss</span>
-                <XMarkIcon className="h-5 w-5" />
+                <CloseIcon className="h-5 w-5" />
               </button>
             </div>
           </div>

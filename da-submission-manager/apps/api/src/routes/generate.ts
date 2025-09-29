@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getSupabase } from '../lib/supabase';
 import { generateSubmission, generateSubmissionMock } from '../services/llm';
+import type { DocumentWorkflowResult } from '../services/documentWorkflow';
 
 const router = Router();
 
@@ -140,7 +141,7 @@ router.post('/api/generate/:submissionId', async (req, res) => {
 
     // Check if we should also process the document workflow
     const processDocument = req.query.process_document === 'true';
-    let workflowResult = null;
+    let workflowResult: DocumentWorkflowResult | null = null;
 
     // Document workflow trigger is now handled via dedicated API routes
 

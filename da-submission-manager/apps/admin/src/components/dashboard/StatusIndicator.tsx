@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  CheckCircleIcon, 
-  ExclamationTriangleIcon, 
-  XCircleIcon, 
-  ClockIcon 
-} from '@heroicons/react/24/outline';
+import {
+  SuccessIcon,
+  WarningIcon,
+  ErrorIcon,
+  PendingIcon,
+} from '@da/ui/icons';
 
 interface StatusIndicatorProps {
   status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown' | 'pending';
@@ -26,31 +26,31 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
       case 'healthy':
         return {
           color: 'bg-green-100 text-green-800 border-green-200',
-          icon: CheckCircleIcon,
+          icon: SuccessIcon,
           text: 'Healthy'
         };
       case 'degraded':
         return {
           color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-          icon: ExclamationTriangleIcon,
+          icon: WarningIcon,
           text: 'Degraded'
         };
       case 'unhealthy':
         return {
           color: 'bg-red-100 text-red-800 border-red-200',
-          icon: XCircleIcon,
+          icon: ErrorIcon,
           text: 'Unhealthy'
         };
       case 'pending':
         return {
           color: 'bg-blue-100 text-blue-800 border-blue-200',
-          icon: ClockIcon,
+          icon: PendingIcon,
           text: 'Pending'
         };
       default:
         return {
           color: 'bg-gray-100 text-gray-800 border-gray-200',
-          icon: ClockIcon,
+          icon: PendingIcon,
           text: 'Unknown'
         };
     }

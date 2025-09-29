@@ -1,161 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  DocumentTextIcon,
-  BeakerIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  PlusIcon,
-  TrashIcon,
-  EyeIcon,
-  SparklesIcon,
-} from '@heroicons/react/24/outline';
+  DocumentIcon,
+  LabIcon,
+  DeleteIcon,
+} from '@da/ui/icons';
 import { api } from '../lib/api';
-import { MergeFieldEditor } from '../components/MergeFieldEditor';
-import { MergeFieldPalette } from '../components/MergeFieldPalette';
-import type { TemplateType } from '../../api/src/types/templates';
-import { useTemplateUploads } from '../hooks/useTemplateUploads';
 
-const templateUploadPanels: Array<{ key: TemplateType; title: string; description: string }> = [
+// Inline styles to avoid Tailwind dependency
+const pageStyle: CSSProperties = {
+  padding: '24px',
+};
+
+const headerStyle: CSSProperties = {
+  marginBottom: '24px',
+};
+
+const titleStyle: CSSProperties = {
+  fontSize: '24px',
+  fontWeight: 'bold',
+  color: '#111827',
+  margin: 0,
+};
+
+const subtitleStyle: CSSProperties = {
+  color: '#6b7280',
+  marginTop: '4px',
+};
+
+const tabContainerStyle: CSSProperties = {
+  borderBottom: '1px solid #e5e7eb',
+  marginBottom: '24px',
+};
+
+const tabNavStyle: CSSProperties = {
+  display: 'flex',
+  gap: '32px',
+  marginBottom: '-1px',
+};
+
+const tabButtonStyle = (isActive: boolean): CSSProperties => ({
+  padding: '8px 4px',
+  borderBottom: '2px solid',
+  borderBottomColor: isActive ? '#3b82f6' : 'transparent',
+  fontWeight: '500',
+  fontSize: '14px',
+  color: isActive ? '#2563eb' : '#6b7280',
+  backgroundColor: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+});
+
+const iconStyle: CSSProperties = {
+  width: '20px',
+  height: '20px',
+  marginRight: '8px',
+};
+
+interface Project {
+  id: string;
+  name: string;
+  council_name: string;
+  cover_template_id?: string | null;
+  grounds_template_id?: string | null;
+  enable_ai_generation?: boolean | null;
+}
+
+interface ConcernTemplate {
+  key: string;
+  label: string;
+  body: string;
+}
+
+const templateUploadPanels: Array<{ key: 'submission_format' | 'grounds' | 'council_email' | 'supporter_email'; title: string; description: string }> = [
   { key: 'submission_format', title: 'Submission Format Template', description: 'Defines the overall council submission format. Optional; defaults to Gold Coast template if not provided.' },
   { key: 'grounds', title: 'Grounds for Submission Template', description: 'Core content analysed for concerns and AI-assisted drafting.' },
-  { key: 'council_email', title: 'Council Email Template (DOCX/PDF)', description: 'Optional uploaded template for council cover email attachment. Use covering email editor for inline text.' },
+  { key: 'council_email', title: 'Council Email Template (DOCX/PDF)', description: 'Optional uploaded template for council cover email attachment. Use the council email editor for inline text.' },
   { key: 'supporter_email', title: 'Supporter Email Template', description: 'Optional template sent directly to supporters.' },
 ];
 
-type AnalysisTemplateType = 'cover' | 'grounds';
-
-interface TemplateAnalysisState {
-  googleDocId: string;
-  type: AnalysisTemplateType;
-  validation?: TemplateValidation;
-  analysis?: DocumentAnalysisResult;
-  isAnalyzing: boolean;
-  error?: string;
-}
-
 export default function Templates() {
-  const queryClient = useQueryClient();
-  
-  // State management
+  useQueryClient();
+
   const [activeTab, setActiveTab] = useState<'upload' | 'concerns' | 'projects'>('upload');
   const [selectedProject, setSelectedProject] = useState<string>('');
-  const [templateAnalysis, setTemplateAnalysis] = useState<{
-    cover?: TemplateAnalysisState;
-    grounds?: TemplateAnalysisState;
-  }>({});
-  
-  // Form states
-  const [coverDocId, setCoverDocId] = useState('');
-  const [groundsDocId, setGroundsDocId] = useState('');
   const [surveyVersion, setSurveyVersion] = useState('v1');
 
-  const templateUploads = useTemplateUploads(selectedProject);
-  const templateFiles = templateUploads.versions || [];
-  const refetchTemplateFiles = templateUploads.refetch;
-
-  // Fetch projects for project selection
   const { data: projectsResponse } = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.projects.getAll(),
   });
-
   const projects: Project[] = projectsResponse?.data?.projects || [];
 
-  // Fetch existing concerns
   const { data: concernsResponse, refetch: refetchConcerns } = useQuery({
     queryKey: ['concerns', surveyVersion],
     queryFn: () => api.templates.getConcerns(surveyVersion),
   });
-
   const existingConcerns: ConcernTemplate[] = concernsResponse?.data?.data?.concerns || [];
 
-  // Template validation mutation
-  const validateTemplateMutation = useMutation({
-    mutationFn: (googleDocId: string) => api.templates.validate(googleDocId),
-    onSuccess: (response, googleDocId) => {
-      const templateType = googleDocId === coverDocId ? 'cover' : 'grounds';
-      setTemplateAnalysis(prev => ({
-        ...prev,
-        [templateType]: {
-          ...prev[templateType],
-          googleDocId,
-          type: templateType,
-          validation: response.data.data,
-          error: undefined
-        }
-      }));
-    },
-    onError: (error: any, googleDocId) => {
-      const templateType = googleDocId === coverDocId ? 'cover' : 'grounds';
-      setTemplateAnalysis(prev => ({
-        ...prev,
-        [templateType]: {
-          ...prev[templateType],
-          googleDocId,
-          type: templateType,
-          error: error.response?.data?.error || 'Validation failed'
-        }
-      }));
-    }
-  });
-
-  // Template analysis mutation
-  const analyzeTemplateMutation = useMutation({
-    mutationFn: (data: { googleDocId: string; projectId?: string }) => 
-      api.templates.analyze(data),
-    onSuccess: (response, variables) => {
-      const templateType = variables.googleDocId === coverDocId ? 'cover' : 'grounds';
-      setTemplateAnalysis(prev => ({
-        ...prev,
-        [templateType]: {
-          ...prev[templateType],
-          analysis: response.data.data.analysis,
-          isAnalyzing: false,
-          error: undefined
-        }
-      }));
-    },
-    onError: (error: any, variables) => {
-      const templateType = variables.googleDocId === coverDocId ? 'cover' : 'grounds';
-      setTemplateAnalysis(prev => ({
-        ...prev,
-        [templateType]: {
-          ...prev[templateType],
-          isAnalyzing: false,
-          error: error.response?.data?.error || 'Analysis failed'
-        }
-      }));
-    }
-  });
-
-  // Survey generation mutation
-  const generateSurveyMutation = useMutation({
-    mutationFn: (data: { 
-      googleDocId: string; 
-      projectId: string; 
-      version?: string;
-      saveToDatabase?: boolean;
-    }) => api.templates.generateSurvey(data),
-    onSuccess: () => {
-      refetchConcerns();
-      alert('Survey generated and saved successfully!');
-    },
-    onError: (error: any) => {
-      alert(`Survey generation failed: ${error.response?.data?.error || 'Unknown error'}`);
-    }
-  });
-
-  // Concerns update mutation
-  const updateConcernsMutation = useMutation({
-    mutationFn: (data: { version?: string; concerns: any[] }) => 
-      api.templates.updateConcerns(data),
-    onSuccess: () => {
-      refetchConcerns();
-    }
-  });
-
-  // Concern deletion mutation
   const deleteConcernMutation = useMutation({
     mutationFn: ({ version, key }: { version: string; key: string }) => 
       api.templates.deleteConcern(version, key),
@@ -164,210 +108,40 @@ export default function Templates() {
     }
   });
 
-  // Handle template validation
-  const handleValidateTemplate = (googleDocId: string, templateType: AnalysisTemplateType) => {
-    if (!googleDocId.trim()) return;
-    
-    setTemplateAnalysis(prev => ({
-      ...prev,
-      [templateType]: {
-        googleDocId,
-        type: templateType,
-        isAnalyzing: false
-      }
-    }));
-
-    validateTemplateMutation.mutate(googleDocId);
-  };
-
-  // Handle template analysis (grounds only)
-  const handleAnalyzeTemplate = (googleDocId: string) => {
-    if (!googleDocId.trim()) return;
-    
-    setTemplateAnalysis(prev => ({
-      ...prev,
-      grounds: {
-        ...prev.grounds!,
-        isAnalyzing: true,
-        error: undefined
-      }
-    }));
-
-    analyzeTemplateMutation.mutate({
-      googleDocId,
-      projectId: selectedProject || undefined
-    });
-  };
-
-  // Handle survey generation
-  const handleGenerateSurvey = () => {
-    if (!groundsDocId || !selectedProject) {
-      alert('Please select a project and provide a grounds template ID');
-      return;
-    }
-
-    generateSurveyMutation.mutate({
-      googleDocId: groundsDocId,
-      projectId: selectedProject,
-      version: surveyVersion,
-      saveToDatabase: true
-    });
-  };
-
-  // Handle concern deletion
-  const handleDeleteConcern = (key: string) => {
-    if (confirm(`Are you sure you want to delete the concern "${key}"?`)) {
-      deleteConcernMutation.mutate({ version: surveyVersion, key });
-    }
-  };
-
-  // Auto-validate when doc IDs are entered
-  useEffect(() => {
-    if (coverDocId && coverDocId !== templateAnalysis.cover?.googleDocId) {
-      const timeoutId = setTimeout(() => {
-        handleValidateTemplate(coverDocId, 'cover');
-      }, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [coverDocId]);
-
-  useEffect(() => {
-    if (groundsDocId && groundsDocId !== templateAnalysis.grounds?.googleDocId) {
-      const timeoutId = setTimeout(() => {
-        handleValidateTemplate(groundsDocId, 'grounds');
-      }, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [groundsDocId]);
-
-  const renderValidationStatus = (validation?: TemplateValidation, error?: string) => {
-    if (error) {
-      return (
-        <div className="flex items-center text-red-600 text-sm mt-1">
-          <ExclamationCircleIcon className="h-4 w-4 mr-1" />
-          {error}
-        </div>
-      );
-    }
-
-    if (!validation) return null;
-
-    if (validation.isValid) {
-      return (
-        <div className="flex items-center text-green-600 text-sm mt-1">
-          <CheckCircleIcon className="h-4 w-4 mr-1" />
-          Valid • {validation.wordCount} words
-          {validation.documentTitle && ` • "${validation.documentTitle.substring(0, 30)}..."`}
-        </div>
-      );
-    } else {
-      return (
-        <div className="text-red-600 text-sm mt-1">
-          <div className="flex items-center">
-            <ExclamationCircleIcon className="h-4 w-4 mr-1" />
-            Issues found:
-          </div>
-          <ul className="list-disc list-inside ml-4 mt-1">
-            {validation.issues.map((issue, index) => (
-              <li key={index}>{issue}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-  };
-
-  const renderAnalysisResults = (analysis?: DocumentAnalysisResult) => {
-    if (!analysis) return null;
-
-    return (
-      <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-4">
-        <h4 className="font-medium text-blue-900 mb-2">Analysis Results</h4>
-        <p className="text-sm text-blue-800 mb-3">{analysis.documentSummary}</p>
-        
-        <div className="space-y-2">
-          <div className="text-xs text-blue-600">
-            <strong>Survey Title:</strong> {analysis.suggestedSurveyTitle}
-          </div>
-          <div className="text-xs text-blue-600">
-            <strong>Extracted Concerns:</strong> {analysis.analysisMetadata.totalConcerns}
-          </div>
-          {analysis.analysisMetadata.categories.length > 0 && (
-            <div className="text-xs text-blue-600">
-              <strong>Categories:</strong> {analysis.analysisMetadata.categories.join(', ')}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3 max-h-64 overflow-y-auto">
-          <h5 className="text-sm font-medium text-blue-900 mb-2">Extracted Concerns:</h5>
-          <div className="space-y-2">
-            {analysis.extractedConcerns.map((concern, index) => (
-              <div key={index} className="bg-white rounded border p-2">
-                <div className="font-medium text-sm">{concern.label}</div>
-                <div className="text-xs text-gray-600 mt-1">{concern.body}</div>
-                {concern.category && (
-                  <div className="text-xs text-blue-600 mt-1">Category: {concern.category}</div>
-                )}
-                <div className="text-xs text-gray-500 mt-1">Priority: {concern.priority}/10</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Template Management</h1>
-        <p className="text-gray-600">Manage Google Doc templates and generate surveys from analysis</p>
+    <div style={pageStyle}>
+      <div style={headerStyle}>
+        <h1 style={titleStyle}>Template Management</h1>
+        <p style={subtitleStyle}>Manage Google Doc templates and generate surveys from analysis</p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+      <div style={tabContainerStyle}>
+        <nav style={tabNavStyle}>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'upload'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            style={tabButtonStyle(activeTab === 'upload')}
           >
-            <DocumentTextIcon className="h-5 w-5 inline mr-2" />
+            <DocumentIcon style={iconStyle} />
             Template Analysis
           </button>
           <button
             onClick={() => setActiveTab('concerns')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'concerns'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            style={tabButtonStyle(activeTab === 'concerns')}
           >
-            <BeakerIcon className="h-5 w-5 inline mr-2" />
+            <LabIcon style={iconStyle} />
             Survey Concerns ({existingConcerns.length})
           </button>
           <button
             onClick={() => setActiveTab('projects')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'projects'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            style={tabButtonStyle(activeTab === 'projects')}
           >
-            <EyeIcon className="h-5 w-5 inline mr-2" />
             Project Templates
           </button>
         </nav>
       </div>
 
-      {/* Template Analysis Tab */}
       {activeTab === 'upload' && (
         <div className="space-y-6">
-          {/* Project Selection */}
           <div className="bg-white shadow rounded-lg p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Project Configuration</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -403,33 +177,32 @@ export default function Templates() {
             </div>
           </div>
 
-          {/* Template Upload */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {templateUploadPanels.map((panel) => (
-              <TemplateUploadPanel
-                key={panel.key}
-                projectId={selectedProject}
-                templateType={panel.key}
-                title={panel.title}
-                description={panel.description}
-                templateFile={templateFiles.find((file: any) => file.template_type === panel.key)}
-                isLoading={templateUploads.isFetching}
-                onUploaded={() => refetchTemplateFiles?.()}
-                onActivateVersion={async (fileId, versionId) => {
-                  await templateUploads.activateVersion({ fileId, versionId });
-                }}
-                onDeleteVersion={async (fileId, versionId) => {
-                  await templateUploads.deleteVersion({ fileId, versionId });
-                }}
-                activating={templateUploads.activatePending}
-                deleting={templateUploads.deletingVersion}
-              />
+              <div key={panel.key} className="bg-white shadow rounded-lg p-6 space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">{panel.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{panel.description}</p>
+                </div>
+                <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-300 rounded-md p-4">
+                  <p className="mb-2">
+                    Upload management is not yet implemented in the new UI. Use existing scripts or Supabase storage tools to manage templates.
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-700">Project:</span>{' '}
+                    {selectedProject ? selectedProject : 'Select a project to manage templates'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-700">Template Type:</span>{' '}
+                    {panel.key}
+                  </p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Survey Concerns Tab */}
       {activeTab === 'concerns' && (
         <div className="space-y-6">
           <div className="bg-white shadow rounded-lg p-6">
@@ -449,7 +222,7 @@ export default function Templates() {
 
             {existingConcerns.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
-                <BeakerIcon className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <LabIcon className="h-8 w-8 mx-auto mb-4 text-gray-400" />
                 <p>No concerns found for this version.</p>
                 <p className="text-sm">Analyze a grounds template to generate concerns.</p>
               </div>
@@ -466,12 +239,12 @@ export default function Templates() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDeleteConcern(concern.key)}
+                        onClick={() => deleteConcernMutation.mutate({ version: surveyVersion, key: concern.key })}
                         disabled={deleteConcernMutation.isPending}
                         className="text-red-600 hover:text-red-800 p-1"
                         title="Delete concern"
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <DeleteIcon className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -482,7 +255,6 @@ export default function Templates() {
         </div>
       )}
 
-      {/* Project Templates Tab */}
       {activeTab === 'projects' && (
         <div className="space-y-6">
           <div className="bg-white shadow rounded-lg p-6">

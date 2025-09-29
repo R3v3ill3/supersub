@@ -1,7 +1,11 @@
 import React from 'react';
-import { CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
-import { DocumentReviewSummary } from '../types/documents';
+import {
+  SuccessIcon,
+  PendingIcon,
+  AlertIcon,
+  SuccessIconSolid,
+} from '@da/ui/icons';
+import type { DocumentReviewSummary } from '../types/documents';
 
 interface SubmissionStatusTrackerProps {
   reviewSummary: DocumentReviewSummary | null;
@@ -32,9 +36,9 @@ export default function SubmissionStatusTracker({
         description: 'AI-generated submission created',
         status: hasValidDocuments ? 'completed' : 'pending',
         icon: hasValidDocuments ? (
-          <CheckCircleIconSolid className="w-5 h-5 text-green-500" />
+          <SuccessIconSolid className="w-5 h-5 text-green-500" />
         ) : (
-          <ClockIcon className="w-5 h-5 text-gray-400" />
+          <PendingIcon className="w-5 h-5 text-gray-400" />
         ),
       },
       {
@@ -44,11 +48,11 @@ export default function SubmissionStatusTracker({
         status: currentStep === 'review' ? 'current' : 
                isDocumentReady ? 'completed' : 'pending',
         icon: isDocumentReady ? (
-          <CheckCircleIconSolid className="w-5 h-5 text-green-500" />
+          <SuccessIconSolid className="w-5 h-5 text-green-500" />
         ) : currentStep === 'review' ? (
-          <ClockIcon className="w-5 h-5 text-blue-500" />
+          <PendingIcon className="w-5 h-5 text-blue-500" />
         ) : (
-          <ClockIcon className="w-5 h-5 text-gray-400" />
+          <PendingIcon className="w-5 h-5 text-gray-400" />
         ),
       },
       {
@@ -58,11 +62,11 @@ export default function SubmissionStatusTracker({
         status: currentStep === 'submission' ? 'current' :
                isSubmitted ? 'completed' : 'pending',
         icon: isSubmitted ? (
-          <CheckCircleIconSolid className="w-5 h-5 text-green-500" />
+          <SuccessIconSolid className="w-5 h-5 text-green-500" />
         ) : currentStep === 'submission' ? (
-          <ClockIcon className="w-5 h-5 text-blue-500" />
+          <PendingIcon className="w-5 h-5 text-blue-500" />
         ) : (
-          <ClockIcon className="w-5 h-5 text-gray-400" />
+          <PendingIcon className="w-5 h-5 text-gray-400" />
         ),
       },
       {
@@ -71,7 +75,7 @@ export default function SubmissionStatusTracker({
         description: 'Submission sent to council',
         status: isSubmitted ? 'completed' : 'pending',
         icon: isSubmitted ? (
-          <CheckCircleIconSolid className="w-5 h-5 text-green-500" />
+          <SuccessIconSolid className="w-5 h-5 text-green-500" />
         ) : (
           <ClockIcon className="w-5 h-5 text-gray-400" />
         ),
@@ -84,7 +88,7 @@ export default function SubmissionStatusTracker({
         icon: isSubmitted && currentStep === 'completed' ? (
           <CheckCircleIconSolid className="w-5 h-5 text-green-500" />
         ) : (
-          <CheckCircleIcon className="w-5 h-5 text-gray-400" />
+          <SuccessIcon className="w-5 h-5 text-gray-400" />
         ),
       },
     ];
@@ -109,7 +113,7 @@ export default function SubmissionStatusTracker({
               'bg-gray-100'
             }`}>
               {step.status === 'error' ? (
-                <ExclamationCircleIcon className="w-5 h-5 text-red-500" />
+                <AlertIcon className="w-5 h-5 text-red-500" />
               ) : (
                 step.icon
               )}

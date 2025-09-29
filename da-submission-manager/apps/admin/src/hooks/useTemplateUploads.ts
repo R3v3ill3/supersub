@@ -36,5 +36,6 @@ export function useTemplateUploads(projectId: string) {
     deletingVersion: deleteMutation.isPending,
     activatePending: activateMutation.isPending,
     deleteVersion: deleteMutation.mutateAsync,
+    invalidate,
   };
 }

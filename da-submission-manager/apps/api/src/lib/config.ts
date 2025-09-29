@@ -83,7 +83,8 @@ export function getActionNetworkClientForProject(project: ProjectWithApiKey): Ac
     try {
       apiKey = decryptApiKey(project.action_network_api_key_encrypted);
     } catch (error) {
-      throw new Error(`Failed to decrypt Action Network API key for project ${project.slug}: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to decrypt Action Network API key for project ${project.slug}: ${message}`);
     }
   } else if (config.actionNetwork?.apiKey) {
     // Fall back to global environment variable

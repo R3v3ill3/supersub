@@ -15,7 +15,16 @@
     "test:llm": "pnpm --filter @dasub/api run test:llm",
     "setup:gold-coast": "node scripts/setup-gold-coast-project.mjs",
     "setup:auth": "node scripts/setup-authentication.mjs",
-    "create:admin": "node scripts/create-admin-user.mjs"
+    "create:admin": "node scripts/create-admin-user.mjs",
+    "clean:cache": "rm -rf apps/*/node_modules/.vite && rm -rf apps/*/.vite && rm -rf apps/*/dist",
+    "clean:all": "pnpm clean:cache && rm -rf node_modules && rm -rf apps/*/node_modules",
+    "dev:fresh": "pnpm clean:cache && pnpm dev",
+    "fix:deps": "pnpm clean:all && pnpm install --frozen-lockfile && pnpm dev",
+    "check:imports": "pnpm -r --filter apps... exec grep -r '@heroicons/react' src --include='*.tsx' --include='*.ts' || echo 'No direct heroicon imports found'",
+    "troubleshoot": "node scripts/dev-troubleshoot.js",
+    "build:ui": "cd packages/ui && pnpm build",
+    "build:all": "pnpm build:ui && pnpm build",
+    "postinstall": "pnpm build:ui"
   },
   "workspaces": [
     "apps/*",
@@ -28,7 +37,8 @@
     "@supabase/supabase-js": "^2.45.4"
   },
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "@da/ui": "workspace:*"
   }
 }
 

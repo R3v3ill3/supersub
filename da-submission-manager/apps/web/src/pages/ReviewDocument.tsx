@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  DocumentTextIcon,
-  ExclamationCircleIcon,
-  CheckCircleIcon,
-  EyeIcon,
-  PencilIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+  DocumentIcon,
+  AlertIcon,
+  SuccessIcon,
+  ViewIcon,
+  EditIcon,
+  RefreshIcon,
+} from '@da/ui/icons';
 import { api } from '../lib/api';
-import { 
+import type { 
   DocumentReviewSummary, 
   ReviewDocumentState, 
   ValidationResult,
@@ -194,7 +194,7 @@ export default function ReviewDocument() {
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="bg-red-50 border border-red-200 rounded-md p-6">
           <div className="flex items-center">
-            <ExclamationCircleIcon className="h-6 w-6 text-red-500 mr-2" />
+            <AlertIcon className="h-6 w-6 text-red-500 mr-2" />
             <h2 className="text-lg font-medium text-red-900">Invalid Submission ID</h2>
           </div>
           <p className="mt-2 text-red-700">
@@ -210,7 +210,7 @@ export default function ReviewDocument() {
       <div className="max-w-6xl mx-auto py-12 px-4">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center">
-            <ArrowPathIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin mb-4" />
+            <RefreshIcon className="mx-auto h-12 w-12 text-blue-500 animate-spin mb-4" />
             <h2 className="text-xl font-medium text-gray-900">Loading your submission...</h2>
             <p className="mt-2 text-gray-600">Please wait while we fetch your document details.</p>
           </div>
@@ -224,7 +224,7 @@ export default function ReviewDocument() {
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="bg-red-50 border border-red-200 rounded-md p-6">
           <div className="flex items-center mb-4">
-            <ExclamationCircleIcon className="h-6 w-6 text-red-500 mr-2" />
+            <AlertIcon className="h-6 w-6 text-red-500 mr-2" />
             <h2 className="text-lg font-medium text-red-900">Error Loading Submission</h2>
           </div>
           <p className="text-red-700 mb-4">
@@ -245,7 +245,7 @@ export default function ReviewDocument() {
     return (
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-          <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500 mb-4" />
+          <SuccessIcon className="mx-auto h-16 w-16 text-green-500 mb-4" />
           <h1 className="text-3xl font-bold text-green-900 mb-4">
             Submission Complete!
           </h1>
@@ -274,7 +274,7 @@ export default function ReviewDocument() {
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="mb-8">
               <div className="flex items-center mb-4">
-                <DocumentTextIcon className="h-8 w-8 text-blue-500 mr-3" />
+                <DocumentIcon className="h-8 w-8 text-blue-500 mr-3" />
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">
                     Review Your Submission
@@ -301,7 +301,7 @@ export default function ReviewDocument() {
                     <div key={doc.documentId || index} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                          <DocumentTextIcon className="h-6 w-6 text-blue-500 mr-3" />
+                          <DocumentIcon className="h-6 w-6 text-blue-500 mr-3" />
                           <div>
                             <h3 className="font-medium text-gray-900">
                               {doc.docType === 'cover' ? 'Cover Letter' : 
@@ -325,7 +325,7 @@ export default function ReviewDocument() {
                               onClick={() => handleOpenDocument(doc.googleDocUrl!)}
                               className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded-md hover:bg-blue-50"
                             >
-                              <PencilIcon className="h-4 w-4 mr-1" />
+                            <EditIcon className="h-4 w-4 mr-1" />
                               Edit Document
                             </button>
                           )}
@@ -336,7 +336,7 @@ export default function ReviewDocument() {
                               rel="noopener noreferrer"
                               className="flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-200 rounded-md hover:bg-gray-50"
                             >
-                              <EyeIcon className="h-4 w-4 mr-1" />
+                              <ViewIcon className="h-4 w-4 mr-1" />
                               View PDF
                             </a>
                           )}
@@ -365,7 +365,7 @@ export default function ReviewDocument() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
-                  <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <DocumentIcon className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                   <p>No documents available yet.</p>
                 </div>
               )}
@@ -381,7 +381,7 @@ export default function ReviewDocument() {
                 >
                   {state.status === 'submitting' ? (
                     <>
-                      <ArrowPathIcon className="inline h-5 w-5 mr-2 animate-spin" />
+                      <RefreshIcon className="inline h-5 w-5 mr-2 animate-spin" />
                       Processing...
                     </>
                   ) : (

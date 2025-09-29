@@ -75,7 +75,10 @@ export class DocumentAnalysisService {
         suggestedSurveyTitle: analysisResult.surveyTitle,
         analysisMetadata: {
           totalConcerns: analysisResult.concerns.length,
-          categories: [...new Set(analysisResult.concerns.map(c => c.category).filter(Boolean))],
+          categories: analysisResult.concerns
+            .map((c) => c.category)
+            .filter((value): value is string => Boolean(value))
+            .filter((value, index, self) => self.indexOf(value) === index),
           documentLength: documentText.length,
           analysisModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
           analysisTimestamp: new Date().toISOString()

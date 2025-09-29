@@ -450,42 +450,65 @@ router.get('/files/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
     const supabase = getSupabase();
+
     if (!supabase) {
       return res.status(500).json({ success: false, error: 'Database not configured' });
     }
 
-    const { data, error } = await supabase
+    const { data: files, error } = await supabase
       .from('template_files')
-      .select('id, template_type, active_version_id, template_versions(id, version_label, original_filename, mimetype, merge_fields, created_at, version_notes)')
+      .select('id, project_id, template_type, active_version_id, updated_at, template_versions(id, version_label, storage_path, mimetype, original_filename, merge_fields, created_at)')
       .eq('project_id', projectId)
-      .order('template_type');
+      .order('updated_at', { ascending: false });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    res.json({ success: true, data: data || [] });
+    const transformed = (files || []).map((file) => ({
+      id: file.id,
+      template_type: file.template_type,
+      active_version_id: file.active_version_id,
+      updated_at: file.updated_at,
+      versions: (file.template_versions || []).map((version) => ({
+        id: version.id,
+        template_file_id: file.id,
+        version_label: version.version_label,
+        storage_path: version.storage_path,
+        mimetype: version.mimetype,
+        original_filename: version.original_filename,
+        merge_fields: version.merge_fields,
+        created_at: version.created_at,
+      })),
+    }));
+
+    res.json({ success: true, data: transformed });
   } catch (error: any) {
-    res.status(400).json({ success: false, error: error.message || 'Failed to fetch template files' });
+    res.status(400).json({ success: false, error: error.message || 'Failed to list template files' });
   }
 });
 
 router.post('/files/:fileId/activate', async (req, res) => {
   try {
     const { fileId } = req.params;
-    const { versionId } = z.object({ versionId: z.string().uuid() }).parse(req.body);
+    const { versionId } = req.body;
+
+    if (!versionId) {
+      return res.status(400).json({ success: false, error: 'versionId is required' });
+    }
+
     const supabase = getSupabase();
     if (!supabase) {
       return res.status(500).json({ success: false, error: 'Database not configured' });
     }
 
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('template_files')
       .update({ active_version_id: versionId, updated_at: new Date().toISOString() })
       .eq('id', fileId);
 
-    if (error) {
-      throw new Error(error.message);
+    if (updateError) {
+      throw new Error(updateError.message);
     }
 
     res.json({ success: true });
@@ -498,28 +521,19 @@ router.delete('/files/:fileId/version/:versionId', async (req, res) => {
   try {
     const { fileId, versionId } = req.params;
     const supabase = getSupabase();
+
     if (!supabase) {
       return res.status(500).json({ success: false, error: 'Database not configured' });
     }
 
-    const { data: file } = await supabase
-      .from('template_files')
-      .select('active_version_id')
-      .eq('id', fileId)
-      .single();
-
-    if (file?.active_version_id === versionId) {
-      return res.status(400).json({ success: false, error: 'Cannot delete the active version. Activate a different version first.' });
-    }
-
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('template_versions')
       .delete()
       .eq('id', versionId)
       .eq('template_file_id', fileId);
 
-    if (error) {
-      throw new Error(error.message);
+    if (deleteError) {
+      throw new Error(deleteError.message);
     }
 
     res.json({ success: true });

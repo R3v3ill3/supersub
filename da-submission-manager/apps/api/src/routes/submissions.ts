@@ -19,9 +19,10 @@ const createSubmissionSchema = z.object({
   applicant_postcode: z.string().min(1),
   // Postal address (can be same as residential)
   applicant_postal_address: z.string().optional(),
-  postal_suburb: z.string().optional(),
-  postal_state: z.string().optional(),
-  postal_postcode: z.string().optional(),
+  applicant_postal_city: z.string().optional(),
+  applicant_postal_region: z.string().optional(),
+  applicant_postal_postcode: z.string().optional(),
+  applicant_postal_country: z.string().optional(),
   postal_email: z.string().email().optional(),
   // Property details (Gold Coast Council requirements)
   lot_number: z.string().optional(),
@@ -93,9 +94,9 @@ router.post('/api/submissions', async (req, res) => {
         applicant_postcode: body.applicant_postcode,
         // Postal address fields
         applicant_postal_address: body.applicant_postal_address || null,
-        postal_suburb: body.postal_suburb || null,
-        postal_state: body.postal_state || null,
-        postal_postcode: body.postal_postcode || null,
+        postal_suburb: body.applicant_postal_city || null,
+        postal_state: body.applicant_postal_region || null,
+        postal_postcode: body.applicant_postal_postcode || null,
         postal_email: body.postal_email || null,
         // Property details
         lot_number: body.lot_number || null,
@@ -129,13 +130,13 @@ router.post('/api/submissions', async (req, res) => {
       }
       
       if (client) {
-        const postalHasValues = [
+      const postalHasValues = [
         body.applicant_postal_address,
         body.applicant_postal_city,
         body.applicant_postal_region,
         body.applicant_postal_postcode,
         body.applicant_postal_country,
-      ].some((value) => Boolean(value && value.trim && value.trim()));
+      ].some((value) => typeof value === 'string' && value.trim().length > 0);
 
       const postalAddresses = postalHasValues
         ? [

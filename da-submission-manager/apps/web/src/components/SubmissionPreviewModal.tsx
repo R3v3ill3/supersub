@@ -1,15 +1,15 @@
 import React from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
-import { 
-  XMarkIcon, 
-  DocumentTextIcon, 
-  EnvelopeIcon, 
-  MapPinIcon,
-  ClockIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
-import { DocumentReviewSummary, ValidationResult } from '../types/documents';
+import {
+  CloseIcon,
+  DocumentIcon,
+  EmailIcon,
+  LocationIcon,
+  PendingIcon,
+  WarningIcon,
+} from '@da/ui/icons';
+import type { DocumentReviewSummary, ValidationResult } from '../types/documents';
 
 interface SubmissionPreviewModalProps {
   isOpen: boolean;
@@ -62,7 +62,7 @@ export default function SubmissionPreviewModal({
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center">
                       <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <DocumentTextIcon className="h-6 w-6 text-blue-600" />
+                        <DocumentIcon className="h-6 w-6 text-blue-600" />
                       </div>
                       <div className="ml-4">
                         <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
@@ -78,7 +78,7 @@ export default function SubmissionPreviewModal({
                       className="rounded-md bg-white text-gray-400 hover:text-gray-500"
                       onClick={onClose}
                     >
-                      <XMarkIcon className="h-6 w-6" />
+                      <CloseIcon className="h-6 w-6" />
                     </button>
                   </div>
 
@@ -87,7 +87,7 @@ export default function SubmissionPreviewModal({
                     <div className="mb-6 rounded-md bg-red-50 p-4">
                       <div className="flex">
                         <div className="flex-shrink-0">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+                          <WarningIcon className="h-5 w-5 text-red-400" />
                         </div>
                         <div className="ml-3">
                           <h3 className="text-sm font-medium text-red-800">
@@ -113,14 +113,14 @@ export default function SubmissionPreviewModal({
                         <h4 className="text-sm font-medium text-gray-900 mb-3">Submission Details</h4>
                         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                           <div className="flex items-center text-sm">
-                            <MapPinIcon className="h-4 w-4 text-gray-400 mr-2" />
+                            <LocationIcon className="h-4 w-4 text-gray-400 mr-2" />
                             <span className="text-gray-600">Submission ID:</span>
                             <span className="ml-2 font-medium text-gray-900">
                               {reviewSummary.submission.submissionId}
                             </span>
                           </div>
                           <div className="flex items-center text-sm">
-                            <EnvelopeIcon className="h-4 w-4 text-gray-400 mr-2" />
+                            <EmailIcon className="h-4 w-4 text-gray-400 mr-2" />
                             <span className="text-gray-600">Pathway:</span>
                             <span className="ml-2 font-medium text-gray-900 capitalize">
                               {reviewSummary.submission.pathway}
@@ -128,7 +128,7 @@ export default function SubmissionPreviewModal({
                           </div>
                           {reviewSummary.submission.reviewDeadline && (
                             <div className="flex items-center text-sm">
-                              <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
+                              <PendingIcon className="h-4 w-4 text-gray-400 mr-2" />
                               <span className="text-gray-600">Review Deadline:</span>
                               <span className="ml-2 font-medium text-gray-900">
                                 {new Date(reviewSummary.submission.reviewDeadline).toLocaleDateString()}
@@ -145,7 +145,7 @@ export default function SubmissionPreviewModal({
                           {reviewSummary.documents.map((doc, index) => (
                             <div key={doc.documentId || index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                               <div className="flex items-center">
-                                <DocumentTextIcon className="h-5 w-5 text-blue-500 mr-3" />
+                                <DocumentIcon className="h-5 w-5 text-blue-500 mr-3" />
                                 <div>
                                   <p className="text-sm font-medium text-gray-900">
                                     {doc.docType === 'cover' ? 'Cover Letter' : 
@@ -192,7 +192,7 @@ export default function SubmissionPreviewModal({
                       {/* Warning */}
                       <div className="rounded-md bg-yellow-50 p-4">
                         <div className="flex">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400" />
+                          <WarningIcon className="h-5 w-5 text-yellow-400" />
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-yellow-800">
                               Final Confirmation

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../components/ui/alert-dialog';
 
 interface HealthCheck {
   name: string;
@@ -25,19 +24,6 @@ interface SystemHealth {
   };
 }
 
-interface RetryOperation {
-  id: string;
-  submission_id: string;
-  operation_type: string;
-  status: 'pending' | 'retrying' | 'completed' | 'failed' | 'cancelled';
-  retry_count: number;
-  max_retries: number;
-  next_retry_at?: string;
-  created_at: string;
-  applicant_name?: string;
-  project_name?: string;
-}
-
 interface RetryStatistics {
   totalRetries: number;
   successfulRetries: number;
@@ -47,7 +33,6 @@ interface RetryStatistics {
 
 export default function SystemHealth() {
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
-  const [retryOperations, setRetryOperations] = useState<RetryOperation[]>([]);
   const [retryStats, setRetryStats] = useState<RetryStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,8 +71,6 @@ export default function SystemHealth() {
       if (data.retryStatistics) {
         setRetryStats(data.retryStatistics);
       }
-      // We would need to add recovery operations to the API response
-      // setRetryOperations(data.retryOperations || []);
     } catch (err: any) {
       setError(err.message);
     }
@@ -105,29 +88,6 @@ export default function SystemHealth() {
       
       const data = await response.json();
       setRetryStats(data);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const retryOperation = async (operationId: string) => {
-    try {
-      const response = await fetch(`/api/admin/retry/${operationId}`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to retry operation');
-      }
-      
-      const result = await response.json();
-      if (result.success) {
-        // Refresh the operations list
-        await fetchRetryOperations();
-      } else {
-        setError(result.message);
-      }
     } catch (err: any) {
       setError(err.message);
     }
@@ -320,8 +280,10 @@ export default function SystemHealth() {
       )}
 
       {/* Active Recovery Operations */}
-      {retryOperations.length > 0 && (
-        <Card className="p-6">
+      {/* The retryOperations state was removed, so this section is no longer relevant. */}
+      {/* If you need to display active operations, you'll need to fetch them directly or pass them as props. */}
+      {/* For now, we'll keep the structure but note the missing data. */}
+      {/* <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Active Recovery Operations</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -394,8 +356,13 @@ export default function SystemHealth() {
               </tbody>
             </table>
           </div>
-        </Card>
-      )}
+        </Card> */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Recent Recovery Operations</h3>
+        </div>
+        <p className="text-sm text-gray-500">Recovery operation logs will appear here once implemented.</p>
+      </Card>
     </div>
   );
 }

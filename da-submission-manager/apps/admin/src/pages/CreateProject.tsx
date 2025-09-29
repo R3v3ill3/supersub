@@ -1,8 +1,19 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode, type CSSProperties } from 'react';
+import { useMemo, useState, type ChangeEvent, type FormEvent, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { ActionNetworkItem, CreateProjectData } from '../lib/api';
+import { getDefaultDualTrackConfig, validateDualTrackConfig } from '../components/DualTrackConfiguration';
+import { type TemplateSelectorValue } from '../components/TemplateSelector';
+import { WizardStep } from '../components/Wizard';
+import { 
+  Step1ProjectType, 
+  Step2CouncilConfig, 
+  Step3TemplateSetup, 
+  Step4ActionNetwork, 
+  Step5ReviewLaunch 
+} from '../components/WizardSteps';
+import type { TemplateSetupMethod } from '../components/TemplateSetupGuide';
 
 const pageStyle: CSSProperties = {
   padding: '32px',
@@ -233,6 +244,7 @@ const prefixBadgeStyle: CSSProperties = {
   color: '#1e3a8a',
 };
 
+// PRESERVED: Helper functions for existing compatibility
 const AN_FORM_PREFIX = 'https://actionnetwork.org/api/v2/forms/';
 const AN_LIST_PREFIX = 'https://actionnetwork.org/api/v2/lists/';
 const AN_TAG_PREFIX = 'https://actionnetwork.org/api/v2/tags/';
@@ -251,31 +263,11 @@ function getSelectableValue(item: ActionNetworkItem, prefix: string) {
   return extractIdFromHref(item.href, prefix);
 }
 
-function FormSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
-  return (
-    <section style={sectionStyle}>
-      <div style={sectionHeaderStyle}>
-        <h2 style={sectionTitleStyle}>{title}</h2>
-        {description ? <p style={sectionDescriptionStyle}>{description}</p> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function FieldLabel({ label, required }: { label: string; required?: boolean }) {
-  return (
-    <label style={labelStyle}>
-      {label}
-      {required ? <span style={requiredBadgeStyle}>*</span> : null}
-    </label>
-  );
-}
-
 export default function CreateProject() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // PRESERVED: All existing state - exact same initial state
   const [formData, setFormData] = useState<CreateProjectData>({
     name: '',
     slug: '',
@@ -303,7 +295,15 @@ export default function CreateProject() {
       group_hrefs: [],
       custom_fields: {},
     },
+    is_dual_track: false,
+    dual_track_config: getDefaultDualTrackConfig(),
   });
+
+  // NEW: Wizard state management
+  const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [templateSetupMethod, setTemplateSetupMethod] = useState<TemplateSetupMethod>('upload');
+  const [actionNetworkEnabled, setActionNetworkEnabled] = useState(false);
 
   const createProjectMutation = useMutation({
     mutationFn: (data: CreateProjectData) => api.projects.create(data),
@@ -324,6 +324,7 @@ export default function CreateProject() {
       const { data } = await api.actionNetwork.listForms();
       return data.forms ?? [];
     },
+    enabled: false, // Don't auto-fetch, only fetch when user clicks refresh
   });
 
   const {
@@ -337,6 +338,7 @@ export default function CreateProject() {
       const { data } = await api.actionNetwork.listLists();
       return data.lists ?? [];
     },
+    enabled: false, // Don't auto-fetch, only fetch when user clicks refresh
   });
 
   const {
@@ -350,6 +352,7 @@ export default function CreateProject() {
       const { data } = await api.actionNetwork.listTags();
       return data.tags ?? [];
     },
+    enabled: false, // Don't auto-fetch, only fetch when user clicks refresh
   });
 
   const {
@@ -363,6 +366,7 @@ export default function CreateProject() {
       const { data } = await api.actionNetwork.listGroups();
       return data.groups ?? [];
     },
+    enabled: false, // Don't auto-fetch, only fetch when user clicks refresh
   });
 
   const forms = formsResponse ?? [];
@@ -370,34 +374,45 @@ export default function CreateProject() {
   const tags = tagsResponse ?? [];
   const groups = groupsResponse ?? [];
 
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagDescription, setNewTagDescription] = useState('');
 
-  const selectedFormId = extractIdFromHref(formData.action_network_config?.action_url, AN_FORM_PREFIX);
-
-  const selectedListIds = useMemo(
-    () => (formData.action_network_config?.list_hrefs || []).map((href) => extractIdFromHref(href, AN_LIST_PREFIX)),
-    [formData.action_network_config?.list_hrefs]
-  );
-
-  const selectedTagIds = useMemo(
-    () => (formData.action_network_config?.tag_hrefs || []).map((href) => extractIdFromHref(href, AN_TAG_PREFIX)),
-    [formData.action_network_config?.tag_hrefs]
-  );
-
-  const selectedGroupIds = useMemo(
-    () => (formData.action_network_config?.group_hrefs || []).map((href) => extractIdFromHref(href, AN_GROUP_PREFIX)),
-    [formData.action_network_config?.group_hrefs]
-  );
-
-  const createTagMutation = useMutation({
-    mutationFn: (payload: { name: string; description?: string }) => api.actionNetwork.createTag(payload),
-    onSuccess: () => {
-      setNewTagName('');
-      setNewTagDescription('');
-      refetchTags();
+  // NEW: Wizard validation functions
+  const stepValidation = {
+    1: () => Boolean(formData.name && formData.slug && formData.council_name),
+    2: () => Boolean(formData.council_email && formData.council_name && formData.default_application_number),
+    3: () => {
+      if (formData.is_dual_track) {
+        return Boolean(
+          formData.cover_template_id && 
+          formData.dual_track_config?.original_grounds_template_id && 
+          formData.dual_track_config?.followup_grounds_template_id
+        );
+      }
+      return Boolean(formData.cover_template_id && formData.grounds_template_id);
     },
-  });
+    4: () => true, // Optional step
+    5: () => true, // Review step
+  };
+
+  const isStepValid = (step: number) => stepValidation[step as keyof typeof stepValidation]?.() || false;
+
+  // NEW: Wizard navigation handlers
+  const handleNextStep = () => {
+    if (isStepValid(currentStep)) {
+      setCompletedSteps(prev => [...prev.filter(s => s !== currentStep), currentStep]);
+      setCurrentStep(prev => Math.min(prev + 1, 5));
+    }
+  };
+
+  const handleBackStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+
+  // NEW: Helper to update formData with partial updates
+  const updateFormData = (updates: Partial<CreateProjectData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = event.target;
@@ -422,18 +437,27 @@ export default function CreateProject() {
     }));
   };
 
-  const handleSelectChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = event.target;
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  };
+  const handleTemplateSelected = (templateType: TemplateSelectorValue['templateType']) =>
+    (value?: string) => {
+      setFormData((previous) => ({
+        ...previous,
+        [`${templateType}_template_id`]: value || '',
+      }));
+    };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  // PRESERVED: Original submit logic, now callable from wizard
+  const handleSubmit = (event?: FormEvent<HTMLFormElement>) => {
+    if (event) event.preventDefault();
     if (createProjectMutation.isPending) {
       return;
+    }
+
+    if (formData.is_dual_track && formData.dual_track_config) {
+      const errors = validateDualTrackConfig(formData.dual_track_config);
+      if (errors.length > 0) {
+        alert(`Dual track configuration errors:\n${errors.join('\n')}`);
+        return;
+      }
     }
 
     const confirmed = window.confirm('Create a new project with these details?');
@@ -443,7 +467,14 @@ export default function CreateProject() {
 
     createProjectMutation.mutate({
       ...formData,
+      is_dual_track: formData.is_dual_track || false,
+      dual_track_config: formData.is_dual_track ? formData.dual_track_config : undefined,
     });
+  };
+
+  // NEW: Create project handler for wizard
+  const handleCreateProject = () => {
+    handleSubmit();
   };
 
   return (
@@ -451,624 +482,122 @@ export default function CreateProject() {
       <div style={contentStyle}>
         <header style={headerStyle}>
           <h1 style={titleStyle}>Create New Project</h1>
-          <p style={subtitleStyle}>Set up a new DA submission project with council and workflow settings.</p>
+          <p style={subtitleStyle}>Set up a new DA submission project through our guided 5-step wizard.</p>
         </header>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          <FormSection title="Basic Information" description="Project level details used throughout the submission experience.">
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="Project Name" required />
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleNameChange}
-                  required
-                  placeholder="Southern Gold Caost development"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="URL Slug" required />
-                <input
-                  type="text"
-                  name="slug"
-                  value={formData.slug}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="central-park-development"
-                  style={inputStyle}
-                />
-                <p style={helpTextStyle}>Used in URLs and Action Network links.</p>
-              </div>
-            </div>
-            <div style={fieldStyle}>
-              <FieldLabel label="Description" />
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Brief description of the project..."
-                style={textareaStyle}
-              />
-            </div>
-          </FormSection>
-
-          <FormSection title="Council Information" description="Details used when contacting the council on behalf of supporters.">
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="Council Name" required />
-                <input
-                  type="text"
-                  name="council_name"
-                  value={formData.council_name}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Gold Coast City Council"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Attention Of" />
-                <input
-                  type="text"
-                  name="council_attention_of"
-                  value={formData.council_attention_of || ''}
-                  onChange={handleInputChange}
-                  placeholder="Tim Baker, CEO"
-                  style={inputStyle}
-                />
-                <p style={helpTextStyle}>
-                  Optional: specify a contact person or title for council correspondence.
-                </p>
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Council Email" required />
-                <input
-                  type="email"
-                  name="council_email"
-                  value={formData.council_email}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="mail@goldcoast.qld.gov.au"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Testing Email Override" />
-                <input
-                  type="email"
-                  name="test_submission_email"
-                  value={formData.test_submission_email || ''}
-                  onChange={handleInputChange}
-                  placeholder="qa@example.org"
-                  style={inputStyle}
-                />
-                <p style={helpTextStyle}>Optional address for dry runs. When provided, Direct submissions go to this inbox instead of council.</p>
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Default Application Number" required />
-                <input
-                  type="text"
-                  name="default_application_number"
-                  value={formData.default_application_number || ''}
-                  onChange={handleInputChange}
-                  placeholder="COM/2025/271"
-                  required
-                  style={inputStyle}
-                />
-                <p style={helpTextStyle}>
-                  Used as a fallback when a supporter does not provide an application number. Available in templates as {'{{application_number}}'}.
-                </p>
-              </div>
-            </div>
-          </FormSection>
-
-          <FormSection
-            title="Action Network Integration"
-            description="Link this project to the corresponding Action Network resources so submissions sync automatically."
-          >
-            <div style={fieldStyle}>
-              <FieldLabel label="Action Network API Key" />
-              <input
-                type="password"
-                name="action_network_api_key"
-                value={formData.action_network_api_key || ''}
-                onChange={handleInputChange}
-                placeholder="Your project-specific Action Network API key"
-                style={monospaceInputStyle}
-              />
-              <p style={helpTextStyle}>
-                Enter your Action Network API key for this project. This will be stored securely and used instead of the global environment variable. 
-                Leave empty to use the global API key (if configured).
-              </p>
-            </div>
-
-            <div style={fieldStyle}>
-              <FieldLabel label="Where do I find these IDs?" />
-              <p style={helpTextStyle}>
-                Open the resource in Action Network (form, list, tag, or group) → copy the ID from the admin URL
-                (e.g. everything after <code style={monospaceInputStyle}>/forms/</code>). Paste just the ID in each
-                box below—we'll construct the full API URL for you.
-              </p>
-            </div>
-
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="Action Form" />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <select
-                    value={selectedFormId}
-                    onChange={(event) => {
-                      const selectedId = event.target.value;
-                      const selectedForm = forms.find((form: ActionNetworkItem) => (form.id || '') === selectedId);
-                      setFormData((previous) => ({
-                        ...previous,
-                        action_network_config: {
-                          ...previous.action_network_config,
-                          action_url: selectedId ? `${AN_FORM_PREFIX}${selectedId}` : undefined,
-                          form_url: selectedForm?.browser_url || previous.action_network_config?.form_url,
-                        },
-                      }));
-                    }}
-                    style={inputStyle}
-                  >
-                    <option value="">Select a form…</option>
-                    {forms.map((form: ActionNetworkItem) => {
-                      const value = getSelectableValue(form, AN_FORM_PREFIX);
-                      return (
-                        <option key={value || form.href} value={value}>
-                          {form.name} {value ? `(${value})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                    <button type="button" onClick={() => refetchForms()} style={{ marginRight: '8px' }}>Refresh list</button>
-                    {loadingForms && <span>Loading forms…</span>}
-                    {formsError && <span style={{ color: '#b91c1c' }}>Failed to load forms</span>}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                    <span style={prefixBadgeStyle}>{AN_FORM_PREFIX}</span>
-                    <input
-                      type="text"
-                      value={selectedFormId}
-                      onChange={(event) => {
-                        const value = event.target.value.trim();
-                        setFormData((previous) => ({
-                          ...previous,
-                          action_network_config: {
-                            ...previous.action_network_config,
-                            action_url: value ? `${AN_FORM_PREFIX}${value}` : undefined,
-                          },
-                        }));
-                      }}
-                      placeholder="c051c79fd89a73751790807c268f92b2"
-                      style={monospaceInputStyle}
-                    />
-                  </div>
-                </div>
-                <p style={helpTextStyle}>Pick a form or paste the ID from Action Network (the hash after /forms/).</p>
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Public Form URL" />
-                <input
-                  type="url"
-                  name="form_url"
-                  value={formData.action_network_config?.form_url || ''}
-                  onChange={(event) =>
-                    setFormData((previous) => ({
-                      ...previous,
-                      action_network_config: {
-                        ...previous.action_network_config,
-                        form_url: event.target.value,
-                      },
-                    }))
-                  }
-                  placeholder="https://actionnetwork.org/forms/..."
-                  style={monospaceInputStyle}
-                />
-                <p style={helpTextStyle}>Optional: used when linking back to Action Network-hosted experiences.</p>
-              </div>
-            </div>
-            <div style={fieldStyle}>
-              <FieldLabel label="Default Custom Field Overrides" />
-              <p style={helpTextStyle}>
-                Optional key/value pairs to attach to every supporter we sync to Action Network. Project metadata like
-                `project_id`, `submission_id`, and `application_number` is added automatically.
-              </p>
-              <textarea
-                style={{ ...textareaStyle, minHeight: '140px', fontFamily: 'monospace' }}
-                placeholder={`{"campaign":"BeachFront"}`}
-                value={JSON.stringify(formData.action_network_config?.custom_fields || {}, null, 2)}
-                onChange={(event) => {
-                  const raw = event.target.value;
-                  setFormData((previous) => {
-                    try {
-                      const parsed = raw ? JSON.parse(raw) : {};
-                      return {
-                        ...previous,
-                        action_network_config: {
-                          ...previous.action_network_config,
-                          custom_fields: parsed,
-                        },
-                      };
-                    } catch {
-                      return previous;
-                    }
-                  });
-                }}
-              />
-              <p style={helpTextStyle}>Values must be valid JSON. Leave blank to skip extra fields.</p>
-            </div>
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="List HREFs" />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <select
-                    multiple
-                    value={selectedListIds}
-                    onChange={(event) => {
-                      const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                      setFormData((previous) => ({
-                        ...previous,
-                        action_network_config: {
-                          ...previous.action_network_config,
-                          list_hrefs: selected.map((id) => `${AN_LIST_PREFIX}${id}`),
-                        },
-                      }));
-                    }}
-                    style={{ ...textareaStyle, minHeight: '160px' }}
-                  >
-                    {lists.map((list: ActionNetworkItem) => {
-                      const value = getSelectableValue(list, AN_LIST_PREFIX);
-                      return (
-                        <option key={value || list.href} value={value}>
-                          {list.name} {value ? `(${value})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                    <button type="button" onClick={() => refetchLists()} style={{ marginRight: '8px' }}>Refresh lists</button>
-                    {loadingLists && <span>Loading lists…</span>}
-                    {listsError && <span style={{ color: '#b91c1c' }}>Failed to load lists</span>}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '8px' }}>
-                    <span style={{ ...prefixBadgeStyle, alignSelf: 'flex-start' }}>{AN_LIST_PREFIX}</span>
-                    <textarea
-                      name="list_hrefs"
-                      value={selectedListIds.join('\n')}
-                      onChange={(event) => {
-                        const values = event.target.value
-                          .split('\n')
-                          .map((item) => item.trim())
-                          .filter(Boolean);
-                        setFormData((previous) => ({
-                          ...previous,
-                          action_network_config: {
-                            ...previous.action_network_config,
-                            list_hrefs: values.map((id) => `${AN_LIST_PREFIX}${id}`),
-                          },
-                        }));
-                      }}
-                      placeholder="{list_id}\n{another_list_id}"
-                      style={{ ...textareaStyle, minHeight: '110px' }}
-                    />
-                  </div>
-                </div>
-                <p style={helpTextStyle}>Select or paste IDs. Supporters will be subscribed to each selected list.</p>
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Tag HREFs" />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <select
-                    multiple
-                    value={selectedTagIds}
-                    onChange={(event) => {
-                      const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                      setFormData((previous) => ({
-                        ...previous,
-                        action_network_config: {
-                          ...previous.action_network_config,
-                          tag_hrefs: selected.map((id) => `${AN_TAG_PREFIX}${id}`),
-                        },
-                      }));
-                    }}
-                    style={{ ...textareaStyle, minHeight: '160px' }}
-                  >
-                    {tags.map((tag: ActionNetworkItem) => {
-                      const value = getSelectableValue(tag, AN_TAG_PREFIX);
-                      return (
-                        <option key={value || tag.href} value={value}>
-                          {tag.name} {value ? `(${value})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#6b7280' }}>
-                    <div>
-                      <button type="button" onClick={() => refetchTags()} style={{ marginRight: '8px' }}>Refresh tags</button>
-                      {loadingTags && <span>Loading tags…</span>}
-                      {tagsError && <span style={{ color: '#b91c1c' }}>Failed to load tags</span>}
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input
-                        type="text"
-                        value={newTagName}
-                        onChange={(event) => setNewTagName(event.target.value)}
-                        placeholder="New tag name"
-                        style={{ ...inputStyle, fontSize: '12px', padding: '8px 10px' }}
-                      />
-                      <input
-                        type="text"
-                        value={newTagDescription}
-                        onChange={(event) => setNewTagDescription(event.target.value)}
-                        placeholder="Description (optional)"
-                        style={{ ...inputStyle, fontSize: '12px', padding: '8px 10px' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!newTagName.trim()) return;
-                          createTagMutation.mutate({ name: newTagName.trim(), description: newTagDescription.trim() || undefined });
-                        }}
-                        style={{ ...secondaryButtonStyle, padding: '8px 12px' }}
-                        disabled={createTagMutation.isPending}
-                      >
-                        {createTagMutation.isPending ? 'Creating…' : 'Create tag'}
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'stretch', gap: '8px' }}>
-                    <span style={{ ...prefixBadgeStyle, alignSelf: 'flex-start' }}>{AN_TAG_PREFIX}</span>
-                    <textarea
-                      name="tag_hrefs"
-                      value={selectedTagIds.join('\n')}
-                      onChange={(event) => {
-                        const values = event.target.value
-                          .split('\n')
-                          .map((item) => item.trim())
-                          .filter(Boolean);
-                        setFormData((previous) => ({
-                          ...previous,
-                          action_network_config: {
-                            ...previous.action_network_config,
-                            tag_hrefs: values.map((id) => `${AN_TAG_PREFIX}${id}`),
-                          },
-                        }));
-                      }}
-                      placeholder="{tag_id}\n{another_tag_id}"
-                      style={{ ...textareaStyle, minHeight: '110px' }}
-                    />
-                  </div>
-                </div>
-                <p style={helpTextStyle}>Select or paste IDs. Applied to every supporter synced by this project.</p>
-              </div>
-            </div>
-            <div style={fieldStyle}>
-              <FieldLabel label="Group HREFs" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <select
-                  multiple
-                  value={selectedGroupIds}
-                  onChange={(event) => {
-                    const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                    setFormData((previous) => ({
-                      ...previous,
-                      action_network_config: {
-                        ...previous.action_network_config,
-                        group_hrefs: selected.map((id) => `${AN_GROUP_PREFIX}${id}`),
-                      },
-                    }));
-                  }}
-                  style={{ ...textareaStyle, minHeight: '160px' }}
-                >
-                  {groups.map((group: ActionNetworkItem) => {
-                    const value = getSelectableValue(group, AN_GROUP_PREFIX);
-                    return (
-                      <option key={value || group.href} value={value}>
-                        {group.name} {value ? `(${value})` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-                <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                  <button type="button" onClick={() => refetchGroups()} style={{ marginRight: '8px' }}>Refresh groups</button>
-                  {loadingGroups && <span>Loading groups…</span>}
-                  {groupsError && <span style={{ color: '#b91c1c' }}>Failed to load groups</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: '8px' }}>
-                  <span style={{ ...prefixBadgeStyle, alignSelf: 'flex-start' }}>{AN_GROUP_PREFIX}</span>
-                  <textarea
-                    name="group_hrefs"
-                    value={selectedGroupIds.join('\n')}
-                    onChange={(event) => {
-                      const values = event.target.value
-                        .split('\n')
-                        .map((item) => item.trim())
-                        .filter(Boolean);
-                      setFormData((previous) => ({
-                        ...previous,
-                        action_network_config: {
-                          ...previous.action_network_config,
-                          group_hrefs: values.map((id) => `${AN_GROUP_PREFIX}${id}`),
-                        },
-                      }));
-                    }}
-                    placeholder="{group_id}\n{another_group_id}"
-                    style={{ ...textareaStyle, minHeight: '110px' }}
-                  />
-                </div>
-              </div>
-              <p style={helpTextStyle}>Optional: add supporters to additional Action Network groups.</p>
-            </div>
-          </FormSection>
-
-          <FormSection title="Email Configuration" description="Control sender information and subject lines for outgoing emails.">
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="From Email" />
-                <input
-                  type="email"
-                  name="from_email"
-                  value={formData.from_email}
-                  onChange={handleInputChange}
-                  placeholder="noreply@yourorganisation.org"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="From Name" />
-                <input
-                  type="text"
-                  name="from_name"
-                  value={formData.from_name}
-                  onChange={handleInputChange}
-                  placeholder="DA Submission Manager"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div style={fieldStyle}>
-              <FieldLabel label="Council Email Subject Template" />
-              <input
-                type="text"
-                name="council_subject_template"
-                value={formData.council_subject_template}
-                onChange={handleInputChange}
-                style={monospaceInputStyle}
-                placeholder="Development application submission opposing application number {{application_number}}"
-              />
-              <p style={helpTextStyle}>
-                Used when emailing council directly in the Direct pathway. Supports {'{{site_address}}'}, {'{{application_number}}'}, {'{{applicant_name}}'}.
-              </p>
-              <SubjectPreview
-                template={formData.council_subject_template || ''}
-                defaultApplicationNumber={formData.default_application_number || ''}
-              />
-            </div>
-
-            <div style={fieldStyle}>
-              <FieldLabel label="Council Email Body Template" />
-              <MergeFieldEditor
-                value={formData.council_email_body_template || ''}
-                onChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    council_email_body_template: value,
-                  }))
-                }
-                suggestedFields={COVER_EMAIL_FIELDS}
-              />
-              <p style={helpTextStyle}>
-                Default body for emails sent to council. Supports merge fields like {'{{council_name}}'}, {'{{site_address}}'}, {'{{applicant_full_name}}'}, {'{{applicant_email}}'}, {'{{application_number_line}}'}, {'{{sender_name}}'}.
-              </p>
-            </div>
-
-            <div style={fieldStyle}>
-              <FieldLabel label="Supporter Email Subject Template" />
-              <input
-                type="text"
-                name="subject_template"
-                value={formData.subject_template}
-                onChange={handleInputChange}
-                style={monospaceInputStyle}
-                placeholder="Development Application Submission - {{site_address}}"
-              />
-              <p style={helpTextStyle}>
-                Used when sending after supporter review or finalisation. Supports {'{{site_address}}'}, {'{{application_number}}'}, {'{{applicant_name}}'}.
-              </p>
-              <SubjectPreview
-                template={formData.subject_template || ''}
-                defaultApplicationNumber={formData.default_application_number || ''}
-              />
-            </div>
-          </FormSection>
-
-          <FormSection title="Workflow Settings" description="Choose how documents are generated and which templates power submissions.">
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="Default Pathway" required />
-                <select
-                  name="default_pathway"
-                  value={formData.default_pathway}
-                  onChange={handleSelectChange}
-                  required
-                  style={inputStyle}
-                >
-                  <option value="direct">Direct – send immediately to council</option>
-                  <option value="review">Review – supporter reviews before sending</option>
-                  <option value="draft">Draft – send draft with info pack</option>
-                </select>
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Google Doc Template ID" />
-                <input
-                  type="text"
-                  name="google_doc_template_id"
-                  value={formData.google_doc_template_id}
-                  onChange={handleInputChange}
-                  placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
-                  style={inputStyle}
-                />
-                <p style={helpTextStyle}>Copy from the Google Doc URL. The document must be shared with the service account.</p>
-              </div>
-            </div>
-
-            <div style={twoColumnGridStyle}>
-              <div style={fieldStyle}>
-                <FieldLabel label="Cover Letter Template ID" />
-                <input
-                  type="text"
-                  name="cover_template_id"
-                  value={formData.cover_template_id}
-                  onChange={handleInputChange}
-                  placeholder="Google Doc ID for cover letter"
-                  style={inputStyle}
-                />
-              </div>
-              <div style={fieldStyle}>
-                <FieldLabel label="Grounds Template ID" />
-                <input
-                  type="text"
-                  name="grounds_template_id"
-                  value={formData.grounds_template_id}
-                  onChange={handleInputChange}
-                  placeholder="Google Doc ID for grounds"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div style={toggleRowStyle}>
-              <input
-                id="enable_ai_generation"
-                type="checkbox"
-                name="enable_ai_generation"
-                checked={formData.enable_ai_generation}
-                onChange={handleInputChange}
-                style={checkboxStyle}
-              />
-              <label htmlFor="enable_ai_generation" style={{ fontSize: '14px', color: '#1f2937' }}>
-                Enable AI-generated submission content
-              </label>
-            </div>
-          </FormSection>
-
-          <div style={actionsRowStyle}>
-            <button type="button" onClick={() => navigate('/projects')} style={secondaryButtonStyle}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={createProjectMutation.isPending ? primaryButtonDisabledStyle : primaryButtonStyle}
+          {currentStep === 1 && (
+            <WizardStep
+              stepNumber={1}
+              totalSteps={5}
+              title="Project Setup"
+              description="Define your project type and basic information"
+              completedSteps={completedSteps}
             >
-              {createProjectMutation.isPending ? 'Creating…' : 'Create Project'}
-            </button>
-          </div>
+              <Step1ProjectType
+                formData={formData}
+                onInputChange={handleInputChange}
+                onNameChange={handleNameChange}
+                onNext={handleNextStep}
+                isValid={isStepValid(1)}
+              />
+            </WizardStep>
+          )}
+
+          {currentStep === 2 && (
+            <WizardStep
+              stepNumber={2}
+              totalSteps={5}
+              title="Council Configuration"
+              description="Set up council contact details and testing options"
+              completedSteps={completedSteps}
+            >
+              <Step2CouncilConfig
+                formData={formData}
+                onInputChange={handleInputChange}
+                onBack={handleBackStep}
+                onNext={handleNextStep}
+                isValid={isStepValid(2)}
+              />
+            </WizardStep>
+          )}
+
+          {currentStep === 3 && (
+            <WizardStep
+              stepNumber={3}
+              totalSteps={5}
+              title="Template Setup"
+              description="Configure submission templates through guided workflow"
+              completedSteps={completedSteps}
+            >
+              <Step3TemplateSetup
+                formData={formData}
+                templateSetupMethod={templateSetupMethod}
+                onTemplateSetupMethodChange={setTemplateSetupMethod}
+                onTemplateSelected={handleTemplateSelected}
+                onFormDataChange={updateFormData}
+                onBack={handleBackStep}
+                onNext={handleNextStep}
+                isValid={isStepValid(3)}
+              />
+            </WizardStep>
+          )}
+
+          {currentStep === 4 && (
+            <WizardStep
+              stepNumber={4}
+              totalSteps={5}
+              title="Action Network Integration"
+              description="Optional: Connect to Action Network for supporter management"
+              completedSteps={completedSteps}
+            >
+              <Step4ActionNetwork
+                formData={formData}
+                actionNetworkEnabled={actionNetworkEnabled}
+                onActionNetworkEnabledChange={setActionNetworkEnabled}
+                onInputChange={handleInputChange}
+                onFormDataChange={updateFormData}
+                forms={forms}
+                lists={lists}
+                tags={tags}
+                groups={groups}
+                onRefreshForms={refetchForms}
+                onRefreshLists={refetchLists}
+                onRefreshTags={refetchTags}
+                onRefreshGroups={refetchGroups}
+                loadingForms={loadingForms}
+                loadingLists={loadingLists}
+                loadingTags={loadingTags}
+                loadingGroups={loadingGroups}
+                formsError={formsError}
+                listsError={listsError}
+                tagsError={tagsError}
+                groupsError={groupsError}
+                onBack={handleBackStep}
+                onNext={handleNextStep}
+              />
+            </WizardStep>
+          )}
+
+          {currentStep === 5 && (
+            <WizardStep
+              stepNumber={5}
+              totalSteps={5}
+              title="Review & Launch"
+              description="Review configuration and create your project"
+              completedSteps={completedSteps}
+            >
+              <Step5ReviewLaunch
+                formData={formData}
+                onBack={handleBackStep}
+                onCreateProject={handleCreateProject}
+                isCreating={createProjectMutation.isPending}
+              />
+            </WizardStep>
+          )}
+
+
+          {/* PRESERVED: Success/Error status messages - displayed across all wizard steps */}
 
           {createProjectMutation.isSuccess ? (
             <div style={statusContainerStyle('success')}>
@@ -1094,38 +623,5 @@ export default function CreateProject() {
     </div>
   );
 }
-
-function SubjectPreview({ template, defaultApplicationNumber }: { template: string; defaultApplicationNumber?: string }) {
-  const samples: Record<string, string> = {
-    site_address: '123 King St, Newtown NSW',
-    application_number: defaultApplicationNumber?.trim() || 'DA/2025/1234',
-    applicant_name: 'Alex Smith',
-  };
-
-  const resolved = template.replace(/{{(site_address|application_number|applicant_name)}}/g, (_match, key) => {
-    return samples[key] || '';
-  });
-
-  return (
-    <div style={previewContainerStyle}>
-      <span style={previewLabelStyle}>Preview</span>
-      <div style={previewValueStyle}>{resolved}</div>
-    </div>
-  );
-}
-
-const COVER_EMAIL_FIELDS = [
-  { key: 'council_name', label: 'Council Name' },
-  { key: 'site_address', label: 'Site Address' },
-  { key: 'applicant_full_name', label: 'Applicant Full Name' },
-  { key: 'applicant_email', label: 'Applicant Email' },
-  { key: 'application_number_line', label: 'Application Number Line' },
-  { key: 'sender_name', label: 'Sender Name' },
-  { key: 'sender_email', label: 'Sender Email' },
-  { key: 'project_name', label: 'Project Name' },
-];
-
-
-
 
 

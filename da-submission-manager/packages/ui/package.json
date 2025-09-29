@@ -1,0 +1,1 @@
+{"name":"@da/ui","version":"1.0.0","type":"module","main":"dist/index.js","types":"dist/index.d.ts","exports":{".":"./dist/index.js","./icons":"./dist/icons.js"},"scripts":{"build":"tsc","dev":"tsc --watch"},"dependencies":{"@heroicons/react":"^2.2.0"},"devDependencies":{"typescript":"^5.0.0","@types/react":"^18.0.0"},"peerDependencies":{"react":"^18.0.0"}}

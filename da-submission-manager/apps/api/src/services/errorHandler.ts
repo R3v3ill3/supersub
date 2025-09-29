@@ -124,13 +124,15 @@ export class ErrorHandler {
     await this.logError(error);
     
     // Send analytics
-    this.analyticsService.trackError({
-      errorId: error.id,
-      type: error.type,
-      code: error.code,
-      submissionId: context.submissionId,
-      operation: context.operation
-    });
+    if (typeof this.analyticsService.trackError === 'function') {
+      this.analyticsService.trackError({
+        errorId: error.id,
+        type: error.type,
+        code: error.code,
+        submissionId: context.submissionId,
+        operation: context.operation
+      });
+    }
 
     // Determine if admin notification is needed
     if (this.shouldNotifyAdmin(error)) {

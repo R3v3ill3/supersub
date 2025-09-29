@@ -10,9 +10,7 @@ export function getSupabase(): SupabaseClient | null {
   if (!url || !key) return null as any;
   client = createClient(url, key, {
     auth: { persistSession: false },
-    storage: {
-      detectSessionInUrl: false
-    }
+    global: { fetch: (...args) => fetch(...args) }
   });
   return client;
 }

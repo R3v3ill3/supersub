@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.8",
-    "@heroicons/react": "^2.2.0",
     "@tanstack/react-query": "^5.90.2",
     "axios": "^1.12.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.1"
+    "react-router-dom": "^7.9.1",
+    "@da/ui": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.1.1",

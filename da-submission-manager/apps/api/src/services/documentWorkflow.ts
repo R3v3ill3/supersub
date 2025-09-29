@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 import { Logger } from '../lib/logger';
 import { resolveActiveTemplate } from './templateVersionResolver';
+import Handlebars from 'handlebars';
 
 type SubmissionData = {
   id: string;
@@ -54,7 +55,7 @@ type ProjectData = {
   test_submission_email?: string | null;
 };
 
-type DocumentWorkflowResult = {
+export type DocumentWorkflowResult = {
   submissionId: string;
   documentId?: string;
   editUrl?: string;
@@ -765,13 +766,36 @@ Kind regards,
       status: options.status ?? 'created',
       review_started_at: options.reviewStartedAt ?? null,
       review_completed_at: options.reviewCompletedAt ?? null,
-      last_modified_at: nowIso
-    } as Database['public']['Tables']['documents']['Insert'];
+      last_modified_at: nowIso,
+    };
 
     const { error } = await supabase.from('documents').insert(payload);
     if (error) {
       throw new Error(`Failed to save document record: ${error.message}`);
     }
+  }
+
+  private buildCouncilEmailContent(submission: SubmissionData, project: ProjectData) {
+    const template = project.council_email_body_template || DocumentWorkflowService.DEFAULT_COUNCIL_EMAIL_BODY;
+    const applicantFullName = `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim();
+    const applicationNumber = submission.application_number || project.default_application_number || '';
+    const templateFn = Handlebars.compile(template, { noEscape: true });
+
+    const variables = {
+      council_name: project.council_name,
+      site_address: submission.site_address,
+      applicant_full_name: applicantFullName,
+      applicant_email: submission.applicant_email,
+      application_number: applicationNumber,
+      application_number_line: applicationNumber ? `Application Number: ${applicationNumber}` : '',
+      sender_name: project.from_name || 'DA Submission Manager',
+    };
+
+    const bodyText = templateFn(variables);
+    return {
+      bodyText,
+      bodyHtml: `<p>${bodyText.replace(/\n/g, '<br />')}</p>`,
+    };
   }
 
   /**
@@ -824,27 +848,84 @@ This draft submission has been prepared to help you participate in the planning 
   ): Promise<DocumentWorkflowResult> {
     const supabase = this.getClient();
 
-    // Get submission and project data
     const { data: submission, error: submissionError } = await supabase
       .from('submissions')
-      .select(`
-        *,
-        projects!inner(*)
-      `)
+      .select(
+        `*,
+        projects!inner(*)`
+      )
       .eq('id', submissionId)
       .single();
 
     if (submissionError || !submission) {
-      throw new Error(`Failed to fetch submission: ${submissionError?.message || "Submission not found"}`);
+      throw new Error(`Failed to fetch submission: ${submissionError?.message || 'Submission not found'}`);
     }
 
-    // Continue with the rest of the function logic
-    return {
-      success: true,
-      data: {
-        submissionId,
-        message: "Function incomplete - needs implementation"
+    const submissionData = submission as SubmissionData;
+    const project = submission.projects as ProjectData;
+
+    if (!submissionData.google_doc_id) {
+      throw new Error('Submission document not generated');
+    }
+
+    const emailContent = this.buildCouncilEmailContent(submissionData, project);
+
+    const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
+      submissionId,
+      project.test_submission_email || project.council_email,
+      project.from_email || process.env.DEFAULT_FROM_EMAIL!,
+      project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager',
+      this.processTemplate(project.council_subject_template || project.subject_template || 'Development Application Submission - {{site_address}}', {
+        site_address: submissionData.site_address,
+        application_number: submissionData.application_number || project.default_application_number || '',
+        applicant_name: `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim(),
+      }),
+      emailContent.bodyText,
+      [],
+      {
+        name: `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim(),
+        email: submissionData.applicant_email,
+        siteAddress: submissionData.site_address,
+        postalAddress: submissionData.applicant_postal_address,
+        applicationNumber: submissionData.application_number || project.default_application_number || undefined,
       }
+    );
+
+    const now = new Date().toISOString();
+
+    const { data: updatedSubmission, error: updateError } = await supabase
+      .from('submissions')
+      .update({
+        status: 'SUBMITTED',
+        submitted_to_council_at: now,
+        council_confirmation_id: emailResult?.messageId ?? null,
+        updated_at: now,
+      })
+      .eq('id', submissionId)
+      .select('id, submitted_to_council_at')
+      .single();
+
+    if (updateError || !updatedSubmission) {
+      throw new Error(`Failed to update submission: ${updateError?.message ?? 'unknown error'}`);
+    }
+
+    await supabase
+      .from('documents')
+      .update({
+        status: 'submitted',
+        review_completed_at: now,
+        last_modified_at: now,
+        updated_at: now,
+      })
+      .eq('submission_id', submissionId);
+
+    return {
+      submissionId,
+      emailSent: Boolean(emailResult?.messageId),
+      status: 'SUBMITTED',
+      reviewCompletedAt: now,
+      reviewDeadline: submissionData.review_deadline || null,
+      reviewStartedAt: submissionData.review_started_at || null,
     };
   }
 }
