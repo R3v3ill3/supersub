@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { api } from '../lib/api';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import type { User, Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 
 export interface AdminUser {
   id: string;
@@ -8,10 +16,12 @@ export interface AdminUser {
   role: 'admin' | 'super_admin';
   last_login_at?: string;
   created_at: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface AuthContextValue {
   user: AdminUser | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -20,6 +30,25 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+const mapSupabaseUser = (user: User): AdminUser => {
+  const role = user.user_metadata?.role === 'super_admin' ? 'super_admin' : 'admin';
+  const nameFromMetadata =
+    (typeof user.user_metadata?.name === 'string' && user.user_metadata.name) ||
+    (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name) ||
+    user.email ||
+    'Admin User';
+
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    name: nameFromMetadata,
+    role,
+    last_login_at: user.last_sign_in_at ?? undefined,
+    created_at: user.created_at,
+    metadata: user.user_metadata ?? undefined,
+  };
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -35,92 +64,86 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AdminUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = Boolean(user);
+
+  const applySession = useCallback((nextSession: Session | null) => {
+    setSession(nextSession);
+    const supabaseUser = nextSession?.user;
+    setUser(supabaseUser ? mapSupabaseUser(supabaseUser) : null);
+  }, []);
 
   const checkAuth = useCallback(async () => {
-    // Prevent multiple simultaneous auth checks
     if (isLoading && hasCheckedAuth) {
       return;
     }
 
     try {
       setIsLoading(true);
-      const response = await api.auth.me();
-      setUser(response.data.user);
-    } catch (error: any) {
-      // If token is invalid or expired, clear any stored token
-      if (error.response?.status === 401) {
-        setUser(null);
-        // Clear any stored tokens
-        localStorage.removeItem('auth_token');
-      } else {
-        console.error('Auth check failed:', error);
-        setUser(null);
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        throw error;
       }
+
+      applySession(data.session ?? null);
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      applySession(null);
     } finally {
       setIsLoading(false);
       setHasCheckedAuth(true);
     }
-  }, [isLoading, hasCheckedAuth]);
+  }, [applySession, hasCheckedAuth, isLoading]);
 
-  const login = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const response = await api.auth.login(email, password);
-      
-      if (response.data.success) {
-        setUser(response.data.user);
-        setHasCheckedAuth(true);
-        
-        // Store token in localStorage as backup to HTTP-only cookie
-        if (response.data.token) {
-          localStorage.setItem('auth_token', response.data.token);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          return { success: false, error: error.message };
         }
-        
-        return { success: true };
-      } else {
-        return { 
-          success: false, 
-          error: response.data.error || 'Login failed' 
-        };
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      
-      let errorMessage = 'Login failed';
-      
-      if (error.response?.status === 401) {
-        errorMessage = 'Invalid email or password';
-      } else if (error.response?.status === 429) {
-        errorMessage = `Too many login attempts. Try again in ${error.response.data.retryAfter} seconds.`;
-      } else if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const logout = async () => {
+        applySession(data.session ?? null);
+        setHasCheckedAuth(true);
+        return { success: true };
+      } catch (error: any) {
+        console.error('Login error:', error);
+        const fallbackMessage =
+          error?.message ||
+          (typeof error === 'string' ? error : 'Login failed');
+        return { success: false, error: fallbackMessage };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [applySession],
+  );
+
+  const logout = useCallback(async () => {
     try {
       setIsLoading(true);
-      await api.auth.logout();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      setUser(null);
+      applySession(null);
+      setHasCheckedAuth(false);
       localStorage.removeItem('auth_token');
       setIsLoading(false);
-      setHasCheckedAuth(false);
     }
-  };
+  }, [applySession]);
 
   useEffect(() => {
     if (!hasCheckedAuth) {
@@ -128,18 +151,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [checkAuth, hasCheckedAuth]);
 
-  const value: AuthContextValue = {
-    user,
-    isLoading,
-    isAuthenticated,
-    login,
-    logout,
-    checkAuth
-  };
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      applySession(nextSession);
+      setIsLoading(false);
+      setHasCheckedAuth(true);
+    });
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [applySession]);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      session,
+      isLoading,
+      isAuthenticated,
+      login,
+      logout,
+      checkAuth,
+    }),
+    [checkAuth, isAuthenticated, isLoading, login, logout, session, user],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+
