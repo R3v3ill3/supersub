@@ -30,7 +30,8 @@
     "openai": "^4.57.0",
     "p-retry": "^6.0.1",
     "pdf-parse": "^1.1.1",
-    "zod": "^3.23.8","@da/ui":"workspace:*"
+    "zod": "^3.23.8",
+    "@da/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

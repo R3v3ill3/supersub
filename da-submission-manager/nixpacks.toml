@@ -1,0 +1,16 @@
+[phases.install]
+nixPkgs = ["nodejs", "pnpm"]
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@9.12.0 --activate",
+  "pnpm install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = [
+  "pnpm run build:ui",
+  "pnpm run build"
+]
+
+[start]
+cmd = "pnpm --filter @dasub/api run start"
