@@ -118,6 +118,9 @@ export const api = {
     deleteConcern: (version: string, key: string) => 
       apiClient.delete(`/templates/concerns/${version}/${key}`),
     upload: (data: FormData) => apiClient.post('/templates/upload', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    updateEmailBody: (projectId: string, emailBody: string) => 
+      apiClient.put(`/templates/email-body/${projectId}`, { emailBody }),
+    getGoldCoastDefaults: () => apiClient.get('/templates/defaults/gold-coast'),
   },
 
   // Dev endpoints

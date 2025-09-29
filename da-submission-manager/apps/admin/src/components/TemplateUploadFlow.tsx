@@ -1,5 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { TemplateSelector } from './TemplateSelector';
+import { EmailBodyEditor } from './EmailBodyEditor';
+import { GoldCoastDefaultSelector } from './GoldCoastDefaultSelector';
 import type { CreateProjectData } from '../lib/api';
 import type { TemplateSetupMethod } from './TemplateSetupGuide';
 
@@ -171,6 +173,10 @@ export function TemplateUploadFlow({
       followupGrounds: 'pending'
     })
   });
+  
+  const [selectedDefaultType, setSelectedDefaultType] = useState<'none' | 'gold_coast' | 'custom'>(
+    templateData.council_name === 'Gold Coast City Council' ? 'gold_coast' : 'none'
+  );
 
   const handleDualTrackTemplateChange = (field: 'original_grounds_template_id' | 'followup_grounds_template_id') => 
     (templateId?: string) => {
@@ -184,7 +190,9 @@ export function TemplateUploadFlow({
 
   const getUploadedTemplates = (data: CreateProjectData) => {
     const templates: Record<string, string> = {};
-    if (data.cover_template_id) templates.cover = data.cover_template_id;
+    // Track formal structure selection
+    if (selectedDefaultType !== 'none') templates.formalStructure = selectedDefaultType;
+    if (data.council_email_body_template) templates.emailBody = data.council_email_body_template;
     if (data.grounds_template_id) templates.grounds = data.grounds_template_id;
     if (data.dual_track_config?.original_grounds_template_id) 
       templates.originalGrounds = data.dual_track_config.original_grounds_template_id;
@@ -203,26 +211,39 @@ export function TemplateUploadFlow({
       <TemplateUploadExplainer isDualTrack={isDualTrack} method={templateSetupMethod} />
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* Step 1: Cover Letter Template */}
+        {/* Step 1: Formal Submission Structure */}
         <TemplateUploadStep
-          title="Cover Letter Template"
-          description="The formal letter sent to council with submissions"
-          status={uploadProgress.cover}
-          required={true}
+          title="Formal Submission Structure"
+          description="Choose the overall format and structure for generated submission documents"
+          status={selectedDefaultType !== 'none' ? 'success' : 'pending'}
+          required={false}
           stepNumber={1}
         >
-          <TemplateSelector
-            templateType="cover"
-            selectedTemplateId={templateData.cover_template_id}
-            onTemplateSelected={(id) => onChange({ cover_template_id: id })}
-            projectId={null}
-            showUpload={templateSetupMethod === 'upload'}
-            showPreview={true}
-            allowUrlImport={templateSetupMethod === 'existing'}
+          <GoldCoastDefaultSelector
+            selectedDefault={selectedDefaultType}
+            onDefaultSelected={setSelectedDefaultType}
+            onFormDataChange={onChange}
+          />
+        </TemplateUploadStep>
+
+        {/* Step 2: Email Body Template */}
+        <TemplateUploadStep
+          title="Email Body Template"
+          description="Content of the email sent to council when submitting documents"
+          status={templateData.council_email_body_template ? 'success' : 'pending'}
+          required={true}
+          stepNumber={2}
+        >
+          <EmailBodyEditor
+            value={templateData.council_email_body_template || ''}
+            onChange={(content) => onChange({ council_email_body_template: content })}
+            title="Council Email Body"
+            description="This content will be sent as the email body when submitting to council"
+            showMergeFields={true}
           />
         </TemplateUploadStep>
         
-        {/* Step 2: Grounds Templates */}
+        {/* Step 3: Grounds Templates */}
         {isDualTrack ? (
           <DualTrackGroundsUpload 
             originalTemplate={templateData.dual_track_config?.original_grounds_template_id}
@@ -296,7 +317,7 @@ function TemplateUploadExplainer({ isDualTrack, method }: TemplateUploadExplaine
         <>
           <h4 style={infoBoxTitleStyle}>Dual Track Templates Required:</h4>
           <ul style={{ ...explainerTextStyle, paddingLeft: '20px', margin: '8px 0 0 0' }}>
-            <li><strong>Cover Letter:</strong> Formal letter template sent to council</li>
+            <li><strong>Email Body:</strong> Content of email sent to council with attachments</li>
             <li><strong>Comprehensive Track:</strong> Template from first submission period</li>
             <li><strong>Follow-up Track:</strong> Template for new concerns/changes</li>
           </ul>
@@ -388,12 +409,12 @@ function DualTrackGroundsUpload({
 }: DualTrackGroundsUploadProps) {
   return (
     <>
-      <TemplateUploadStep
-        title="Comprehensive Track Template"
-        description="Used for new supporters requiring the full submission flow"
-        status={progress.originalGrounds || 'pending'}
-        required={true}
-        stepNumber={2}
+        <TemplateUploadStep
+          title="Comprehensive Track Template"
+          description="Used for new supporters requiring the full submission flow"
+          status={progress.originalGrounds || 'pending'}
+          required={true}
+          stepNumber={3}
       >
         <TemplateSelector
           templateType="grounds"
@@ -407,12 +428,12 @@ function DualTrackGroundsUpload({
         />
       </TemplateUploadStep>
 
-      <TemplateUploadStep
-        title="Follow-up Track Template"
-        description="Used for returning supporters adding follow-up comments"
-        status={progress.followupGrounds || 'pending'}
-        required={true}
-        stepNumber={3}
+        <TemplateUploadStep
+          title="Follow-up Track Template"
+          description="Used for returning supporters adding follow-up comments"
+          status={progress.followupGrounds || 'pending'}
+          required={true}
+          stepNumber={4}
       >
         <TemplateSelector
           templateType="grounds"
@@ -444,12 +465,12 @@ function SingleTrackGroundsUpload({
   progress 
 }: SingleTrackGroundsUploadProps) {
   return (
-    <TemplateUploadStep
-      title="Grounds for Submission Template"
-      description="Main submission content template for supporters"
-      status={progress}
-      required={true}
-      stepNumber={2}
+      <TemplateUploadStep
+        title="Grounds for Submission Template"
+        description="Main submission content template for supporters"
+        status={progress}
+        required={true}
+        stepNumber={3}
     >
       <TemplateSelector
         templateType="grounds"
@@ -478,8 +499,8 @@ function TemplateUploadProgress({
   onAllComplete 
 }: TemplateUploadProgressProps) {
   const requiredTemplates = isDualTrack 
-    ? ['cover', 'originalGrounds', 'followupGrounds']
-    : ['cover', 'grounds'];
+    ? ['formalStructure', 'emailBody', 'originalGrounds', 'followupGrounds']
+    : ['formalStructure', 'emailBody', 'grounds'];
     
   const completedTemplates = requiredTemplates.filter(
     template => Boolean(templates[template])

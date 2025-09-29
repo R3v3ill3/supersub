@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "name": "dasub-admin",
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm build:ui && cd apps/admin && pnpm build",
+  "outputDirectory": "apps/admin/dist",
+  "installCommand": null,
+  "framework": "vite",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

@@ -542,4 +542,137 @@ router.delete('/files/:fileId/version/:versionId', async (req, res) => {
   }
 });
 
+/**
+ * Update council email body template for a project
+ * PUT /api/templates/email-body/:projectId
+ */
+router.put('/email-body/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { emailBody } = z.object({
+      emailBody: z.string().min(1, 'Email body template is required')
+    }).parse(req.body);
+    
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+    
+    const { data: project, error } = await supabase
+      .from('projects')
+      .update({ 
+        council_email_body_template: emailBody,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', projectId)
+      .select()
+      .single();
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        projectId,
+        emailBodyTemplate: project.council_email_body_template
+      }
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to update email body template'
+    });
+  }
+});
+
+/**
+ * Get Gold Coast default templates
+ * GET /api/templates/defaults/gold-coast
+ */
+router.get('/defaults/gold-coast', async (req, res) => {
+  try {
+    const goldCoastDefaults = {
+      submissionTemplate: `# Gold Coast Council - Development Application Submission Template
+
+## Property Details
+**Lot Number:** {{lot_number}}  
+**Plan Number:** {{plan_number}}  
+**Property Address:** {{site_address}}  
+**Application Number:** {{application_number}}
+
+## Submitter Details  
+**First Name:** {{applicant_first_name}}  
+**Surname:** {{applicant_last_name}}  
+
+**Residential Address:**  
+{{applicant_residential_address}}  
+{{applicant_suburb}} {{applicant_state}} {{applicant_postcode}}  
+**Email Address:** {{applicant_email}}
+
+## Postal Address
+{{#if postal_address_same}}
+**Postal Address:** Same as residential address above
+{{else}}
+**Postal Address:**  
+{{applicant_postal_address}}  
+{{postal_suburb}} {{postal_state}} {{postal_postcode}}  
+**Email Address:** {{postal_email}}
+{{/if}}
+
+## Submission Details
+**Position on Development Application:** **OBJECTING**
+
+### Grounds of Submission
+{{grounds_content}}
+
+The above grounds focus on planning issues and demonstrate how the proposed development is inconsistent with the Gold Coast City Plan.
+
+## Declaration
+I understand and acknowledge that:
+✓ The information provided in this submission is true and correct  
+✓ This submission is NOT confidential and will be displayed through PD Online  
+✓ I acknowledge Queensland State Laws will accept this communication as containing my signature
+
+**Electronic Signature:** {{applicant_first_name}} {{applicant_last_name}}  
+**Date:** {{submission_date}}`,
+
+      emailTemplate: `Dear {{council_name}},
+
+Please find attached our development application submission in response to Application {{application_number}}.
+
+Property: {{site_address}}
+Applicant: {{applicant_full_name}}
+Email: {{applicant_email}}
+Position: OBJECTING
+
+This submission outlines community concerns regarding the proposed development and its compliance with the Gold Coast City Plan.
+
+Kind regards,
+{{sender_name}}`,
+
+      councilSettings: {
+        council_name: 'Gold Coast City Council',
+        council_email: 'mail@goldcoast.qld.gov.au',
+        council_subject_template: 'Development application submission opposing application number {{application_number}}',
+        default_application_number: 'COM/2025/271'
+      }
+    };
+    
+    res.json({
+      success: true,
+      data: goldCoastDefaults
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to get Gold Coast defaults'
+    });
+  }
+});
+
 export default router;

@@ -377,7 +377,7 @@ export default function CreateProject() {
 
   // NEW: Wizard validation functions
   const stepValidation = {
-    1: () => Boolean(formData.name && formData.slug && formData.council_name),
+    1: () => Boolean(formData.name && formData.slug), // Fixed: removed council_name (not available in Step 1)
     2: () => Boolean(formData.council_email && formData.council_name && formData.default_application_number),
     3: () => {
       if (formData.is_dual_track) {

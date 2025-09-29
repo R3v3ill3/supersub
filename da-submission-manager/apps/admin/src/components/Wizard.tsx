@@ -1,4 +1,4 @@
-import { type ReactNode, type CSSProperties } from 'react';
+import React, { type ReactNode, type CSSProperties } from 'react';
 
 // Wizard Infrastructure Components
 // These components provide the multi-step wizard experience
@@ -416,5 +416,3 @@ export function FormSection({ title, description, children }: FormSectionProps) 
   );
 }
 
-// Import React for Fragment usage
-import React from 'react';

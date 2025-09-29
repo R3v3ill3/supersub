@@ -1,0 +1,8 @@
+# Vercel Environment Variables - Web App  
+# Configure these in Vercel dashboard under Settings > Environment Variables
+
+# API Configuration
+VITE_API_URL=https://your-api.railway.app
+
+# Environment
+NODE_ENV=production

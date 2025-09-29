@@ -16,18 +16,14 @@ import monitoringRoutes from './routes/monitoring';
 import healthRoutes from './routes/health';
 import { EmailQueueService } from './services/emailQueue';
 import { errorHandler } from './services/errorHandler';
+import { corsOptions } from './config/cors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
-app.use(cors({
-  origin: true, // Allow all origins for development
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(cors(corsOptions));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });

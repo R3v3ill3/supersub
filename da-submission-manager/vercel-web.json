@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "name": "dasub-web",
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm build:ui && cd apps/web && pnpm build",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": null,
+  "framework": "vite",
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

@@ -7,9 +7,7 @@ import { ActionNetworkTestFirst } from './ActionNetworkTestFirst';
 import { TestingConfigurationPanel } from './TestingConfigurationPanel';
 import { ProjectSummaryPanel, PreLaunchChecklist } from './ProjectSummaryPanel';
 import { TemplateSelector } from './TemplateSelector';
-import { DualTrackConfiguration } from './DualTrackConfiguration';
 import { FormSection, WizardNavigation } from './Wizard';
-import { InfoPanel, WarningPanel } from './ui/panels';
 
 // Reuse existing styles from CreateProject
 const twoColumnGridStyle: CSSProperties = {
@@ -87,35 +85,7 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
   );
 }
 
-// Helper component for optional panel
-function OptionalPanel({ 
-  title, 
-  enabled, 
-  onEnabledChange, 
-  children 
-}: { 
-  title: string; 
-  enabled: boolean; 
-  onEnabledChange: (enabled: boolean) => void; 
-  children: ReactNode 
-}) {
-  return (
-    <FormSection title={title}>
-      <div style={toggleRowStyle}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', color: '#1f2937', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => onEnabledChange(e.target.checked)}
-            style={checkboxStyle}
-          />
-          Enable {title}
-        </label>
-      </div>
-      {enabled && children}
-    </FormSection>
-  );
-}
+// Helper component for optional panel (currently unused but may be needed for future features)
 
 // Action Network Optional Panel - Clear value proposition before complexity
 interface ActionNetworkOptionalPanelProps {
@@ -270,10 +240,17 @@ interface Step1Props {
 
 export function Step1ProjectType({ formData, onInputChange, onNameChange, onNext, isValid }: Step1Props) {
   const handleDualTrackChange = (isDualTrack: boolean) => {
-    // Update formData using synthetic event to match existing handler
+    // Create a simple synthetic event compatible with the existing handler
+    const mockElement = document.createElement('input');
+    mockElement.name = 'is_dual_track';
+    mockElement.type = 'checkbox';
+    mockElement.checked = isDualTrack;
+    
     const syntheticEvent = {
-      target: { name: 'is_dual_track', value: isDualTrack, type: 'checkbox', checked: isDualTrack }
-    } as ChangeEvent<HTMLInputElement>;
+      target: mockElement,
+      currentTarget: mockElement
+    } as unknown as ChangeEvent<HTMLInputElement>;
+    
     onInputChange(syntheticEvent);
   };
 
@@ -487,7 +464,7 @@ export function Step3TemplateSetup({
             deprecated
           />
           <p style={helpTextStyle}>
-            <strong>Deprecated:</strong> Legacy submission template. Use the Cover and Grounds templates above for better functionality.
+            <strong>Deprecated:</strong> Legacy submission template. The new workflow above provides separate formal structure, email body, and grounds templates for better functionality.
           </p>
         </div>
       </FormSection>
