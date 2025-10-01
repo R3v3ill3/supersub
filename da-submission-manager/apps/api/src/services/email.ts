@@ -433,7 +433,7 @@ export class EmailService {
     councilEmail: string,
     fromEmail: string,
     fromName: string,
-    subject: string, // subject is now templated
+    subject: string,
     bodyText: string,
     attachments: Array<{ filename: string; buffer: Buffer }>,
     applicantDetails: {
@@ -445,17 +445,21 @@ export class EmailService {
     },
     bodyHtml?: string
   ): Promise<EmailResult> {
-    const context = {
-      ...applicantDetails,
-      submissionBody: bodyText,
-    };
-    await this.enqueueTemplatedEmail('direct-submission', context, {
+    // Send immediately, don't queue (attachments are too large for DB queue)
+    return await this.sendEmail({
       to: councilEmail,
       from: fromEmail,
       fromName: fromName,
-      attachments: attachments.map(a => ({ filename: a.filename, content: a.buffer, contentType: 'application/pdf' })),
-      submissionId
+      subject: subject,
+      text: bodyText,
+      html: bodyHtml,
+      attachments: attachments.map(a => ({ 
+        filename: a.filename, 
+        content: a.buffer, 
+        contentType: 'application/pdf' 
+      })),
+      submissionId,
+      emailType: 'direct-submission'
     });
-    return { messageId: 'queued', accepted: [], rejected: [], pending: [] };
   }
 }

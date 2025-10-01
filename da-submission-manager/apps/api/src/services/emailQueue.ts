@@ -49,10 +49,25 @@ export class EmailQueueService {
       submissionId = payload.submissionId,
     } = options;
 
+    // Convert Buffer attachments to base64 strings for database storage
+    const payloadForDb = { ...payload };
+    if (payloadForDb.attachments && Array.isArray(payloadForDb.attachments)) {
+      payloadForDb.attachments = payloadForDb.attachments.map((att: any) => {
+        if (att.content && Buffer.isBuffer(att.content)) {
+          return {
+            ...att,
+            content: att.content.toString('base64'),
+            encoding: 'base64'
+          };
+        }
+        return att;
+      });
+    }
+
     const { error } = await supabase.from('email_queue').insert({
       submission_id: submissionId,
       email_type: emailType,
-      payload: payload,
+      payload: payloadForDb,
       priority,
       max_retries: maxRetries,
       scheduled_for: scheduledFor.toISOString(),
