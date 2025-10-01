@@ -290,7 +290,7 @@ export default function SubmissionForm() {
         plan_number: data.plan_number,
         site_address: data.site_address,
         application_number: data.application_number,
-        submission_pathway: 'review', // Review pathway - creates Google Doc with real PDFs
+        submission_pathway: 'direct', // Direct pathway - generates PDFs with Puppeteer, sends to council
         submission_track: data.submission_track,
         is_returning_submitter: data.is_returning_submitter,
       });
