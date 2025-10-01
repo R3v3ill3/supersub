@@ -8,17 +8,32 @@ CRITICAL REQUIREMENTS:
    • DO NOT speculate, infer, or extrapolate beyond what is written
    • DO NOT introduce new concerns, issues, or points of objection
    • DO NOT add rhetorical flourishes, emotive language, or persuasive devices not in the source
+   • DO NOT conduct research, recall information from training data, or import facts from external sources
    • If a fact or claim is not in APPROVED_FACTS or SELECTED_CONCERNS, it MUST NOT appear in your output
    • Your job is to ORGANIZE existing content, NOT to CREATE new content
+   • The ONLY acceptable source for new content is user-provided text (if explicitly indicated)
 
 2. COMPREHENSIVENESS (USE ALL SOURCE MATERIAL):
    • Include COMPLETE content from ALL selected concerns - DO NOT summarize or truncate
-   • Use the FULL text from each concern in SELECTED_CONCERNS
+   • Use the FULL text from each concern in SELECTED_CONCERNS - reproduce it verbatim or with minimal editing for flow only
+   • CRITICAL: Each concern body must appear in your output with the same level of detail as the source
+   • If a concern contains N sentences in SELECTED_CONCERNS, your output should have N sentences (±1 for necessary transitions only)
+   • DO NOT combine multiple concerns into one section unless they share the exact same key
+   • DO NOT reduce detail, condense points, or omit examples from concerns
+   • DO NOT paraphrase concern content into briefer versions
    • Include ALL facts, citations, specific code references, and policy numbers from APPROVED_FACTS
+   • PRESERVE ALL SPECIFIC DATA VERBATIM:
+     - Measurements (e.g., "12,600 m³ of cut", "2,400 m³ of fill")
+     - Distances (e.g., "50 metres", "200m setback")
+     - Quantities (e.g., "7,000 m³ of soil export", "150 parking spaces")
+     - Percentages, dates, times, addresses, section numbers
+     - Code references (e.g., "Planning Scheme Code 8.2.3.1")
+     - Standard references (e.g., "AS 2601-1991")
    • The word limit of {{MAX_WORDS}} words is generous - use it to be thorough, not brief
    • Never omit specific planning code references, section numbers, or legislative citations
    • Include all examples, statistics, and supporting details that exist in the source material
    • Make minimal edits - only what's necessary for flow, grammar, and coherence
+   • IF content cannot fit in {{MAX_WORDS}} words, prioritize completeness over brevity - include ALL selected concerns in full
 
 3. STRUCTURE - GROUNDS SECTION ONLY:
    • INTRODUCTION: Use USER_STYLE_SAMPLE to create a strong opening paragraph (3-5 sentences)
@@ -27,18 +42,27 @@ CRITICAL REQUIREMENTS:
      - Indicate the submission covers planning compliance, community impacts, etc.
 
    • MAIN BODY: Present ALL SELECTED_CONCERNS in priority order (first = most important)
-     - Use numbered sections (1., 2., 3., etc.) with descriptive headings
-     - Use subsections (1.1, 1.2, etc.) where the source material does
-     - Include the COMPLETE text from each concern
-     - Add transitional sentences between major sections for flow
+     - Use numbered sections (1., 2., 3., etc.) with descriptive headings from concern labels
+     - Each numbered section represents ONE concern from SELECTED_CONCERNS
+     - DO NOT merge or combine concerns unless they have identical keys
+     - For EACH concern:
+       1. Create a numbered section with the concern's label as the heading
+       2. Include the COMPLETE concern body as your primary content - copy it verbatim with only minimal grammar/flow adjustments
+       3. ALL specific data from the concern body MUST appear: measurements, statistics, code references, quantities
+       4. If the concern body is 2-3 sentences, you MAY add 0-1 brief transitional sentence for flow
+       5. If the concern body is 4+ sentences, use it verbatim - do not add filler
+       6. Use subsections (1.1, 1.2) ONLY if the source concern explicitly discusses distinct sub-topics
+     - Add brief transitional sentences BETWEEN sections for flow, but NEVER within a concern's content to reduce its length
      - Preserve ALL specific references to:
-       * Gold Coast City Plan sections
-       * Planning scheme codes
-       * State Planning Policy requirements
-       * Zone codes and overlays
-       * Australian Standards
-       * Specific measurements, distances, or quantities
-     - Use **bold** for emphasis on key planning terms and section references
+       * Measurements and quantities (e.g., "12,600 m³", "7,000 m³ of soil export")
+       * Gold Coast City Plan sections (e.g., "Strategic Framework", "Section 8.2.3")
+       * Planning scheme codes and zone codes
+       * State Planning Policy requirements (e.g., "SEQRP", "ShapingSEQ")
+       * Overlays and designations (e.g., "Regional Landscape and Rural Production Area")
+       * Australian Standards (e.g., "AS 2601-1991")
+       * Specific distances, setbacks, heights, areas
+       * Dates, times, addresses, property descriptions
+     - Use **bold** for emphasis on key planning terms, code references, and critical data points
      - Use bullet points where the source material does
 
    • CONCLUSION: Strong closing paragraph (3-4 sentences)
@@ -65,6 +89,17 @@ CRITICAL REQUIREMENTS:
    • Be comprehensive, not concise
    • If under the limit, you are likely omitting important content
    • Include ALL selected concerns in their entirety
+   • Typical submissions should use 80-100% of the word limit when including all concerns comprehensively
+
+6.5. FIDELITY VALIDATION (SELF-CHECK BEFORE RESPONDING):
+   Before finalizing your response, verify:
+   • COUNT CHECK: Every key from SELECTED_CONCERNS appears as a distinct numbered section in your output
+   • SENTENCE CHECK: The sentence count for each concern matches the source (±1 for necessary flow)
+   • DATA CHECK: All specific measurements, quantities, and statistics from concerns appear in your output verbatim
+   • NO MERGING: No concepts from different SELECTED_CONCERNS were combined or merged into single sections
+   • NO OMISSIONS: No specific details (statistics, code references, measurements, dates) were omitted or generalized
+   • WORD COUNT: Your output approaches {{MAX_WORDS}} words (should be 70-100% of limit for comprehensive coverage)
+   • NO HALLUCINATIONS: You have not added any facts, figures, or claims not present in APPROVED_FACTS or SELECTED_CONCERNS
 
 7. OUTPUT:
    • Output only valid JSON matching the provided schema

@@ -24,8 +24,8 @@ type GenerateArgs = {
 
 async function generateWithOpenAI(args: GenerateArgs, system: string, user: string, maxWords: number) {
   const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  const temperature = Number(process.env.OPENAI_TEMPERATURE || 0.2);
-  const maxTokens = Number(process.env.OPENAI_MAX_TOKENS || 900);
+  const temperature = Number(process.env.OPENAI_TEMPERATURE || 0.05);
+  const maxTokens = Number(process.env.OPENAI_MAX_TOKENS || 4000);
 
   return await retryService.executeWithRetry(
     async () => {
@@ -94,7 +94,7 @@ async function generateWithGemini(args: GenerateArgs, system: string, user: stri
   }
 
   const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const temperature = Number(process.env.GEMINI_TEMPERATURE || 0.2);
+  const temperature = Number(process.env.GEMINI_TEMPERATURE || 0.05);
 
   return await retryService.executeWithRetry(
     async () => {
@@ -103,7 +103,7 @@ async function generateWithGemini(args: GenerateArgs, system: string, user: stri
         model,
         generationConfig: {
           temperature,
-          maxOutputTokens: Number(process.env.GEMINI_MAX_TOKENS || 900),
+          maxOutputTokens: Number(process.env.GEMINI_MAX_TOKENS || 4000),
         }
       });
 
@@ -171,7 +171,7 @@ Please respond with ONLY valid JSON in this exact format:
 }
 
 export async function generateSubmission(args: GenerateArgs) {
-  const maxWords = Number(args.maxWordsOverride ?? process.env.WORD_LIMIT ?? 600);
+  const maxWords = Number(args.maxWordsOverride ?? process.env.WORD_LIMIT ?? 2500);
 
   // Check if AI generation is enabled
   const openaiEnabled = process.env.OPENAI_ENABLED !== 'false';
@@ -310,7 +310,7 @@ export async function generateSubmission(args: GenerateArgs) {
 }
 
 export async function generateSubmissionMock(args: GenerateArgs) {
-  const maxWords = Number(args.maxWordsOverride ?? process.env.WORD_LIMIT ?? 600);
+  const maxWords = Number(args.maxWordsOverride ?? process.env.WORD_LIMIT ?? 2500);
   // Compose a safe, plain-text draft strictly from provided inputs.
   const concernText = args.selectedConcerns.map((c) => c.body.trim()).join('\n\n');
   const parts = [args.approvedFacts.trim(), concernText.trim()].filter(Boolean);
