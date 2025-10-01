@@ -277,7 +277,7 @@ router.post('/api/submissions', submissionLimiter, async (req, res) => {
 router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const { finalText } = req.body;
+    const { finalText, emailBody } = req.body;
 
     if (!finalText || typeof finalText !== 'string') {
       return res.status(400).json({ error: 'Final text is required' });
@@ -312,12 +312,20 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
       provider: 'user'
     });
 
+    // Store custom email body if provided
+    if (emailBody && typeof emailBody === 'string') {
+      await supabase
+        .from('submissions')
+        .update({ custom_email_body: emailBody })
+        .eq('id', submissionId);
+    }
+
     // Trigger document workflow to generate PDFs and send emails
     // This will handle the submission based on the project's submission_pathway
     const documentWorkflow = new DocumentWorkflowService();
     logger.info(`[submissions] Processing document workflow for submission ${submissionId}`);
     
-    const workflowResult = await documentWorkflow.processSubmission(submissionId, finalText);
+    const workflowResult = await documentWorkflow.processSubmission(submissionId, finalText, emailBody);
     
     logger.info(`[submissions] Document workflow completed`, { 
       submissionId, 
@@ -372,7 +380,8 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
       }
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${submission.cover_pdf_filename || 'cover_letter.pdf'}"`);
-      return res.send(Buffer.from(submission.cover_pdf_data));
+      // Supabase returns BYTEA as base64-encoded string, so we need to decode it
+      return res.send(Buffer.from(submission.cover_pdf_data, 'base64'));
     }
 
     if (fileType === 'grounds') {
@@ -381,7 +390,8 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
       }
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${submission.grounds_pdf_filename || 'submission.pdf'}"`);
-      return res.send(Buffer.from(submission.grounds_pdf_data));
+      // Supabase returns BYTEA as base64-encoded string, so we need to decode it
+      return res.send(Buffer.from(submission.grounds_pdf_data, 'base64'));
     }
 
     // For 'both', we need to combine or zip them
@@ -396,6 +406,62 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
 
   } catch (error: any) {
     logger.error('[submissions] Error downloading PDF', { 
+      submissionId: req.params.submissionId, 
+      error: error.message 
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Preview email body (cover letter content)
+router.post('/api/submissions/:submissionId/preview-email-body', async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { finalText } = req.body;
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Get submission details including project info
+    const { data: submission, error: submissionError } = await supabase
+      .from('submissions')
+      .select('*, projects!inner(*)')
+      .eq('id', submissionId)
+      .single();
+
+    if (submissionError || !submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    const submissionData = submission as any;
+    const project = submissionData.projects;
+
+    // Use DocumentWorkflowService to prepare submission data and generate cover content
+    const documentWorkflow = new DocumentWorkflowService();
+    const preparedData = await (documentWorkflow as any).prepareSubmissionData(
+      submissionData,
+      project,
+      finalText || submissionData.ai_generated_text
+    );
+
+    const coverContent = await (documentWorkflow as any).generateCoverContent(project, preparedData);
+
+    res.json({
+      ok: true,
+      emailBody: coverContent,
+      subject: (documentWorkflow as any).processTemplate(
+        project.council_subject_template || project.subject_template || 'Development Application Submission - {{site_address}}',
+        {
+          site_address: submissionData.site_address,
+          application_number: submissionData.application_number || project.default_application_number || '',
+          applicant_name: `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim()
+        }
+      )
+    });
+  } catch (error: any) {
+    logger.error('[submissions] Error previewing email body', { 
       submissionId: req.params.submissionId, 
       error: error.message 
     });

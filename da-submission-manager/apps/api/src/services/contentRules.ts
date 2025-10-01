@@ -40,10 +40,21 @@ export function enforceMaxWords(text: string, maxWords: number) {
 
 export function sanitizeAndValidate(text: string, opts: ValidationOptions) {
   const allowed = opts.allowedLinks ?? [];
-  const sanitized = text
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .replace(/—/g, '-')
-    .replace(/\s+/g, ' ')
+  
+  // Decode HTML entities first (e.g., &#x27; -> ')
+  const decoded = text
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+  
+  const sanitized = decoded
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces
+    .replace(/—/g, '-') // Replace em-dash with hyphen
+    .replace(/[ \t]+/g, ' ') // Collapse horizontal whitespace only (preserve newlines!)
+    .replace(/\n{3,}/g, '\n\n') // Max 2 consecutive newlines
     .trim();
 
   validateNoEmojis(sanitized);

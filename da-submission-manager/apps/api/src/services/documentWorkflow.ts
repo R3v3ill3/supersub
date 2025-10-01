@@ -384,7 +384,7 @@ Kind regards,
   /**
    * Process a complete submission workflow based on the submission pathway
    */
-  async processSubmission(submissionId: string, generatedContent?: string): Promise<DocumentWorkflowResult> {
+  async processSubmission(submissionId: string, generatedContent?: string, customEmailBody?: string): Promise<DocumentWorkflowResult> {
     const supabase = getSupabase();
     if (!supabase) {
       throw new Error('Database not configured');
@@ -418,7 +418,7 @@ Kind regards,
     try {
       switch (submissionData.submission_pathway) {
         case 'direct':
-          return await this.processDirectSubmission(submissionData, projectData, generatedContent);
+          return await this.processDirectSubmission(submissionData, projectData, generatedContent, customEmailBody);
         
         case 'review':
           return await this.processReviewSubmission(submissionData, projectData, generatedContent);
@@ -449,20 +449,23 @@ Kind regards,
   private async processDirectSubmission(
     submission: SubmissionData,
     project: ProjectData,
-    generatedContent?: string
+    generatedContent?: string,
+    customEmailBody?: string
   ): Promise<DocumentWorkflowResult> {
     const supabase = this.getClient();
 
     // Prepare complete submission data for all templates
     const submissionData = await this.prepareSubmissionData(submission, project, generatedContent);
 
-    // 1. Generate cover letter content and PDF
-    const coverContent = await this.generateCoverContent(project, submissionData);
-    const coverTitle = `DA Cover Letter - ${submission.site_address}`;
-    const coverFileName = `DA_Cover_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-    const coverFile = await this.createFileFromMarkdown(coverContent, coverTitle);
+    // 1. Generate cover letter content (for email body - not as PDF attachment)
+    // Use custom email body if provided, otherwise generate from template
+    const coverContent = customEmailBody || await this.generateCoverContent(project, submissionData);
+    
+    // Convert markdown cover content to plain text and HTML for email body
+    const coverBodyText = coverContent;
+    const coverBodyHtml = `<div style="white-space: pre-wrap; font-family: Arial, sans-serif;">${coverContent.replace(/\n/g, '<br />')}</div>`;
 
-    // 2. Generate grounds document content and PDF
+    // 2. Generate grounds document content and PDF (the only attachment)
     const groundsContent = await this.generateGroundsContent(submission, project, submissionData);
     const groundsTitle = `DA Submission - ${submission.site_address}`;
     const groundsFileName = `DA_Submission_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
@@ -477,10 +480,8 @@ Kind regards,
       applicant_name: `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim()
     });
 
-    // Send email directly to council with both attachments
+    // Send email directly to council with cover as body and only grounds as attachment
     const emailRecipient = project.test_submission_email || project.council_email;
-
-    const { bodyText, bodyHtml } = this.buildCouncilEmailContent(submission, project);
 
     const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
       submission.id,
@@ -488,9 +489,8 @@ Kind regards,
       project.from_email || process.env.DEFAULT_FROM_EMAIL!,
       project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager',
       subject,
-      bodyText,
+      coverBodyText,
       [
-        { filename: coverFileName, buffer: coverFile },
         { filename: groundsFileName, buffer: groundsFile }
       ],
       {
@@ -500,10 +500,10 @@ Kind regards,
         postalAddress: submission.applicant_postal_address,
         applicationNumber
       },
-      bodyHtml
+      coverBodyHtml
     );
 
-    // Update submission and store PDFs for download
+    // Update submission and store PDF for download
     const submittedAt = new Date().toISOString();
 
     await supabase
@@ -513,15 +513,14 @@ Kind regards,
         status: 'SUBMITTED',
         submitted_to_council_at: submittedAt,
         council_confirmation_id: emailResult.messageId,
-        cover_pdf_data: coverFile,
         grounds_pdf_data: groundsFile,
-        cover_pdf_filename: coverFileName,
         grounds_pdf_filename: groundsFileName
       } as any)
       .eq('id', submission.id);
 
     // No Google Docs created for direct pathway, so no document records to save
-    // PDFs are attached directly to email and stored in submissions table
+    // Only grounds PDF is attached to email and stored in submissions table
+    // Cover letter content is used as the email body
 
     return {
       submissionId: submission.id,

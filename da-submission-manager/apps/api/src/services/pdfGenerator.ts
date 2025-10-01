@@ -6,7 +6,7 @@ const logger = new Logger({ namespace: 'pdfGenerator' });
 export class PdfGeneratorService {
   /**
    * Convert markdown content to PDF using PDFKit
-   * Simple, lightweight, no Chrome needed
+   * Professional formatting with proper typography
    */
   async generatePdfFromMarkdown(content: string, title: string): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -18,7 +18,8 @@ export class PdfGeneratorService {
             bottom: 72,
             left: 72,
             right: 72
-          }
+          },
+          bufferPages: true // Enable for page numbering
         });
 
         const chunks: Buffer[] = [];
@@ -26,117 +27,175 @@ export class PdfGeneratorService {
         doc.on('data', (chunk) => chunks.push(chunk));
         doc.on('end', () => {
           const pdfBuffer = Buffer.concat(chunks);
-          logger.info('PDF generated successfully', { size: pdfBuffer.length });
+          logger.info('PDF generated successfully', { 
+            size: pdfBuffer.length,
+            pages: doc.bufferedPageRange().count 
+          });
           resolve(pdfBuffer);
         });
         doc.on('error', reject);
 
-        // Add title
-        doc.fontSize(18)
+        // Add title with better spacing
+        doc.fontSize(20)
            .font('Helvetica-Bold')
            .text(title, { align: 'center' });
         
-        doc.moveDown(2);
+        doc.moveDown(1.5);
+        
+        // Add a subtle line separator
+        doc.moveTo(doc.page.margins.left + 100, doc.y)
+           .lineTo(doc.page.width - doc.page.margins.right - 100, doc.y)
+           .lineWidth(0.5)
+           .stroke();
+        
+        doc.moveDown(1.5);
 
         // Process content line by line with better formatting
         const lines = content.split('\n');
         let inList = false;
+        let previousWasHeading = false;
         
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const trimmed = line.trim();
           
+          // Check if we need a new page (leave room for at least 3 lines)
+          if (doc.y > doc.page.height - doc.page.margins.bottom - 100) {
+            doc.addPage();
+            previousWasHeading = false;
+          }
+          
           if (!trimmed) {
-            // Empty line - add spacing
-            doc.moveDown(0.3);
+            // Empty line - add spacing (more after headings)
+            doc.moveDown(previousWasHeading ? 0.5 : 0.4);
             inList = false;
+            previousWasHeading = false;
             continue;
           }
 
-          // Headings
+          // Level 1 Headings (# )
           if (trimmed.startsWith('# ')) {
+            if (i > 0) doc.moveDown(0.8); // Extra space before heading
+            doc.fontSize(18).font('Helvetica-Bold').text(trimmed.substring(2));
             doc.moveDown(0.5);
-            doc.fontSize(16).font('Helvetica-Bold').text(trimmed.substring(2));
-            doc.moveDown(0.3);
             inList = false;
+            previousWasHeading = true;
           } 
+          // Level 2 Headings (## )
           else if (trimmed.startsWith('## ')) {
+            if (i > 0) doc.moveDown(0.7);
+            doc.fontSize(15).font('Helvetica-Bold').text(trimmed.substring(3));
             doc.moveDown(0.4);
-            doc.fontSize(14).font('Helvetica-Bold').text(trimmed.substring(3));
-            doc.moveDown(0.2);
             inList = false;
+            previousWasHeading = true;
           } 
+          // Level 3 Headings (### )
           else if (trimmed.startsWith('### ')) {
+            if (i > 0) doc.moveDown(0.5);
+            doc.fontSize(13).font('Helvetica-Bold').text(trimmed.substring(4));
             doc.moveDown(0.3);
-            doc.fontSize(12).font('Helvetica-Bold').text(trimmed.substring(4));
-            doc.moveDown(0.2);
             inList = false;
+            previousWasHeading = true;
           }
+          // Level 4 Headings (#### )
           else if (trimmed.startsWith('#### ')) {
+            if (i > 0) doc.moveDown(0.4);
+            doc.fontSize(12).font('Helvetica-Bold').text(trimmed.substring(5));
             doc.moveDown(0.2);
-            doc.fontSize(11).font('Helvetica-Bold').text(trimmed.substring(5));
-            doc.moveDown(0.1);
             inList = false;
+            previousWasHeading = true;
           }
           // Horizontal rule
           else if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
-            doc.moveDown(0.3);
+            doc.moveDown(0.5);
             doc.moveTo(doc.page.margins.left, doc.y)
                .lineTo(doc.page.width - doc.page.margins.right, doc.y)
+               .lineWidth(1)
                .stroke();
-            doc.moveDown(0.3);
+            doc.moveDown(0.5);
             inList = false;
+            previousWasHeading = false;
           }
-          // Bullet Lists
+          // Bullet Lists (- or *)
           else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             if (!inList) {
-              doc.moveDown(0.2);
+              doc.moveDown(0.3);
             }
             this.renderFormattedText(doc, '• ' + trimmed.substring(2), {
               fontSize: 11,
-              indent: 15,
-              paragraphGap: 3
+              indent: 20,
+              paragraphGap: 4,
+              lineSpacing: 1.2
             });
             inList = true;
+            previousWasHeading = false;
           }
-          // Numbered lists
+          // Numbered lists (1. 2. etc)
           else if (/^\d+\.\s/.test(trimmed)) {
             if (!inList) {
-              doc.moveDown(0.2);
-            }
-            this.renderFormattedText(doc, trimmed, {
-              fontSize: 11,
-              indent: 20,
-              paragraphGap: 3
-            });
-            inList = true;
-          }
-          // Block quotes
-          else if (trimmed.startsWith('> ')) {
-            doc.fontSize(10).font('Helvetica-Oblique');
-            const quoteText = trimmed.substring(2);
-            const x = doc.page.margins.left + 30;
-            doc.moveTo(x - 15, doc.y)
-               .lineTo(x - 15, doc.y + 20)
-               .stroke();
-            doc.text(quoteText, x, doc.y - 20, {
-              width: doc.page.width - doc.page.margins.left - doc.page.margins.right - 30
-            });
-            doc.moveDown(0.3);
-            inList = false;
-          }
-          // Normal paragraph
-          else {
-            if (inList) {
               doc.moveDown(0.3);
             }
             this.renderFormattedText(doc, trimmed, {
               fontSize: 11,
-              align: 'justify',
-              paragraphGap: 5
+              indent: 25,
+              paragraphGap: 4,
+              lineSpacing: 1.2
+            });
+            inList = true;
+            previousWasHeading = false;
+          }
+          // Block quotes (> )
+          else if (trimmed.startsWith('> ')) {
+            doc.fontSize(10).font('Helvetica-Oblique');
+            const quoteText = trimmed.substring(2);
+            const x = doc.page.margins.left + 30;
+            const startY = doc.y;
+            
+            doc.text(quoteText, x, startY, {
+              width: doc.page.width - doc.page.margins.left - doc.page.margins.right - 30,
+              lineGap: 2
+            });
+            
+            // Draw quote line
+            doc.moveTo(x - 15, startY)
+               .lineTo(x - 15, doc.y)
+               .lineWidth(2)
+               .strokeColor('#999999')
+               .stroke()
+               .strokeColor('black'); // Reset to black
+               
+            doc.moveDown(0.4);
+            inList = false;
+            previousWasHeading = false;
+          }
+          // Normal paragraph
+          else {
+            if (inList) {
+              doc.moveDown(0.4);
+            }
+            this.renderFormattedText(doc, trimmed, {
+              fontSize: 11,
+              align: 'left', // Changed from 'justify' for better readability
+              paragraphGap: 6,
+              lineSpacing: 1.3
             });
             inList = false;
+            previousWasHeading = false;
           }
+        }
+
+        // Add page numbers
+        const pageCount = doc.bufferedPageRange().count;
+        for (let i = 0; i < pageCount; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(9)
+             .font('Helvetica')
+             .text(
+               `Page ${i + 1} of ${pageCount}`,
+               doc.page.margins.left,
+               doc.page.height - 50,
+               { align: 'center', width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
+             );
         }
 
         // Finalize PDF
@@ -155,12 +214,13 @@ export class PdfGeneratorService {
   private renderFormattedText(
     doc: PDFKit.PDFDocument, 
     text: string, 
-    options: { fontSize?: number; indent?: number; align?: string; paragraphGap?: number } = {}
+    options: { fontSize?: number; indent?: number; align?: string; paragraphGap?: number; lineSpacing?: number } = {}
   ) {
     const fontSize = options.fontSize || 11;
     const indent = options.indent || 0;
     const align = options.align as any;
     const paragraphGap = options.paragraphGap || 5;
+    const lineGap = options.lineSpacing ? (fontSize * (options.lineSpacing - 1)) : 2;
 
     doc.fontSize(fontSize);
 
@@ -177,19 +237,22 @@ export class PdfGeneratorService {
           doc.font('Helvetica-Bold').text(token.text, {
             continued: !isLast,
             indent: continued ? 0 : indent,
-            align: continued ? undefined : align
+            align: continued ? undefined : align,
+            lineGap
           });
         } else if (token.type === 'italic') {
           doc.font('Helvetica-Oblique').text(token.text, {
             continued: !isLast,
             indent: continued ? 0 : indent,
-            align: continued ? undefined : align
+            align: continued ? undefined : align,
+            lineGap
           });
         } else {
           doc.font('Helvetica').text(token.text, {
             continued: !isLast,
             indent: continued ? 0 : indent,
-            align: continued ? undefined : align
+            align: continued ? undefined : align,
+            lineGap
           });
         }
         continued = true;
@@ -199,7 +262,8 @@ export class PdfGeneratorService {
       // Plain text
       doc.font('Helvetica').text(text, {
         indent,
-        align
+        align,
+        lineGap
       });
       doc.moveDown(paragraphGap / 10);
     }

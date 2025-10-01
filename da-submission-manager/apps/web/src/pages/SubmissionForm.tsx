@@ -201,8 +201,13 @@ export default function SubmissionForm() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [generatedText, setGeneratedText] = useState<string>('');
   const [originalGeneratedText, setOriginalGeneratedText] = useState<string>('');
+  const [emailBody, setEmailBody] = useState<string>('');
+  const [originalEmailBody, setOriginalEmailBody] = useState<string>('');
+  const [emailSubject, setEmailSubject] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [isEmailEditMode, setIsEmailEditMode] = useState<boolean>(false);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [showEmailResetConfirm, setShowEmailResetConfirm] = useState<boolean>(false);
 
   const {
     data: projectResponse,
@@ -354,10 +359,27 @@ export default function SubmissionForm() {
     },
   });
 
+  // Preview email body mutation
+  const previewEmailBodyMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.submissions.previewEmailBody(submissionId, { finalText: generatedText });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setEmailBody(data.emailBody || '');
+      setOriginalEmailBody(data.emailBody || '');
+      setEmailSubject(data.subject || '');
+      setStep(5);
+    },
+  });
+
   // Submit final submission mutation
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.submissions.submit(submissionId, { finalText: generatedText });
+      const response = await api.submissions.submit(submissionId, { 
+        finalText: generatedText,
+        emailBody: emailBody 
+      });
       return response.data;
     },
     onSuccess: () => {
