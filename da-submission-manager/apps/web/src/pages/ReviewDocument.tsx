@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -52,9 +52,10 @@ export default function ReviewDocument() {
   const updateStatusMutation = useMutation({
     mutationFn: (data: {
       status: 'created' | 'user_editing' | 'finalized' | 'submitted' | 'approved';
-      reviewStatus?: string;
+      reviewStatus?: 'not_started' | 'in_progress' | 'changes_requested' | 'ready_for_submission' | 'submitted';
       reviewStartedAt?: string;
       reviewCompletedAt?: string;
+      lastModifiedAt?: string;
     }) => api.documents.updateStatus(submissionId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-status', submissionId] });

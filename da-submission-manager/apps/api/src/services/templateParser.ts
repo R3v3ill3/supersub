@@ -1,5 +1,4 @@
 import JSZip from 'jszip';
-import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 
 export type TemplatePlaceholderSummary = {
@@ -7,6 +6,12 @@ export type TemplatePlaceholderSummary = {
 };
 
 const PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_\.]+)\s*}}/g;
+
+// Dynamic import for pdf-parse to avoid startup issues
+async function getPdfParse() {
+  const pdfParse = await import('pdf-parse');
+  return pdfParse.default;
+}
 
 export async function extractDocxPlaceholders(buffer: Buffer): Promise<TemplatePlaceholderSummary> {
   const zip = await JSZip.loadAsync(buffer);
@@ -44,6 +49,7 @@ export function extractTextPlaceholders(text: string): TemplatePlaceholderSummar
 }
 
 export async function extractPdfPlaceholders(buffer: Buffer): Promise<TemplatePlaceholderSummary> {
+  const pdfParse = await getPdfParse();
   const result = await pdfParse(buffer);
   return extractTextPlaceholders(result.text || '');
 }
@@ -67,6 +73,7 @@ export async function extractDocxText(buffer: Buffer): Promise<string> {
  */
 export async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
+    const pdfParse = await getPdfParse();
     const result = await pdfParse(buffer);
     return (result.text || '').trim();
   } catch (error: any) {

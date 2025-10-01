@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { SuccessIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
-import { WizardHeader, WizardNavigation, FormSection, ChoiceCard } from '../components/Wizard';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
 
@@ -73,60 +72,6 @@ interface SurveyData {
   submission_track: SubmissionTrack;
 }
 
-const TRACK_LABELS: Record<SubmissionTrack, { title: string; badge: string }> = {
-  followup: { title: 'Follow-up submission', badge: 'Returning supporters' },
-  comprehensive: { title: 'Comprehensive submission', badge: 'Full submission' },
-};
-
-// Inline styles matching admin app design
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  border: '1px solid #d1d5db',
-  backgroundColor: '#ffffff',
-  fontSize: '14px',
-  color: '#111827',
-  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-  outline: 'none',
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: '14px',
-  fontWeight: 600,
-  color: '#1f2937',
-  marginBottom: '8px',
-  display: 'block',
-};
-
-const fieldStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-};
-
-const twoColumnGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: '24px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-};
-
-const helpTextStyle: React.CSSProperties = {
-  fontSize: '13px',
-  color: '#6b7280',
-  lineHeight: 1.6,
-  margin: 0,
-};
-
-const checkboxRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '16px',
-  borderRadius: '12px',
-  backgroundColor: '#f9fafb',
-  border: '1px solid #e5e7eb',
-};
 
 export default function SubmissionForm() {
   const { projectSlug } = useParams();
@@ -268,9 +213,9 @@ export default function SubmissionForm() {
         applicant_postcode: data.applicant_postcode,
         // Postal address fields (use residential if same)
         applicant_postal_address: data.postal_address_same ? data.applicant_residential_address : data.applicant_postal_address,
-        postal_suburb: data.postal_address_same ? data.applicant_suburb : data.postal_suburb,
-        postal_state: data.postal_address_same ? data.applicant_state : data.postal_state,
-        postal_postcode: data.postal_address_same ? data.applicant_postcode : data.postal_postcode,
+        applicant_postal_city: data.postal_address_same ? data.applicant_suburb : data.postal_suburb,
+        applicant_postal_region: data.postal_address_same ? data.applicant_state : data.postal_state,
+        applicant_postal_postcode: data.postal_address_same ? data.applicant_postcode : data.postal_postcode,
         postal_email: data.postal_address_same ? data.applicant_email : data.postal_email,
         // Property details
         lot_number: data.lot_number,
@@ -461,7 +406,7 @@ export default function SubmissionForm() {
                     name="submission_track"
                     value="followup"
                     checked={formData.submission_track === 'followup'}
-                    onChange={(e) => {
+                    onChange={() => {
                       setFormData({ ...formData, submission_track: 'followup', is_returning_submitter: true });
                       setSurveyData({ ...surveyData, submission_track: 'followup' });
                     }}
@@ -488,7 +433,7 @@ export default function SubmissionForm() {
                     name="submission_track"
                     value="comprehensive"
                     checked={formData.submission_track === 'comprehensive'}
-                    onChange={(e) => {
+                    onChange={() => {
                       setFormData({ ...formData, submission_track: 'comprehensive', is_returning_submitter: false });
                       setSurveyData({ ...surveyData, submission_track: 'comprehensive' });
                     }}

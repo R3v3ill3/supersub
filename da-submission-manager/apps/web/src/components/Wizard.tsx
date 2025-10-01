@@ -215,7 +215,6 @@ export function WizardNavigation({
   onNext,
   nextDisabled = false,
   nextLabel = 'Continue',
-  isLastStep = false,
   isSubmitting = false,
 }: WizardNavigationProps) {
   return (

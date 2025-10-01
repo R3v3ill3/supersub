@@ -4,6 +4,7 @@ import {
   PendingIcon,
   AlertIcon,
   SuccessIconSolid,
+  ClockIcon,
 } from '@da/ui/icons';
 import type { DocumentReviewSummary } from '../types/documents';
 
@@ -86,7 +87,7 @@ export default function SubmissionStatusTracker({
         description: 'Process finished successfully',
         status: isSubmitted && currentStep === 'completed' ? 'completed' : 'pending',
         icon: isSubmitted && currentStep === 'completed' ? (
-          <CheckCircleIconSolid className="w-5 h-5 text-green-500" />
+          <SuccessIconSolid className="w-5 h-5 text-green-500" />
         ) : (
           <SuccessIcon className="w-5 h-5 text-gray-400" />
         ),

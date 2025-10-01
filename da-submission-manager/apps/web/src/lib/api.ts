@@ -33,11 +33,18 @@ export const api = {
       applicant_first_name: string;
       applicant_last_name: string;
       applicant_email: string;
+      applicant_residential_address: string;
+      applicant_suburb: string;
+      applicant_state: string;
+      applicant_postcode: string;
       applicant_postal_address?: string;
       applicant_postal_city?: string;
       applicant_postal_region?: string;
       applicant_postal_postcode?: string;
       applicant_postal_country?: string;
+      postal_email?: string;
+      lot_number?: string;
+      plan_number?: string;
       site_address: string;
       application_number?: string;
       submission_pathway: 'direct' | 'review' | 'draft';
