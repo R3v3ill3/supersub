@@ -14,7 +14,7 @@
  */
 
 import 'dotenv/config';
-import { generateSubmission } from '../src/services/llm.js';
+import { generateSubmission } from '../dist/services/llm.js';
 import fs from 'fs/promises';
 import path from 'path';
 

@@ -1250,26 +1250,26 @@ export default function SubmissionForm() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => setStep(2)}
-              disabled={submitMutation.isPending}
+              disabled={previewEmailBodyMutation.isPending}
               className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
             >
               ← Back
             </button>
             <button
-              onClick={() => submitMutation.mutate()}
-              disabled={submitMutation.isPending || !generatedText.trim()}
+              onClick={() => previewEmailBodyMutation.mutate()}
+              disabled={previewEmailBodyMutation.isPending || !generatedText.trim()}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-md disabled:opacity-50"
             >
-              {submitMutation.isPending ? 'Submitting...' : 'Submit to Council'}
+              {previewEmailBodyMutation.isPending ? 'Loading Email Preview...' : 'Continue to Email Preview'}
             </button>
           </div>
 
-          {submitMutation.error && (
+          {previewEmailBodyMutation.error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4 mt-4">
               <p className="text-sm text-red-600">
-                {submitMutation.error instanceof Error
-                  ? submitMutation.error.message
-                  : 'Failed to submit. Please try again.'}
+                {previewEmailBodyMutation.error instanceof Error
+                  ? previewEmailBodyMutation.error.message
+                  : 'Failed to load email preview. Please try again.'}
               </p>
             </div>
           )}
@@ -1304,6 +1304,151 @@ export default function SubmissionForm() {
                     onClick={() => {
                       setGeneratedText(originalGeneratedText);
                       setShowResetConfirm(false);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-md transition-colors"
+                  >
+                    Reset to Original
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 5) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Review Your Email
+            </h1>
+            <div className="flex gap-2">
+              {isEmailEditMode && emailBody !== originalEmailBody && (
+                <button
+                  onClick={() => setShowEmailResetConfirm(true)}
+                  className="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-md transition-colors"
+                  title="Reset to original"
+                >
+                  🔄 Reset
+                </button>
+              )}
+              <button
+                onClick={() => setIsEmailEditMode(!isEmailEditMode)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                {isEmailEditMode ? '👁️ Preview' : '✏️ Edit'}
+              </button>
+            </div>
+          </div>
+          <p className="text-gray-600 mb-6">
+            This is the email body that will be sent to the council. The submission document will be attached as a PDF.
+          </p>
+
+          {/* Email Subject */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Subject
+            </label>
+            <div className="w-full border border-gray-300 rounded-md px-4 py-3 bg-gray-50 text-gray-800">
+              {emailSubject}
+            </div>
+          </div>
+
+          {/* Email Body */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                {isEmailEditMode ? 'Edit Email Body' : 'Email Body Preview'}
+              </label>
+              <p className="text-sm text-gray-500">
+                Word count: {emailBody.split(/\s+/).filter(Boolean).length} words
+              </p>
+            </div>
+            
+            {isEmailEditMode ? (
+              <textarea
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-4 py-3 font-mono text-sm"
+                style={{ minHeight: '400px', maxHeight: '600px' }}
+              />
+            ) : (
+              <div 
+                className="w-full border border-gray-300 rounded-md px-6 py-4 bg-gray-50"
+                style={{ minHeight: '400px', maxHeight: '600px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}
+              >
+                {emailBody}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+            <p className="text-sm text-blue-800">
+              <strong>📎 Attachment:</strong> Your submission document will be attached as a PDF to this email.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setStep(4)}
+              disabled={submitMutation.isPending}
+              className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={() => submitMutation.mutate()}
+              disabled={submitMutation.isPending || !emailBody.trim()}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-md disabled:opacity-50"
+            >
+              {submitMutation.isPending ? 'Submitting...' : 'Submit to Council'}
+            </button>
+          </div>
+
+          {submitMutation.error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mt-4">
+              <p className="text-sm text-red-600">
+                {submitMutation.error instanceof Error
+                  ? submitMutation.error.message
+                  : 'Failed to submit. Please try again.'}
+              </p>
+            </div>
+          )}
+
+          {/* Reset Confirmation Modal */}
+          {showEmailResetConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <div className="flex items-start mb-4">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Reset to Original Email?
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      This will discard all your edits and restore the original generated email. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowEmailResetConfirm(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEmailBody(originalEmailBody);
+                      setShowEmailResetConfirm(false);
                     }}
                     className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-md transition-colors"
                   >
