@@ -331,7 +331,8 @@ export class GoogleDocsService {
             name: title,
             mimeType: 'application/vnd.google-apps.document',
             parents
-          }
+          },
+          fields: 'id'
         });
 
         const newDocId = createResponse.data.id!;
