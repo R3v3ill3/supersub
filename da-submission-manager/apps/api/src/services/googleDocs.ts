@@ -324,15 +324,17 @@ export class GoogleDocsService {
   }> {
     return retryService.executeWithRetry(
       async () => {
-        // 1. Create a blank Google Doc
+        // 1. Create a blank Google Doc using Drive API (not Docs API!)
         const parents = process.env.GOOGLE_DRIVE_FOLDER_ID ? [process.env.GOOGLE_DRIVE_FOLDER_ID] : undefined;
-        const createResponse = await this.docs.documents.create({
+        const createResponse = await this.drive.files.create({
           requestBody: {
-            title
+            name: title,
+            mimeType: 'application/vnd.google-apps.document',
+            parents
           }
         });
 
-        const newDocId = createResponse.data.documentId!;
+        const newDocId = createResponse.data.id!;
 
         // 2. Build document content with submission details
         const documentContent = `Development Application Submission
