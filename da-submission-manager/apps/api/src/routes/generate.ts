@@ -21,20 +21,32 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
     const { submissionId } = req.params;
     const version = String(process.env.TEMPLATE_VERSION || 'v1');
 
+    console.log('[generate] Starting generation request', { submissionId, version });
+
     const supabase = getSupabase();
     // Load submission and latest survey response
     let submission: any = null;
     let survey: any = null;
-    if (!supabase) return res.status(500).json({ error: 'Database not configured' });
+    if (!supabase) {
+      console.error('[generate] Database not configured', { submissionId });
+      return res.status(500).json({ error: 'Database not configured' });
+    }
 
     const { data: subData, error: subErr } = await supabase
       .from('submissions')
       .select('*')
       .eq('id', submissionId)
       .maybeSingle();
-    if (subErr) throw subErr;
-    if (!subData) return res.status(404).json({ error: 'Submission not found' });
+    if (subErr) {
+      console.error('[generate] Error fetching submission', { submissionId, error: subErr.message });
+      throw subErr;
+    }
+    if (!subData) {
+      console.error('[generate] Submission not found', { submissionId });
+      return res.status(404).json({ error: 'Submission not found' });
+    }
     submission = subData;
+    console.log('[generate] Submission found', { submissionId, status: submission.status });
 
     const { data: surveyData, error: surveyErr } = await supabase
       .from('survey_responses')
@@ -43,9 +55,23 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (surveyErr) throw surveyErr;
-    if (!surveyData) return res.status(400).json({ error: 'Survey response not found' });
+    if (surveyErr) {
+      console.error('[generate] Error fetching survey response', { submissionId, error: surveyErr.message });
+      throw surveyErr;
+    }
+    if (!surveyData) {
+      console.error('[generate] Survey response not found', { 
+        submissionId,
+        hint: 'User may have skipped step 2 or survey save failed'
+      });
+      return res.status(400).json({ error: 'Survey response not found' });
+    }
     survey = surveyData;
+    console.log('[generate] Survey response found', { 
+      submissionId, 
+      selectedKeysCount: survey.selected_keys?.length || 0,
+      orderedKeysCount: survey.ordered_keys?.length || 0 
+    });
 
     // Use ordered_keys if available (user's priority order), otherwise fall back to selected_keys
     const selectedKeys: string[] = survey.ordered_keys?.length > 0 ? survey.ordered_keys : (survey.selected_keys ?? []);
@@ -75,7 +101,20 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
         .map((k) => ({ key: k, body: byKey.get(k)! }));
     }
     if (concerns.length !== selectedKeys.length) {
-      return res.status(400).json({ error: 'One or more selected concern keys are invalid or inactive' });
+      console.error('[generate] Invalid or inactive concern keys', {
+        submissionId,
+        version,
+        selectedKeys,
+        foundKeys: concerns.map(c => c.key),
+        missingKeys: selectedKeys.filter(k => !concerns.find(c => c.key === k))
+      });
+      return res.status(400).json({ 
+        error: 'One or more selected concern keys are invalid or inactive',
+        details: {
+          requested: selectedKeys,
+          found: concerns.map(c => c.key)
+        }
+      });
     }
 
     // Load approved facts (v1 reads from file)
@@ -99,6 +138,7 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
     } as any;
 
     const enabled = process.env.OPENAI_ENABLED !== 'false';
+    console.log('[generate] Calling LLM generation', { submissionId, enabled, concernCount: concerns.length });
 
     const gen = enabled
       ? await generateSubmission({
@@ -117,6 +157,12 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
         });
 
     const { finalText, usage, model, temperature, provider } = gen;
+    console.log('[generate] LLM generation complete', { 
+      submissionId, 
+      provider, 
+      model, 
+      textLength: finalText.length 
+    });
 
     // Format the grounds into proper Gold Coast submission structure
     const formatter = new SubmissionFormatterService();
@@ -168,7 +214,11 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       tokens_completion: usage.completion,
       provider: provider || 'unknown' // Track which AI provider was used
     });
-    if (insertErr) throw insertErr;
+    if (insertErr) {
+      console.error('[generate] Error saving draft', { submissionId, error: insertErr.message });
+      throw insertErr;
+    }
+    console.log('[generate] Draft saved successfully', { submissionId });
 
     // Update submission status
     await supabase
@@ -185,8 +235,15 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       status: 'READY_FOR_REVIEW'
     };
 
+    console.log('[generate] Generation completed successfully', { submissionId });
     res.json(response);
   } catch (err: any) {
+    console.error('[generate] Generation failed', {
+      submissionId: req.params.submissionId,
+      error: err?.message,
+      stack: err?.stack,
+      name: err?.name
+    });
     res.status(400).json({ error: err?.message ?? 'Generation failed' });
   }
 });

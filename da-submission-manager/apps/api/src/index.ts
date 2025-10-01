@@ -31,6 +31,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust proxy - required for Railway, Heroku, and other cloud platforms
+// This allows rate limiting and logging to work correctly with X-Forwarded-For headers
+app.set('trust proxy', true);
+
 console.log('[env check] OPENAI key prefix:', (process.env.OPENAI_API_KEY || 'missing').slice(0, 8));
 
 // Initialize Sentry (before all middleware)
