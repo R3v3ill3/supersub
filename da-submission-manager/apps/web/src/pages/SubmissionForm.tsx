@@ -75,6 +75,71 @@ interface SurveyData {
 }
 
 
+/**
+ * Adds proper paragraph breaks to markdown text for better readability
+ * - Ensures double newlines after sentence endings
+ * - Preserves existing formatting
+ * - Adds breaks before numbered sections and headings
+ */
+function addParagraphBreaks(text: string): string {
+  if (!text) return text;
+  
+  let processed = text;
+  
+  // First, normalize all existing line breaks to single newlines
+  processed = processed.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  // Add double newlines after sentences (period/exclamation/question mark followed by space and capital letter)
+  processed = processed.replace(/([.!?])\s+([A-Z])/g, '$1\n\n$2');
+  
+  // Ensure double newlines before numbered sections (1., 2., etc.) - both at start and after newline
+  processed = processed.replace(/(^|\n)(\d+\.\s+[A-Z])/gm, '$1\n$2');
+  
+  // Ensure double newlines before headings (###, ##, #)
+  processed = processed.replace(/(^|\n)(#{1,6}\s)/gm, '$1\n$2');
+  
+  // Ensure double newlines before bullet points (-, *, •)
+  processed = processed.replace(/(^|\n)([•\-\*]\s)/gm, '$1\n$2');
+  
+  // Add breaks after bold sections followed by new sentences
+  processed = processed.replace(/(\*\*[^*]+\*\*)\s+([A-Z])/g, '$1\n\n$2');
+  
+  // Add breaks before subsections (1.1, 2.3, etc.)
+  processed = processed.replace(/(^|\n)(\d+\.\d+\s)/gm, '$1\n$2');
+  
+  // Ensure spacing around planning code references (common pattern: "Section X.X" or "Code X.X")
+  processed = processed.replace(/\.\s+(Section|Code|Part|Clause)\s+/g, '.\n\n$1 ');
+  
+  // Clean up any triple+ newlines to exactly double newlines
+  processed = processed.replace(/\n{3,}/g, '\n\n');
+  
+  // Clean up any leading/trailing whitespace
+  processed = processed.trim();
+  
+  // Final pass: ensure there's always a blank line between paragraphs of 3+ sentences
+  // Split by double newlines, process each block
+  const blocks = processed.split('\n\n');
+  const processedBlocks = blocks.map(block => {
+    // If block has multiple sentences without breaks, add some
+    const sentences = block.split(/([.!?]\s+)/);
+    if (sentences.length > 6) {
+      // Rejoin with occasional paragraph breaks
+      let result = '';
+      for (let i = 0; i < sentences.length; i += 2) {
+        result += sentences[i] + (sentences[i + 1] || '');
+        // Add paragraph break every 3-4 sentences
+        if (i > 0 && i % 6 === 0 && i < sentences.length - 2) {
+          result += '\n\n';
+        }
+      }
+      return result;
+    }
+    return block;
+  });
+  
+  return processedBlocks.join('\n\n');
+}
+
 export default function SubmissionForm() {
   const { projectSlug } = useParams();
   const navigate = useNavigate();
@@ -225,7 +290,7 @@ export default function SubmissionForm() {
         plan_number: data.plan_number,
         site_address: data.site_address,
         application_number: data.application_number,
-        submission_pathway: 'review', // Always review pathway now
+        submission_pathway: 'direct', // Direct pathway - no Google Docs required, sends immediately to council
         submission_track: data.submission_track,
         is_returning_submitter: data.is_returning_submitter,
       });
@@ -276,6 +341,11 @@ export default function SubmissionForm() {
     },
     onSuccess: () => {
       navigate('/thank-you');
+    },
+    onError: (error: any) => {
+      console.error('Submission error:', error);
+      console.error('Error details:', error?.response?.data);
+      alert('Submission failed: ' + (error?.response?.data?.error || error.message));
     },
   });
 
@@ -1127,7 +1197,7 @@ export default function SubmissionForm() {
                         : <code className="block bg-gray-200 p-3 rounded text-sm font-mono overflow-x-auto mb-4" {...props} />,
                   }}
                 >
-                  {generatedText}
+                  {addParagraphBreaks(generatedText)}
                 </ReactMarkdown>
               </div>
             )}
