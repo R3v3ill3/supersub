@@ -869,25 +869,34 @@ Kind regards,
           project.dual_track_config as any
         );
       } catch (error: any) {
-        this.logger.error('Failed to combine dual-track templates', { error: error.message });
-        throw new Error(`Template combination failed: ${error.message}`);
+        this.logger.error('Failed to combine dual-track templates, using generated content directly', { error: error.message });
+        // Fallback to using the generated content directly
+        groundsContent = submissionData.grounds_content || 'No grounds content available';
       }
     } else if (project.grounds_template_id) {
       // Single-track: load single grounds template
       this.logger.info('Using single-track grounds template');
-      const buffer = await uploadService.downloadFromStorage(project.grounds_template_id);
-      const isDocx = project.grounds_template_id.endsWith('.docx');
-      const isPdf = project.grounds_template_id.endsWith('.pdf');
+      try {
+        const buffer = await uploadService.downloadFromStorage(project.grounds_template_id);
+        const isDocx = project.grounds_template_id.endsWith('.docx');
+        const isPdf = project.grounds_template_id.endsWith('.pdf');
 
-      if (isDocx) {
-        groundsContent = await extractDocxText(buffer);
-      } else if (isPdf) {
-        groundsContent = await extractPdfText(buffer);
-      } else {
-        groundsContent = buffer.toString('utf-8');
+        if (isDocx) {
+          groundsContent = await extractDocxText(buffer);
+        } else if (isPdf) {
+          groundsContent = await extractPdfText(buffer);
+        } else {
+          groundsContent = buffer.toString('utf-8');
+        }
+      } catch (error: any) {
+        this.logger.error('Failed to load grounds template, using generated content directly', { error: error.message });
+        // Fallback to using the generated content directly
+        groundsContent = submissionData.grounds_content || 'No grounds content available';
       }
     } else {
-      throw new Error('No grounds template configured for project');
+      this.logger.warn('No grounds template configured, using generated content directly');
+      // Use the generated content directly instead of throwing error
+      groundsContent = submissionData.grounds_content || 'No grounds content available';
     }
 
     // 3. Merge grounds content into structure template

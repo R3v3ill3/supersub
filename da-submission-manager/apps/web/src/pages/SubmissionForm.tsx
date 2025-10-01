@@ -324,7 +324,7 @@ export default function SubmissionForm() {
   // Generate submission mutation
   const generateMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.generation.generate(submissionId, { process_document: 'true' });
+      const response = await api.generation.generate(submissionId);
       return response.data;
     },
     onSuccess: (data) => {
