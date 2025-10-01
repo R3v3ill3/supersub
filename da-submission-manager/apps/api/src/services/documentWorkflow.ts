@@ -677,10 +677,8 @@ Kind regards,
     pdfUrl: string;
     pdfFileId: string;
   }> {
-    if (!project.google_doc_template_id) {
-      throw new Error('No Google Doc template configured for this project');
-    }
-
+    const title = `DA Submission - ${submission.site_address} - ${new Date().toISOString().split('T')[0]}`;
+    
     const placeholders = {
       applicant_name: `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim(),
       applicant_email: submission.applicant_email,
@@ -696,7 +694,11 @@ Kind regards,
       project_name: project.name
     };
 
-    const title = `DA Submission - ${submission.site_address} - ${new Date().toISOString().split('T')[0]}`;
+    // If no template configured, create a blank document with the content
+    if (!project.google_doc_template_id) {
+      this.logger.warn('No Google Doc template configured, creating blank document');
+      return await this.googleDocs.createBlankDocument(title, placeholders, generatedContent || '');
+    }
 
     return await this.googleDocs.createSubmissionDocument(
       project.google_doc_template_id,
