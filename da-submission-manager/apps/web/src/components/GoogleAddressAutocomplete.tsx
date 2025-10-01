@@ -11,27 +11,6 @@ interface AddressComponents {
   postal_code?: string;
 }
 
-// Map Australian state names to abbreviations
-const stateMapping: Record<string, string> = {
-  'Queensland': 'QLD',
-  'New South Wales': 'NSW',
-  'Victoria': 'VIC',
-  'South Australia': 'SA',
-  'Western Australia': 'WA',
-  'Tasmania': 'TAS',
-  'Northern Territory': 'NT',
-  'Australian Capital Territory': 'ACT',
-  // Also handle if Google returns abbreviations
-  'QLD': 'QLD',
-  'NSW': 'NSW',
-  'VIC': 'VIC',
-  'SA': 'SA',
-  'WA': 'WA',
-  'TAS': 'TAS',
-  'NT': 'NT',
-  'ACT': 'ACT'
-};
-
 interface GoogleAddressAutocompleteProps {
   value: string;
   onChange: (address: string) => void;
@@ -90,9 +69,7 @@ export default function GoogleAddressAutocomplete({
       const streetAddress = `${streetNumber} ${route}`.trim();
       
       const suburb = components.locality || '';
-      const stateFullName = components.administrative_area_level_1 || '';
-      // Map state name to abbreviation (e.g., "Queensland" -> "QLD")
-      const state = stateMapping[stateFullName] || stateFullName;
+      const state = components.administrative_area_level_1 || '';
       const postcode = components.postal_code || '';
       
       // Update the input value
