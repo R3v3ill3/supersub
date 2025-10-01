@@ -1,41 +1,51 @@
 import axios from 'axios';
+import { supabase } from './supabase';
+
+const DEFAULT_BASE_URL = 'http://localhost:3500/api';
 
 // API client configured to connect to the backend API
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3500/api',
+  baseURL: import.meta.env.VITE_API_URL || DEFAULT_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
-import { supabase } from './supabase';
-
-// Request interceptor - add auth tokens
+// Request interceptor - add auth tokens from Supabase session for API compatibility
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      // Get current session from Supabase
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session?.access_token) {
         config.headers.Authorization = `Bearer ${session.access_token}`;
+      } else {
+        delete config.headers.Authorization;
       }
     } catch (error) {
       console.warn('Failed to get auth token:', error);
+      delete config.headers.Authorization;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
 
-// Response interceptor
+// Response interceptor for auth errors
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Let the AuthContext handle 401 responses - Supabase will auto-refresh tokens
+  async (error) => {
+    if (error.response?.status === 401) {
+      try {
+        await supabase.auth.refreshSession();
+      } catch (refreshError) {
+        console.error('Failed to refresh session after 401:', refreshError);
+      }
+    }
     return Promise.reject(error);
-  }
+  },
 );
 
 // API functions
@@ -43,6 +53,7 @@ export const api = {
   // Projects
   projects: {
     getAll: () => apiClient.get('/projects'),
+    list: (params?: any) => apiClient.get('/projects', { params }),
     getById: (id: string) => apiClient.get(`/projects/${id}`),
     create: (data: any) => apiClient.post('/projects', data),
     update: (id: string, data: any) => apiClient.patch(`/projects/${id}`, data),
@@ -97,8 +108,10 @@ export const api = {
       apiClient.get('/templates/validate', { params: { googleDocId } }),
     preview: (googleDocId: string) => 
       apiClient.get('/templates/preview', { params: { googleDocId } }),
-    analyze: (data: { googleDocId: string; projectId?: string; version?: string }) => 
+    analyze: (data: { googleDocId: string; projectId?: string; version?: string }) =>
       apiClient.post('/templates/analyze', data),
+    analyzeFile: (data: { projectId: string; templateType: 'grounds' | 'followup_grounds'; version?: string }) =>
+      apiClient.post('/templates/analyze-file', data),
     generateSurvey: (data: { 
       googleDocId: string; 
       projectId: string; 
@@ -157,6 +170,7 @@ export const api = {
   },
 
   actionNetwork: {
+    testConnection: (apiKey: string) => apiClient.post('/integrations/action-network/test', { apiKey }),
     listForms: () => apiClient.get('/integrations/action-network/forms'),
     listLists: () => apiClient.get('/integrations/action-network/lists'),
     listTags: () => apiClient.get('/integrations/action-network/tags'),

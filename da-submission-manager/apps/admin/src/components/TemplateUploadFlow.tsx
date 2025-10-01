@@ -1,8 +1,9 @@
-import { useState, type CSSProperties } from 'react';
+import React, { useState, useEffect, type CSSProperties } from 'react';
+import { CheckCircle2, XCircle, Clock, Circle, CircleDashed, FileText, Rocket, CheckCircle } from 'lucide-react';
 import { TemplateSelector } from './TemplateSelector';
 import { EmailBodyEditor } from './EmailBodyEditor';
 import { GoldCoastDefaultSelector } from './GoldCoastDefaultSelector';
-import type { CreateProjectData } from '../lib/api';
+import { api, type CreateProjectData } from '../lib/api';
 import type { TemplateSetupMethod } from './TemplateSetupGuide';
 
 // Enhanced Template Upload Flow Component
@@ -11,6 +12,7 @@ import type { TemplateSetupMethod } from './TemplateSetupGuide';
 interface TemplateUploadFlowProps {
   isDualTrack: boolean;
   templateData: CreateProjectData;
+  projectId: string | null;
   templateSetupMethod: TemplateSetupMethod;
   onChange: (updates: Partial<CreateProjectData>) => void;
 }
@@ -161,7 +163,8 @@ const infoBoxTextStyle: CSSProperties = {
 
 export function TemplateUploadFlow({ 
   isDualTrack, 
-  templateData, 
+  templateData,
+  projectId,
   templateSetupMethod,
   onChange 
 }: TemplateUploadFlowProps) {
@@ -248,6 +251,7 @@ export function TemplateUploadFlow({
           <DualTrackGroundsUpload 
             originalTemplate={templateData.dual_track_config?.original_grounds_template_id}
             followupTemplate={templateData.dual_track_config?.followup_grounds_template_id}
+            projectId={projectId}
             templateSetupMethod={templateSetupMethod}
             onChange={handleDualTrackTemplateChange}
             progress={uploadProgress}
@@ -255,6 +259,7 @@ export function TemplateUploadFlow({
         ) : (
           <SingleTrackGroundsUpload 
             groundsTemplate={templateData.grounds_template_id}
+            projectId={projectId}
             templateSetupMethod={templateSetupMethod}
             onChange={(id) => onChange({ grounds_template_id: id })}
             progress={uploadProgress.grounds}
@@ -270,8 +275,10 @@ export function TemplateUploadFlow({
       />
       
       {/* AI Analysis Option */}
-      <TemplateAnalysisOption 
+      <TemplateAnalysisOption
         templates={getUploadedTemplates(templateData)}
+        uploadProgress={uploadProgress}
+        projectId={projectId}
         onAnalysisComplete={handleAnalysisComplete}
       />
     </div>
@@ -307,7 +314,8 @@ function TemplateUploadExplainer({ isDualTrack, method }: TemplateUploadExplaine
   return (
     <div style={explainerStyle}>
       <h3 style={explainerTitleStyle}>
-        📋 {getMethodTitle()}
+        <FileText size={20} style={{ marginRight: '8px', flexShrink: 0 }} />
+        {getMethodTitle()}
       </h3>
       <p style={explainerTextStyle}>
         {getMethodDescription()}
@@ -346,20 +354,21 @@ interface TemplateUploadStepProps {
   children: React.ReactNode;
 }
 
-function TemplateUploadStep({ 
-  title, 
-  description, 
-  status, 
-  required = false, 
+function TemplateUploadStep({
+  title,
+  description,
+  status,
+  required = false,
   stepNumber,
-  children 
+  children
 }: TemplateUploadStepProps) {
   const getStatusIcon = () => {
+    const iconSize = 20;
     switch (status) {
-      case 'success': return '✅';
-      case 'error': return '❌';
-      case 'uploading': return '⏳';
-      default: return required ? '🔴' : '⭕';
+      case 'success': return <CheckCircle2 size={iconSize} />;
+      case 'error': return <XCircle size={iconSize} />;
+      case 'uploading': return <Clock size={iconSize} />;
+      default: return required ? <Circle size={iconSize} /> : <CircleDashed size={iconSize} />;
     }
   };
 
@@ -376,11 +385,19 @@ function TemplateUploadStep({
     <div style={stepContainerStyle}>
       <div style={stepHeaderStyle}>
         <h4 style={stepTitleStyle}>
-          <span style={{ color: getStatusColor() }}>
-            {stepNumber && `${stepNumber}. `}{getStatusIcon()}
+          <span style={{
+            color: getStatusColor(),
+            marginRight: '8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            flexShrink: 0
+          }}>
+            {stepNumber && <span>{stepNumber}.</span>}
+            {getStatusIcon()}
           </span>
           {title}
-          {required && <span style={{ color: '#ef4444', fontSize: '12px' }}>(Required)</span>}
+          {required && <span style={{ color: '#ef4444', fontSize: '12px', marginLeft: '8px' }}>(Required)</span>}
         </h4>
         <p style={stepDescriptionStyle}>{description}</p>
       </div>
@@ -395,6 +412,7 @@ function TemplateUploadStep({
 interface DualTrackGroundsUploadProps {
   originalTemplate?: string;
   followupTemplate?: string;
+  projectId: string | null;
   templateSetupMethod: TemplateSetupMethod;
   onChange: (field: 'original_grounds_template_id' | 'followup_grounds_template_id') => (templateId?: string) => void;
   progress: UploadProgress;
@@ -403,6 +421,7 @@ interface DualTrackGroundsUploadProps {
 function DualTrackGroundsUpload({ 
   originalTemplate, 
   followupTemplate,
+  projectId,
   templateSetupMethod,
   onChange, 
   progress 
@@ -420,7 +439,7 @@ function DualTrackGroundsUpload({
           templateType="grounds"
           selectedTemplateId={originalTemplate}
           onTemplateSelected={onChange('original_grounds_template_id')}
-          projectId={null}
+          projectId={projectId}
           showUpload={templateSetupMethod === 'upload'}
           showPreview={true}
           showAnalysis={true}
@@ -439,7 +458,7 @@ function DualTrackGroundsUpload({
           templateType="grounds"
           selectedTemplateId={followupTemplate}
           onTemplateSelected={onChange('followup_grounds_template_id')}
-          projectId={null}
+          projectId={projectId}
           showUpload={templateSetupMethod === 'upload'}
           showPreview={true}
           showAnalysis={true}
@@ -453,13 +472,15 @@ function DualTrackGroundsUpload({
 // Single Track Grounds Upload Component
 interface SingleTrackGroundsUploadProps {
   groundsTemplate?: string;
+  projectId: string | null;
   templateSetupMethod: TemplateSetupMethod;
   onChange: (templateId?: string) => void;
   progress: 'pending' | 'uploading' | 'success' | 'error';
 }
 
 function SingleTrackGroundsUpload({ 
-  groundsTemplate, 
+  groundsTemplate,
+  projectId,
   templateSetupMethod,
   onChange, 
   progress 
@@ -476,7 +497,7 @@ function SingleTrackGroundsUpload({
         templateType="grounds"
         selectedTemplateId={groundsTemplate}
         onTemplateSelected={onChange}
-        projectId={null}
+        projectId={projectId}
         showUpload={templateSetupMethod === 'upload'}
         showPreview={true}
         showAnalysis={true}
@@ -519,8 +540,9 @@ function TemplateUploadProgress({
       
       {progress === 100 && (
         <div style={successPanelStyle}>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: '#166534', marginBottom: '8px' }}>
-            ✅ All templates configured!
+          <div style={{ fontSize: '16px', fontWeight: 600, color: '#166534', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle size={20} />
+            All templates configured!
           </div>
           <p style={{ fontSize: '14px', color: '#166534', margin: '0 0 12px 0' }}>
             Your templates are ready. You can continue to the next step or run AI analysis.
@@ -537,24 +559,76 @@ function TemplateUploadProgress({
 // Template Analysis Option Component
 interface TemplateAnalysisOptionProps {
   templates: Record<string, string>;
+  uploadProgress: UploadProgress;
+  projectId: string | null;
   onAnalysisComplete: (results: any) => void;
 }
 
-function TemplateAnalysisOption({ templates, onAnalysisComplete }: TemplateAnalysisOptionProps) {
+function TemplateAnalysisOption({ templates, uploadProgress, projectId, onAnalysisComplete }: TemplateAnalysisOptionProps) {
   const [analyzing, setAnalyzing] = useState(false);
-  
-  const hasGroundsTemplates = templates.grounds || templates.originalGrounds || templates.followupGrounds;
-  
-  if (!hasGroundsTemplates) {
+  const [hasFiles, setHasFiles] = useState(false);
+
+  // Check if any template files exist for this project
+  useEffect(() => {
+    if (!projectId) return;
+
+    api.templates.listFiles(projectId)
+      .then(response => {
+        const files = response.data?.files || [];
+        setHasFiles(files.length > 0);
+      })
+      .catch(error => {
+        console.error('Failed to check for template files:', error);
+      });
+  }, [projectId, uploadProgress]); // Re-check when uploadProgress changes
+
+  if (!hasFiles || !projectId) {
     return null;
   }
 
   const handleRunAnalysis = async () => {
+    if (!projectId) {
+      alert('Project ID is required for analysis');
+      return;
+    }
+
     setAnalyzing(true);
     try {
-      // Simulate AI analysis
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      onAnalysisComplete({ success: true });
+      // Call the new analyze-file endpoint
+      const response = await api.templates.analyzeFile({
+        projectId,
+        templateType: 'grounds',
+        version: 'v1'
+      });
+
+      const analysisData = response.data?.data;
+
+      if (analysisData?.analysis) {
+        const concernCount = analysisData.analysis.extractedConcerns?.length || 0;
+        const savedCount = analysisData.savedConcerns?.length || 0;
+
+        alert(
+          `✅ Analysis Complete!\n\n` +
+          `Extracted ${concernCount} concerns from your grounds template.\n` +
+          `${savedCount > 0 ? `Saved ${savedCount} concerns to survey database.` : 'Concerns available for review.'}\n\n` +
+          `These will be used to generate the survey for community members.`
+        );
+
+        onAnalysisComplete({
+          success: true,
+          concernsExtracted: concernCount,
+          concernsSaved: savedCount,
+          analysis: analysisData.analysis
+        });
+      } else {
+        alert('Analysis completed but no data returned');
+        onAnalysisComplete({ success: true });
+      }
+    } catch (error: any) {
+      console.error('Analysis failed:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+      alert(`❌ Analysis Failed\n\n${errorMessage}\n\nMake sure you've uploaded a grounds template first.`);
+      onAnalysisComplete({ success: false, error: errorMessage });
     } finally {
       setAnalyzing(false);
     }
@@ -606,7 +680,17 @@ function TemplateAnalysisOption({ templates, onAnalysisComplete }: TemplateAnaly
         onClick={handleRunAnalysis}
         disabled={analyzing}
       >
-        {analyzing ? '⏳ Analyzing Templates...' : '🚀 Run AI Analysis'}
+        {analyzing ? (
+          <>
+            <Clock size={16} />
+            Analyzing Templates...
+          </>
+        ) : (
+          <>
+            <Rocket size={16} />
+            Run AI Analysis
+          </>
+        )}
       </button>
     </div>
   );

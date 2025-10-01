@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
 
 export type TemplatePlaceholderSummary = {
   placeholders: Array<{ placeholder: string }>;
@@ -45,4 +46,30 @@ export function extractTextPlaceholders(text: string): TemplatePlaceholderSummar
 export async function extractPdfPlaceholders(buffer: Buffer): Promise<TemplatePlaceholderSummary> {
   const result = await pdfParse(buffer);
   return extractTextPlaceholders(result.text || '');
+}
+
+/**
+ * Extract full readable text content from a DOCX file
+ * Used for AI analysis of uploaded templates
+ */
+export async function extractDocxText(buffer: Buffer): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value.trim();
+  } catch (error: any) {
+    throw new Error(`Failed to extract text from DOCX: ${error.message}`);
+  }
+}
+
+/**
+ * Extract full readable text content from a PDF file
+ * Used for AI analysis of uploaded templates
+ */
+export async function extractPdfText(buffer: Buffer): Promise<string> {
+  try {
+    const result = await pdfParse(buffer);
+    return (result.text || '').trim();
+  } catch (error: any) {
+    throw new Error(`Failed to extract text from PDF: ${error.message}`);
+  }
 }

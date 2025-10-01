@@ -4,6 +4,8 @@ import { getSupabase } from '../lib/supabase';
 import { config, ProjectActionNetworkConfig, getActionNetworkClientForProject, ProjectWithApiKey } from '../lib/config';
 import { ActionNetworkClient } from '../services/actionNetwork';
 import { TemplateCombinerService, DualTrackConfig } from '../services/templateCombiner';
+import { submissionLimiter, standardLimiter } from '../middleware/rateLimit';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -44,7 +46,7 @@ type ActionNetworkSyncResult = {
 /**
  * Create a submission for a specific project (by id or slug)
  */
-router.post('/api/submissions', async (req, res) => {
+router.post('/api/submissions', submissionLimiter, async (req, res) => {
   try {
     const body = createSubmissionSchema.parse(req.body);
     const supabase = getSupabase();
@@ -120,16 +122,23 @@ router.post('/api/submissions', async (req, res) => {
     let actionNetworkResult: ActionNetworkSyncResult = { status: 'skipped' };
 
     if (actionNetworkProjectConfig) {
-      let client: ActionNetworkClient | null = null;
-      try {
-        // Use project-specific API key if available, otherwise fall back to global config
-        client = getActionNetworkClientForProject(project as ProjectWithApiKey);
-      } catch (clientError: any) {
-        console.error('Failed to create Action Network client:', clientError.message);
-        actionNetworkResult = { status: 'failed', error: clientError.message };
-      }
-      
-      if (client) {
+      // Check if we have an API key configured before attempting to sync
+      const hasApiKey = project.action_network_api_key_encrypted || config.actionNetwork?.apiKey;
+
+      if (!hasApiKey) {
+        // No API key configured, skip sync silently
+        actionNetworkResult = { status: 'skipped' };
+      } else {
+        let client: ActionNetworkClient | null = null;
+        try {
+          // Use project-specific API key if available, otherwise fall back to global config
+          client = getActionNetworkClientForProject(project as ProjectWithApiKey);
+        } catch (clientError: any) {
+          console.error('Failed to create Action Network client:', clientError.message);
+          actionNetworkResult = { status: 'failed', error: clientError.message };
+        }
+
+        if (client) {
       const postalHasValues = [
         body.applicant_postal_address,
         body.applicant_postal_city,
@@ -161,86 +170,87 @@ router.post('/api/submissions', async (req, res) => {
         site_address: body.site_address,
       };
 
-      try {
-        const person = await client.upsertPerson({
-          given_name: body.applicant_first_name,
-          family_name: body.applicant_last_name,
-          email_addresses: [{ address: body.applicant_email }],
-          postal_addresses: postalAddresses,
-          custom_fields: personCustomFields,
-        });
+        try {
+          const person = await client.upsertPerson({
+            given_name: body.applicant_first_name,
+            family_name: body.applicant_last_name,
+            email_addresses: [{ address: body.applicant_email }],
+            postal_addresses: postalAddresses,
+            custom_fields: personCustomFields,
+          });
 
-        const personUrl = person?._links?.self?.href ?? null;
+          const personUrl = person?._links?.self?.href ?? null;
 
-        if (personUrl) {
-          await Promise.all([
-            client.addTags(personUrl, actionNetworkProjectConfig.tag_hrefs || []),
-            client.addToLists(personUrl, actionNetworkProjectConfig.list_hrefs || []),
-            client.addToGroups(personUrl, actionNetworkProjectConfig.group_hrefs || []),
-          ]);
+          if (personUrl) {
+            await Promise.all([
+              client.addTags(personUrl, actionNetworkProjectConfig.tag_hrefs || []),
+              client.addToLists(personUrl, actionNetworkProjectConfig.list_hrefs || []),
+              client.addToGroups(personUrl, actionNetworkProjectConfig.group_hrefs || []),
+            ]);
 
-          let submissionRecord: any = null;
-          let submissionUrl: string | null = null;
+            let submissionRecord: any = null;
+            let submissionUrl: string | null = null;
 
-          if (actionNetworkProjectConfig.action_url) {
-            submissionRecord = await client.recordSubmission({
-              personHref: personUrl,
-              actionHref: client.buildActionHref(actionNetworkProjectConfig.action_url),
-              fields: {
-                submission_pathway: body.submission_pathway,
-                site_address: body.site_address,
-                application_number: body.application_number || project.default_application_number,
-                project_id: project.id,
-                submission_id: submission.id,
+            if (actionNetworkProjectConfig.action_url) {
+              submissionRecord = await client.recordSubmission({
+                personHref: personUrl,
+                actionHref: client.buildActionHref(actionNetworkProjectConfig.action_url),
+                fields: {
+                  submission_pathway: body.submission_pathway,
+                  site_address: body.site_address,
+                  application_number: body.application_number || project.default_application_number,
+                  project_id: project.id,
+                  submission_id: submission.id,
+                },
+              });
+
+              submissionUrl = submissionRecord?._links?.self?.href ?? null;
+            } else {
+              throw new Error('Project missing Action Network action URL');
+            }
+
+            const updates: Record<string, any> = {
+              action_network_person_id: personUrl,
+              action_network_payload: {
+                person,
+                submission: submissionRecord,
               },
-            });
+              action_network_submission_id: submissionUrl,
+              action_network_sync_status: 'synced',
+              action_network_synced_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
 
-            submissionUrl = submissionRecord?._links?.self?.href ?? null;
+            await supabase
+              .from('submissions')
+              .update(updates)
+              .eq('id', submission.id);
+
+            actionNetworkResult = {
+              status: 'synced',
+              personHref: personUrl,
+              submissionHref: submissionUrl,
+            };
           } else {
-            throw new Error('Project missing Action Network action URL');
+            throw new Error('Action Network did not return a person URL');
           }
-
-          const updates: Record<string, any> = {
-            action_network_person_id: personUrl,
-            action_network_payload: {
-              person,
-              submission: submissionRecord,
-            },
-            action_network_submission_id: submissionUrl,
-            action_network_sync_status: 'synced',
-            action_network_synced_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error syncing to Action Network';
+          console.error('Failed to sync to Action Network', error);
           await supabase
             .from('submissions')
-            .update(updates)
+            .update({
+              action_network_sync_status: 'failed',
+              action_network_sync_error: errorMessage,
+              updated_at: new Date().toISOString(),
+            })
             .eq('id', submission.id);
 
           actionNetworkResult = {
-            status: 'synced',
-            personHref: personUrl,
-            submissionHref: submissionUrl,
+            status: 'failed',
+            error: errorMessage,
           };
-        } else {
-          throw new Error('Action Network did not return a person URL');
         }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error syncing to Action Network';
-        console.error('Failed to sync to Action Network', error);
-        await supabase
-          .from('submissions')
-          .update({
-            action_network_sync_status: 'failed',
-            action_network_sync_error: errorMessage,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', submission.id);
-
-        actionNetworkResult = {
-          status: 'failed',
-          error: errorMessage,
-        };
       }
       }
     }

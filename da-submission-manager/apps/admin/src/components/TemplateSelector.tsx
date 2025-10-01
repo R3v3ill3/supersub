@@ -209,10 +209,12 @@ export function TemplateSelector({
             />
             <Button
               type="button"
+              size="sm"
               onClick={() => importMutation.mutate(importUrl)}
               disabled={!importUrl || importMutation.isPending}
+              className="gap-1.5"
             >
-              <ShareIcon className={importMutation.isPending ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+              <ShareIcon className={importMutation.isPending ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
               {importMutation.isPending ? 'Linking…' : 'Link'}
             </Button>
           </div>
@@ -231,7 +233,7 @@ export function TemplateSelector({
         />
       ) : null}
 
-      {showAnalysis ? (
+      {showAnalysis && localPreviewId && /^[A-Za-z0-9_-]{20,}$/.test(localPreviewId) && !localPreviewId.includes('/') ? (
         <div className="space-y-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
           <div className="flex items-center gap-2">
             <RefreshIcon className="h-4 w-4 text-blue-500" />
@@ -242,10 +244,12 @@ export function TemplateSelector({
           </p>
           <Button
             type="button"
+            size="sm"
             onClick={() => analysisMutation.mutate()}
-            disabled={analysisMutation.isPending || !localPreviewId}
+            disabled={analysisMutation.isPending}
+            className="gap-1.5"
           >
-            <RefreshIcon className={analysisMutation.isPending ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+            <RefreshIcon className={analysisMutation.isPending ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
             {analysisMutation.isPending ? 'Analyzing…' : 'Analyze Template'}
           </Button>
           {analysisMutation.isError ? (
@@ -254,6 +258,16 @@ export function TemplateSelector({
           {analysisMutation.isSuccess ? (
             <InlineBanner variant="success" message="Analysis complete. Review results in Template Analysis." />
           ) : null}
+        </div>
+      ) : showAnalysis && localPreviewId ? (
+        <div className="space-y-3 rounded-lg border border-amber-100 bg-amber-50 p-3">
+          <div className="flex items-center gap-2">
+            <WarningIcon className="h-4 w-4 text-amber-500" />
+            <p className="text-sm font-medium text-amber-900">AI Analysis Not Available</p>
+          </div>
+          <p className="text-xs text-amber-800">
+            AI analysis only works with Google Doc templates. For uploaded files, merge fields are automatically detected during upload.
+          </p>
         </div>
       ) : null}
     </div>
@@ -518,6 +532,12 @@ function useTemplateAnalysis({
       }
       if (!templateId) {
         throw new Error('Select a template before analyzing');
+      }
+      // Check if templateId is a Google Doc ID (alphanumeric string, typically 40+ chars)
+      // vs a storage path (contains / or file extension)
+      const isGoogleDocId = /^[A-Za-z0-9_-]{20,}$/.test(templateId) && !templateId.includes('/');
+      if (!isGoogleDocId) {
+        throw new Error('AI Analysis only works with Google Doc templates. For uploaded templates, the merge fields are already detected during upload.');
       }
       return api.templates.analyze({
         googleDocId: templateId,

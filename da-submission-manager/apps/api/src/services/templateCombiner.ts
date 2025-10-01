@@ -1,6 +1,8 @@
 import NodeCache from 'node-cache';
 import { Logger } from '../lib/logger';
 import { GoogleDocsService } from './googleDocs';
+import { UploadService } from './upload';
+import { extractDocxText, extractPdfText } from './templateParser';
 
 export interface CombinedTemplate {
   templateId: string;
@@ -158,7 +160,32 @@ export class TemplateCombinerService {
     }
 
     try {
-      const content = await this.googleDocs.exportToText(templateId);
+      let content: string;
+
+      // Detect if templateId is a storage path (contains /) or Google Doc ID (alphanumeric only)
+      const isStoragePath = templateId.includes('/');
+
+      if (isStoragePath) {
+        // Load from Supabase Storage
+        const uploadService = new UploadService();
+        const fileBuffer = await uploadService.downloadFromStorage(templateId);
+
+        // Determine file type from path extension
+        const isDocx = templateId.endsWith('.docx') || templateId.includes('.docx');
+        const isPdf = templateId.endsWith('.pdf') || templateId.includes('.pdf');
+
+        if (isDocx) {
+          content = await extractDocxText(fileBuffer);
+        } else if (isPdf) {
+          content = await extractPdfText(fileBuffer);
+        } else {
+          throw new Error(`Unsupported file type in path: ${templateId}`);
+        }
+      } else {
+        // Load from Google Docs
+        content = await this.googleDocs.exportToText(templateId);
+      }
+
       const sanitized = this.sanitizeContent(content);
       const result = { id: templateId, content: sanitized };
       cache.set(cacheKey, result);

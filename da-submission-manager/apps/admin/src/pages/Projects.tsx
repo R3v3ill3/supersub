@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useState, type CSSProperties } from 'react';
 import { AddIcon, ViewIcon, EditIcon, DeleteIcon } from '@da/ui/icons';
@@ -170,15 +170,33 @@ const actionButtonStyle = (color: string): CSSProperties => ({
 
 export default function Projects() {
   const [copiedProjectId, setCopiedProjectId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
   const { data: projectsResponse, isLoading, error } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
-      const response = await api.projects.getAll();
+      const response = await api.projects.list({ include_inactive: true });
       return response.data;
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (projectId: string) => api.projects.delete(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+    onError: (error: any) => {
+      alert(`Failed to delete project: ${error.response?.data?.error || error.message}`);
+    },
+  });
+
   const projects: Project[] = projectsResponse?.projects || [];
+
+  const handleDelete = async (projectId: string, projectName: string) => {
+    if (confirm(`Are you sure you want to delete "${projectName}"?`)) {
+      deleteMutation.mutate(projectId);
+    }
+  };
 
   const handleCopyLink = async (projectId: string, link: string) => {
     try {
@@ -344,12 +362,8 @@ export default function Projects() {
                   <button
                     style={actionButtonStyle('#dc2626')}
                     title="Delete project"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this project?')) {
-                        // Handle delete
-                        console.log('Delete project', project.id);
-                      }
-                    }}
+                    onClick={() => handleDelete(project.id, project.name)}
+                    disabled={deleteMutation.isPending}
                   >
                     <DeleteIcon style={smallIconStyle} />
                   </button>

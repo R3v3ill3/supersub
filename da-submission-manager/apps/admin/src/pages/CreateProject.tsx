@@ -304,9 +304,89 @@ export default function CreateProject() {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [templateSetupMethod, setTemplateSetupMethod] = useState<TemplateSetupMethod>('upload');
   const [actionNetworkEnabled, setActionNetworkEnabled] = useState(false);
+  
+  // NEW: Draft project state for template uploads
+  const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
+  const [isDraftMode, setIsDraftMode] = useState(false);
+
+  // NEW: Draft project creation mutation for template uploads
+  const createDraftProjectMutation = useMutation({
+    mutationFn: async (data: CreateProjectData) => {
+      console.log('Creating/updating draft project with data:', data);
+
+      // Check if we already have a draft project for this slug
+      try {
+        const response = await api.projects.list({ include_inactive: true });
+        const existingDraft = response.data.projects?.find((p: any) =>
+          p.slug.startsWith(`${data.slug}-draft-`) && !p.is_active
+        );
+
+        if (existingDraft) {
+          console.log('Reusing existing draft project:', existingDraft.id);
+          // Update the existing draft instead of creating a new one
+          return api.projects.update(existingDraft.id, {
+            ...data,
+            name: data.name || 'Draft Project',
+            slug: existingDraft.slug, // Keep the same slug
+            council_email: data.council_email || 'draft@example.com',
+            council_name: data.council_name || 'Draft Council',
+            is_active: false,
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to check for existing draft, creating new one:', error);
+      }
+
+      // No existing draft found, create a new one
+      const draftSlug = `${data.slug}-draft-${Date.now()}`;
+      return api.projects.create({
+        ...data,
+        name: data.name || 'Draft Project',
+        slug: draftSlug,
+        council_email: data.council_email || 'draft@example.com',
+        council_name: data.council_name || 'Draft Council',
+        is_active: false, // Mark as inactive draft
+      });
+    },
+    onSuccess: (response) => {
+      console.log('Draft project response:', response.data);
+      const projectId = response.data?.project?.id || response.data?.data?.id || response.data?.id;
+      if (projectId) {
+        setDraftProjectId(projectId);
+        setIsDraftMode(true);
+        console.log('Draft project created:', projectId);
+
+        // Advance to step 3 only after draft project is created
+        setCompletedSteps(prev => [...prev.filter(s => s !== 2), 2]);
+        setCurrentStep(3);
+      } else {
+        console.error('Failed to extract project ID from response:', response.data);
+        alert('Project was created but failed to extract ID. Please refresh the page.');
+      }
+    },
+    onError: (error: any) => {
+      console.error('Draft project creation failed:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+
+      // Show user-friendly error message
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to create draft project';
+      alert(`Error creating project: ${errorMessage}\n\nPlease check the console for details.`);
+    },
+  });
 
   const createProjectMutation = useMutation({
-    mutationFn: (data: CreateProjectData) => api.projects.create(data),
+    mutationFn: (data: CreateProjectData) => {
+      if (isDraftMode && draftProjectId) {
+        // Update existing draft project
+        return api.projects.update(draftProjectId, {
+          ...data,
+          is_active: true, // Activate on final submission
+        });
+      }
+      // Create new project
+      return api.projects.create(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       navigate('/projects');
@@ -377,17 +457,13 @@ export default function CreateProject() {
 
   // NEW: Wizard validation functions
   const stepValidation = {
-    1: () => Boolean(formData.name && formData.slug), // Fixed: removed council_name (not available in Step 1)
+    1: () => Boolean(formData.name && formData.slug),
     2: () => Boolean(formData.council_email && formData.council_name && formData.default_application_number),
     3: () => {
-      if (formData.is_dual_track) {
-        return Boolean(
-          formData.cover_template_id && 
-          formData.dual_track_config?.original_grounds_template_id && 
-          formData.dual_track_config?.followup_grounds_template_id
-        );
-      }
-      return Boolean(formData.cover_template_id && formData.grounds_template_id);
+      // Step 3 requires at least email body template
+      // Grounds templates are optional - can be added later
+      const hasEmailBody = Boolean(formData.council_email_body_template);
+      return hasEmailBody;
     },
     4: () => true, // Optional step
     5: () => true, // Review step
@@ -398,6 +474,14 @@ export default function CreateProject() {
   // NEW: Wizard navigation handlers
   const handleNextStep = () => {
     if (isStepValid(currentStep)) {
+      // Special handling for step 2 → 3: Create draft project first (if not already created)
+      if (currentStep === 2 && !draftProjectId && !createDraftProjectMutation.isPending) {
+        // Draft creation will advance to step 3 in its onSuccess callback
+        createDraftProjectMutation.mutate(formData);
+        return; // Don't advance yet, wait for draft creation
+      }
+      
+      // For all other steps (including step 2→3 when draft already exists), advance normally
       setCompletedSteps(prev => [...prev.filter(s => s !== currentStep), currentStep]);
       setCurrentStep(prev => Math.min(prev + 1, 5));
     }
@@ -408,9 +492,24 @@ export default function CreateProject() {
   };
 
 
-  // NEW: Helper to update formData with partial updates
+  // NEW: Helper to update formData with partial updates and sync to draft project
   const updateFormData = (updates: Partial<CreateProjectData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
+
+    // Auto-save template changes to draft project if it exists
+    if (draftProjectId && (
+      updates.council_email_body_template !== undefined ||
+      updates.cover_template_id !== undefined ||
+      updates.grounds_template_id !== undefined ||
+      updates.dual_track_config !== undefined ||
+      updates.action_network_api_key !== undefined ||
+      updates.action_network_config !== undefined
+    )) {
+      // Save changes immediately (component handles debouncing via React state)
+      api.projects.update(draftProjectId, updates).catch(err => {
+        console.error('Failed to auto-save changes to draft project:', err);
+      });
+    }
   };
 
 
@@ -519,6 +618,24 @@ export default function CreateProject() {
                 onNext={handleNextStep}
                 isValid={isStepValid(2)}
               />
+              
+              {createDraftProjectMutation.isPending && (
+                <div style={{
+                  padding: '20px',
+                  backgroundColor: '#f0f9ff',
+                  border: '2px solid #bae6fd',
+                  borderRadius: '12px',
+                  marginTop: '24px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#0c4a6e', marginBottom: '8px' }}>
+                    🔄 Preparing template upload system...
+                  </div>
+                  <p style={{ fontSize: '14px', color: '#075985', margin: 0 }}>
+                    Creating draft project for template management. This will only take a moment.
+                  </p>
+                </div>
+              )}
             </WizardStep>
           )}
 
@@ -530,8 +647,22 @@ export default function CreateProject() {
               description="Configure submission templates through guided workflow"
               completedSteps={completedSteps}
             >
+              {draftProjectId && (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f0fdf4',
+                  border: '2px solid #bbf7d0',
+                  borderRadius: '12px',
+                  marginBottom: '24px',
+                  fontSize: '14px',
+                  color: '#166534'
+                }}>
+                  ✅ Template upload system ready (Draft Project ID: {draftProjectId.slice(0, 8)}...)
+                </div>
+              )}
               <Step3TemplateSetup
                 formData={formData}
+                projectId={draftProjectId}
                 templateSetupMethod={templateSetupMethod}
                 onTemplateSetupMethodChange={setTemplateSetupMethod}
                 onTemplateSelected={handleTemplateSelected}

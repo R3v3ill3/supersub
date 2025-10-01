@@ -5,27 +5,29 @@ import { config } from '../lib/config';
 import { encryptApiKey } from '../lib/encryption';
 import { ActionNetworkClient } from '../services/actionNetwork';
 import { TemplateCombinerService, DualTrackConfig } from '../services/templateCombiner';
+import { requireAuth } from '../middleware/auth';
+import { adminLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
 const actionNetworkConfigSchema = z.object({
-  action_url: z.string().url('Action URL must be valid').optional(),
-  form_url: z.string().url('Form URL must be valid').optional(),
+  action_url: z.string().url('Action URL must be valid').or(z.literal('')).optional(),
+  form_url: z.string().url('Form URL must be valid').or(z.literal('')).optional(),
   group_hrefs: z.array(z.string().url()).optional(),
   list_hrefs: z.array(z.string().url()).optional(),
   tag_hrefs: z.array(z.string().url()).optional(),
   custom_fields: z.record(z.string()).optional(),
-});
+}).optional();
 
 const dualTrackSettingsSchema = z.object({
-  original_grounds_template_id: z.string().min(1, 'Original template ID is required'),
-  followup_grounds_template_id: z.string().min(1, 'Follow-up template ID is required'),
-  track_selection_prompt: z.string().min(1, 'Track selection prompt is required'),
+  original_grounds_template_id: z.string().optional(), // Optional for draft projects
+  followup_grounds_template_id: z.string().optional(), // Optional for draft projects
+  track_selection_prompt: z.string().optional(),
   track_descriptions: z.object({
-    followup: z.string().min(1, 'Follow-up track description is required'),
-    comprehensive: z.string().min(1, 'Comprehensive track description is required')
-  })
-});
+    followup: z.string().optional(),
+    comprehensive: z.string().optional()
+  }).optional()
+}).optional();
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Project name is required'),
@@ -39,10 +41,10 @@ const projectSchema = z.object({
   grounds_template_id: z.string().optional(),
   council_subject_template: z.string().optional(),
   council_email_body_template: z.string().optional(),
-  from_email: z.string().email().optional(),
+  from_email: z.string().email().or(z.literal('')).optional(),
   from_name: z.string().optional(),
-  test_submission_email: z.string().email().optional().nullable(),
-  default_application_number: z.string().min(1, 'Application number is required'),
+  test_submission_email: z.string().email().or(z.literal('')).optional().nullable(),
+  default_application_number: z.string().optional(), // Optional for draft projects, required when active
   subject_template: z.string().default('Development Application Submission - {{site_address}}'),
   default_pathway: z.enum(['direct', 'review', 'draft']).default('review'),
   enable_ai_generation: z.boolean().default(true),
@@ -67,7 +69,7 @@ const dualTrackValidationSchema = z.object({
 /**
  * Get all projects (admin only)
  */
-router.get('/api/projects', async (req, res) => {
+router.get('/api/projects', requireAuth, adminLimiter, async (req, res) => {
   try {
     const supabase = getSupabase();
     
@@ -187,14 +189,29 @@ router.get('/api/projects/:identifier', async (req, res) => {
 /**
  * Create a new project (admin only)
  */
-router.post('/api/projects', async (req, res) => {
+router.post('/api/projects', requireAuth, adminLimiter, async (req, res) => {
   try {
-    const projectData = projectSchema.parse({
-      ...req.body,
-      council_attention_of: typeof req.body.council_attention_of === 'string'
-        ? req.body.council_attention_of.trim() || null
-        : req.body.council_attention_of,
-    });
+    // Validate and parse project data
+    let projectData;
+    try {
+      projectData = projectSchema.parse({
+        ...req.body,
+        council_attention_of: typeof req.body.council_attention_of === 'string'
+          ? req.body.council_attention_of.trim() || null
+          : req.body.council_attention_of,
+      });
+    } catch (validationError: any) {
+      console.error('Project validation error:', validationError);
+      if (validationError.errors) {
+        const errorMessages = validationError.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ');
+        return res.status(400).json({
+          error: `Validation failed: ${errorMessages}`,
+          details: validationError.errors
+        });
+      }
+      return res.status(400).json({ error: 'Invalid project data' });
+    }
+
     const supabase = getSupabase();
     
     if (!supabase) {
@@ -210,6 +227,14 @@ router.post('/api/projects', async (req, res) => {
 
     if (existingProject) {
       return res.status(400).json({ error: 'A project with this slug already exists' });
+    }
+
+    // Validate required fields for active projects
+    if (projectData.is_active && !projectData.default_application_number) {
+      return res.status(400).json({
+        error: 'default_application_number is required for active projects',
+        hint: 'Inactive (draft) projects can be created without an application number'
+      });
     }
 
     // Prepare the project data for insertion
@@ -265,7 +290,7 @@ router.post('/api/projects', async (req, res) => {
 /**
  * Update a project (admin only)
  */
-router.patch('/api/projects/:projectId', async (req, res) => {
+router.patch('/api/projects/:projectId', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId } = req.params;
     const payload = {
@@ -296,6 +321,25 @@ router.patch('/api/projects/:projectId', async (req, res) => {
       }
     }
 
+    // If activating a project, ensure it has required fields
+    if (updates.is_active === true) {
+      // Get current project to check for default_application_number
+      const { data: currentProject } = await supabase
+        .from('projects')
+        .select('default_application_number')
+        .eq('id', projectId)
+        .single();
+
+      const finalApplicationNumber = updates.default_application_number || currentProject?.default_application_number;
+
+      if (!finalApplicationNumber) {
+        return res.status(400).json({
+          error: 'Cannot activate project without default_application_number',
+          hint: 'Please provide a default application number before activating the project'
+        });
+      }
+    }
+
     // If changing default_application_number and there are submissions, block it
     if (updates.default_application_number) {
       const { count } = await supabase
@@ -307,10 +351,21 @@ router.patch('/api/projects/:projectId', async (req, res) => {
       }
     }
 
+    // Handle Action Network API key encryption
+    const updateData: any = { ...updates };
+    if (updateData.action_network_api_key) {
+      try {
+        updateData.action_network_api_key_encrypted = encryptApiKey(updateData.action_network_api_key);
+      } catch (error) {
+        return res.status(500).json({ error: 'Failed to encrypt Action Network API key' });
+      }
+      delete updateData.action_network_api_key;
+    }
+
     const { data: project, error } = await supabase
       .from('projects')
       .update({
-        ...updates,
+        ...updateData,
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId)
@@ -322,6 +377,12 @@ router.patch('/api/projects/:projectId', async (req, res) => {
         return res.status(404).json({ error: 'Project not found' });
       }
       throw new Error(`Failed to update project: ${error.message}`);
+    }
+
+    // Remove encrypted key from response and add has_action_network_api_key flag
+    if (project.action_network_api_key_encrypted) {
+      delete project.action_network_api_key_encrypted;
+      project.has_action_network_api_key = true;
     }
 
     res.json({ project });
@@ -336,7 +397,7 @@ router.patch('/api/projects/:projectId', async (req, res) => {
   }
 });
 
-router.put('/api/projects/:projectId/dual-track', async (req, res) => {
+router.put('/api/projects/:projectId/dual-track', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { is_dual_track, dual_track_config } = dualTrackUpdateSchema.parse(req.body);
@@ -382,7 +443,7 @@ router.put('/api/projects/:projectId/dual-track', async (req, res) => {
   }
 });
 
-router.post('/api/projects/:projectId/dual-track/validate', async (req, res) => {
+router.post('/api/projects/:projectId/dual-track/validate', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { dual_track_config } = dualTrackValidationSchema.parse(req.body);
@@ -402,7 +463,7 @@ router.post('/api/projects/:projectId/dual-track/validate', async (req, res) => 
   }
 });
 
-router.get('/api/projects/:projectId/template-preview/:track', async (req, res) => {
+router.get('/api/projects/:projectId/template-preview/:track', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId, track } = req.params;
     if (!['followup', 'comprehensive'].includes(track)) {
@@ -452,7 +513,7 @@ router.get('/api/projects/:projectId/template-preview/:track', async (req, res) 
   }
 });
 
-router.post('/api/projects/:projectId/action-network', async (req, res) => {
+router.post('/api/projects/:projectId/action-network', requireAuth, adminLimiter, async (req, res) => {
   const { projectId } = req.params;
   try {
     const body = actionNetworkConfigSchema.parse(req.body);
@@ -488,7 +549,7 @@ router.post('/api/projects/:projectId/action-network', async (req, res) => {
   }
 });
 
-router.post('/api/projects/:projectId/action-network/test', async (req, res) => {
+router.post('/api/projects/:projectId/action-network/test', requireAuth, adminLimiter, async (req, res) => {
   const { projectId } = req.params;
   try {
     const supabase = getSupabase();
@@ -542,7 +603,7 @@ router.post('/api/projects/:projectId/action-network/test', async (req, res) => 
 /**
  * Delete (deactivate) a project (admin only)
  */
-router.delete('/api/projects/:projectId', async (req, res) => {
+router.delete('/api/projects/:projectId', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId } = req.params;
     const supabase = getSupabase();
@@ -591,7 +652,7 @@ router.delete('/api/projects/:projectId', async (req, res) => {
 /**
  * Get submissions for a project
  */
-router.get('/api/projects/:projectId/submissions', async (req, res) => {
+router.get('/api/projects/:projectId/submissions', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId } = req.params;
     const supabase = getSupabase();
@@ -639,7 +700,7 @@ router.get('/api/projects/:projectId/submissions', async (req, res) => {
 /**
  * Duplicate a project
  */
-router.post('/api/projects/:projectId/duplicate', async (req, res) => {
+router.post('/api/projects/:projectId/duplicate', requireAuth, adminLimiter, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, slug } = z.object({

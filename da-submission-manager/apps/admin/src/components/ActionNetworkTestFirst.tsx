@@ -400,7 +400,9 @@ function ResourceConfigurationPanel({
   const AN_FORM_PREFIX = 'https://actionnetwork.org/api/v2/forms/';
   
   const getSelectableValue = (item: ActionNetworkItem) => {
-    return item.id || extractIdFromHref(item.href || '', AN_FORM_PREFIX);
+    // Forms use action_url, other resources use href
+    const url = (item as any).action_url || item.href || '';
+    return item.id || extractIdFromHref(url, AN_FORM_PREFIX);
   };
 
   const extractIdFromHref = (href: string, prefix: string) => {
@@ -443,7 +445,6 @@ function ResourceConfigurationPanel({
               form_url: selectedForm?.browser_url || selectedConfig?.form_url || '',
             });
           }}
-          limit={1}
         />
         
         <ResourceSelector
@@ -493,18 +494,20 @@ interface ResourceSelectorProps {
   limit?: number;
 }
 
-function ResourceSelector({ 
-  type, 
-  title, 
-  description, 
-  options, 
-  selected, 
+function ResourceSelector({
+  type,
+  title,
+  description,
+  options,
+  selected,
   onChange,
   multiple = false,
-  limit 
+  limit
 }: ResourceSelectorProps) {
   const getSelectableValue = (item: ActionNetworkItem) => {
-    return item.id || item.href?.split('/').pop() || '';
+    // Forms use action_url, other resources use href
+    const url = (item as any).action_url || item.href;
+    return item.id || url?.split('/').pop() || '';
   };
 
   return (

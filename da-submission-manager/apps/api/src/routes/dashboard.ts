@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { getSupabase } from '../lib/supabase';
+import { requireAuth } from '../middleware/auth';
+import { adminLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
-router.get('/api/stats', async (_req, res) => {
+router.get('/api/stats', requireAuth, adminLimiter, async (_req, res) => {
   try {
     const supabase = getSupabase();
 

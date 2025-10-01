@@ -3,12 +3,14 @@ import { z } from 'zod';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getSupabase } from '../lib/supabase';
+import { surveyLimiter, standardLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
 const qVersion = z.object({
   version: z.string().default('v1'),
   track: z.enum(['followup', 'comprehensive', 'single']).optional(),
+  project_id: z.string().uuid().optional(),
 });
 
 function isConcernApplicableToTrack(concernTrack: string | undefined, requestedTrack?: string) {
@@ -26,19 +28,43 @@ function filterConcernsByTrack<T extends { track?: string | null }>(concerns: T[
   });
 }
 
-router.get('/api/survey/templates', async (req, res) => {
+router.get('/api/survey/templates', standardLimiter, async (req, res) => {
   try {
-    const { version, track } = qVersion.parse(req.query);
+    const { version, track, project_id } = qVersion.parse(req.query);
     const supabase = getSupabase();
 
     // Try DB first (active concerns for version)
     if (supabase) {
-      const { data: rows, error } = await supabase
-        .from('concern_templates')
-        .select('key,label,body,is_active,version,metadata,track')
-        .eq('version', version)
-        .eq('is_active', true)
-        .order('key');
+      let rows = null;
+      let error = null;
+
+      // If project_id provided, try to get project-specific concerns first
+      if (project_id) {
+        const result = await supabase
+          .from('concern_templates')
+          .select('key,label,body,is_active,version,metadata,track,project_id')
+          .eq('version', version)
+          .eq('is_active', true)
+          .eq('project_id', project_id)
+          .order('key');
+
+        rows = result.data;
+        error = result.error;
+      }
+
+      // If no project-specific concerns found, fall back to global concerns (NULL project_id)
+      if (!error && (!rows || rows.length === 0)) {
+        const result = await supabase
+          .from('concern_templates')
+          .select('key,label,body,is_active,version,metadata,track,project_id')
+          .eq('version', version)
+          .eq('is_active', true)
+          .is('project_id', null)
+          .order('key');
+
+        rows = result.data;
+        error = result.error;
+      }
 
       if (!error && rows && rows.length) {
         const filtered = filterConcernsByTrack(rows, track);
@@ -64,7 +90,7 @@ const postBody = z.object({
   user_style_sample: z.string().min(1)
 });
 
-router.post('/api/survey/:submissionId', async (req, res) => {
+router.post('/api/survey/:submissionId', surveyLimiter, async (req, res) => {
   try {
     const { submissionId } = req.params;
     const body = postBody.parse(req.body);

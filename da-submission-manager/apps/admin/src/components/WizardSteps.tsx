@@ -412,6 +412,7 @@ export function Step2CouncilConfig({ formData, onInputChange, onBack, onNext, is
 // Step 3: Template Setup
 interface Step3Props {
   formData: CreateProjectData;
+  projectId: string | null;
   templateSetupMethod: TemplateSetupMethod;
   onTemplateSetupMethodChange: (method: TemplateSetupMethod) => void;
   onTemplateSelected: (templateType: 'cover' | 'grounds' | 'google_doc') => (value?: string) => void;
@@ -422,7 +423,8 @@ interface Step3Props {
 }
 
 export function Step3TemplateSetup({ 
-  formData, 
+  formData,
+  projectId,
   templateSetupMethod, 
   onTemplateSetupMethodChange,
   onTemplateSelected,
@@ -446,6 +448,7 @@ export function Step3TemplateSetup({
         <TemplateUploadFlow
           isDualTrack={formData.is_dual_track || false}
           templateData={formData}
+          projectId={projectId}
           templateSetupMethod={templateSetupMethod}
           onChange={onFormDataChange}
         />
@@ -457,7 +460,7 @@ export function Step3TemplateSetup({
             templateType="google_doc"
             selectedTemplateId={formData.google_doc_template_id || undefined}
             onTemplateSelected={onTemplateSelected('google_doc')}
-            projectId={null}
+            projectId={projectId}
             showAnalysis={false}
             allowUrlImport={templateSetupMethod === 'existing'}
             showUpload={templateSetupMethod === 'upload'}

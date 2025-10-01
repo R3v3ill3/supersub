@@ -7,6 +7,7 @@
   "scripts": {
     "build": "pnpm -r --filter './apps/*' run build",
     "dev": "pnpm -r --parallel --filter '@dasub/api' --filter 'admin' --filter 'web' run dev",
+    "dev:all": "(pnpm exec kill-port 3500 5173 5174 || true) && pnpm dev",
     "dev:api": "pnpm --filter @dasub/api run dev",
     "dev:admin": "pnpm --filter admin run dev",
     "dev:web": "pnpm --filter web run dev",
@@ -31,14 +32,15 @@
     "packages/*"
   ],
   "dependencies": {
-    "p-retry": "^6.2.0",
+    "@supabase/supabase-js": "^2.45.4",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
-    "@supabase/supabase-js": "^2.45.4"
+    "openai": "^4.57.0",
+    "p-retry": "^6.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.4",
-    "@da/ui": "workspace:*"
+    "@da/ui": "workspace:*",
+    "kill-port": "^2.0.1",
+    "typescript": "^5.5.4"
   }
 }
-

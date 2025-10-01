@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { SuccessIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
+import { WizardHeader, WizardNavigation, FormSection, ChoiceCard } from '../components/Wizard';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
 
@@ -77,6 +78,56 @@ const TRACK_LABELS: Record<SubmissionTrack, { title: string; badge: string }> = 
   comprehensive: { title: 'Comprehensive submission', badge: 'Full submission' },
 };
 
+// Inline styles matching admin app design
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '12px 16px',
+  borderRadius: '12px',
+  border: '1px solid #d1d5db',
+  backgroundColor: '#ffffff',
+  fontSize: '14px',
+  color: '#111827',
+  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+  outline: 'none',
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 600,
+  color: '#1f2937',
+  marginBottom: '8px',
+  display: 'block',
+};
+
+const fieldStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+};
+
+const twoColumnGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: '24px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+};
+
+const helpTextStyle: React.CSSProperties = {
+  fontSize: '13px',
+  color: '#6b7280',
+  lineHeight: 1.6,
+  margin: 0,
+};
+
+const checkboxRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  padding: '16px',
+  borderRadius: '12px',
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+};
+
 export default function SubmissionForm() {
   const { projectSlug } = useParams();
   const navigate = useNavigate();
@@ -119,6 +170,7 @@ export default function SubmissionForm() {
   });
   const [submissionId, setSubmissionId] = useState<string>('');
   const [actionNetworkResult, setActionNetworkResult] = useState<ActionNetworkSyncResult | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const {
     data: projectResponse,
@@ -158,6 +210,12 @@ export default function SubmissionForm() {
       defaults.submission_pathway = project.default_pathway;
     }
 
+    // Load default site address from project config
+    const defaultSiteAddress = (project?.action_network_config as any)?.default_site_address;
+    if (defaultSiteAddress) {
+      defaults.site_address = defaultSiteAddress;
+    }
+
     const queryDefaults: Partial<FormData> = {};
     const firstName = searchParams.get('first_name') || searchParams.get('fname');
     const lastName = searchParams.get('last_name') || searchParams.get('lname');
@@ -177,15 +235,19 @@ export default function SubmissionForm() {
       ...queryDefaults,
     }));
     setActionNetworkResult(null);
-  }, [projectSlug, project?.default_application_number, project?.default_pathway, searchParams]);
+  }, [projectSlug, project?.default_application_number, project?.default_pathway, project?.action_network_config, searchParams]);
 
   // Load survey templates
   const { data: surveyTemplates, isLoading: loadingSurvey } = useQuery({
-    queryKey: ['survey-templates', surveyData.submission_track],
+    queryKey: ['survey-templates', surveyData.submission_track, project?.id],
     queryFn: async () => {
-      const response = await api.survey.getTemplates({ track: surveyData.submission_track });
+      const response = await api.survey.getTemplates({
+        track: surveyData.submission_track,
+        project_id: project?.id
+      });
       return response.data;
     },
+    enabled: !!project?.id, // Don't query until we have project
   });
 
   // Create submission mutation
@@ -365,6 +427,71 @@ export default function SubmissionForm() {
             <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md p-4">
               <p className="font-medium">Test run enabled</p>
               <p className="text-sm">All notifications and submissions will be routed to {testModeEmail}.</p>
+            </div>
+          ) : null}
+
+          {/* Dual-track selection UI */}
+          {project.is_dual_track && project.dual_track_config ? (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-md p-6">
+              <h3 className="font-semibold text-gray-900 mb-4 text-lg">
+                {(project.dual_track_config as any)?.track_selection_prompt ||
+                 'Have you previously made a submission on this development application?'}
+              </h3>
+              <div className="space-y-4">
+                <label className="flex items-start p-4 border-2 rounded-md cursor-pointer hover:bg-blue-100 transition-colors"
+                  style={{
+                    borderColor: formData.submission_track === 'followup' ? '#3b82f6' : '#d1d5db',
+                    backgroundColor: formData.submission_track === 'followup' ? '#eff6ff' : 'white'
+                  }}>
+                  <input
+                    type="radio"
+                    name="submission_track"
+                    value="followup"
+                    checked={formData.submission_track === 'followup'}
+                    onChange={(e) => {
+                      setFormData({ ...formData, submission_track: 'followup', is_returning_submitter: true });
+                      setSurveyData({ ...surveyData, submission_track: 'followup' });
+                    }}
+                    className="mt-1 mr-3"
+                  />
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-900 block mb-1">
+                      Yes, I previously submitted
+                    </span>
+                    <p className="text-sm text-gray-700">
+                      {(project.dual_track_config as any)?.track_descriptions?.followup ||
+                       'I have previously made a submission and want to add additional points'}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start p-4 border-2 rounded-md cursor-pointer hover:bg-blue-100 transition-colors"
+                  style={{
+                    borderColor: formData.submission_track === 'comprehensive' ? '#3b82f6' : '#d1d5db',
+                    backgroundColor: formData.submission_track === 'comprehensive' ? '#eff6ff' : 'white'
+                  }}>
+                  <input
+                    type="radio"
+                    name="submission_track"
+                    value="comprehensive"
+                    checked={formData.submission_track === 'comprehensive'}
+                    onChange={(e) => {
+                      setFormData({ ...formData, submission_track: 'comprehensive', is_returning_submitter: false });
+                      setSurveyData({ ...surveyData, submission_track: 'comprehensive' });
+                    }}
+                    className="mt-1 mr-3"
+                  />
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-900 block mb-1">
+                      No, this is my first submission
+                    </span>
+                    <p className="text-sm text-gray-700">
+                      {(project.dual_track_config as any)?.track_descriptions?.comprehensive ||
+                       'This is my first submission (includes all objection grounds)'}
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
           ) : null}
 
@@ -685,40 +812,44 @@ export default function SubmissionForm() {
             </p>
           </div>
 
-          {actionNetworkResult ? (
-            <div
-              className={`mb-6 border rounded-md p-4 ${
-                actionNetworkResult.status === 'synced'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : actionNetworkResult.status === 'failed'
-                  ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-blue-50 border-blue-200 text-blue-700'
-              }`}
-            >
-              <p className="font-medium">
-                {actionNetworkResult.status === 'synced'
-                  ? 'Action Network sync succeeded'
-                  : actionNetworkResult.status === 'failed'
-                  ? 'Action Network sync failed'
-                  : 'Action Network sync skipped'}
-              </p>
+          {actionNetworkResult && actionNetworkResult.status === 'synced' ? (
+            <div className="mb-6 border rounded-md p-4 bg-green-50 border-green-200 text-green-800">
+              <p className="font-medium">Action Network sync succeeded</p>
               <p className="text-sm mt-1">
-                {actionNetworkResult.status === 'synced' && (actionNetworkResult.personHref || actionNetworkResult.submissionHref)
+                {(actionNetworkResult.personHref || actionNetworkResult.submissionHref)
                   ? `Person: ${actionNetworkResult.personHref || 'n/a'}${
                       actionNetworkResult.submissionHref ? ` • Submission: ${actionNetworkResult.submissionHref}` : ''
                     }`
-                  : actionNetworkResult.status === 'failed'
-                  ? actionNetworkResult.error || 'We could not sync this supporter to Action Network. Our team has been notified.'
-                  : 'Action Network configuration is optional. No sync was attempted for this project.'}
+                  : 'Successfully synced to Action Network'}
               </p>
             </div>
           ) : null}
 
           <form onSubmit={handleSurveySubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
-                Which issues concern you most? (Select all that apply)
-              </label>
+              <div className="flex items-center justify-between mb-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Which issues concern you most? (Select all that apply)
+                </label>
+                {concerns.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (surveyData.selected_keys.length === concerns.length) {
+                        // Deselect all
+                        setSurveyData({ ...surveyData, selected_keys: [], ordered_keys: [] });
+                      } else {
+                        // Select all
+                        const allKeys = concerns.map((c: any) => c.key);
+                        setSurveyData({ ...surveyData, selected_keys: allKeys, ordered_keys: allKeys });
+                      }
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {surveyData.selected_keys.length === concerns.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+              </div>
               <div className="space-y-3">
                 {loadingSurvey ? (
                   <div>Loading concerns...</div>
@@ -733,12 +864,14 @@ export default function SubmissionForm() {
                           if (e.target.checked) {
                             setSurveyData({
                               ...surveyData,
-                              selected_keys: [...surveyData.selected_keys, concern.key]
+                              selected_keys: [...surveyData.selected_keys, concern.key],
+                              ordered_keys: [...surveyData.selected_keys, concern.key]
                             });
                           } else {
                             setSurveyData({
                               ...surveyData,
-                              selected_keys: surveyData.selected_keys.filter(k => k !== concern.key)
+                              selected_keys: surveyData.selected_keys.filter(k => k !== concern.key),
+                              ordered_keys: surveyData.selected_keys.filter(k => k !== concern.key)
                             });
                           }
                         }}
@@ -756,30 +889,65 @@ export default function SubmissionForm() {
 
             {surveyData.selected_keys.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Prioritise your concerns (top = most important)
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Drag to prioritize your concerns (top = most important)
                 </label>
-                <ol className="list-decimal ml-6 space-y-1">
-                  {surveyData.selected_keys.map((key, idx) => (
-                    <li key={key} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-800">{concerns.find((c: any) => c.key === key)?.label || key}</span>
-                      <span className="space-x-2">
-                        <button type="button" className="text-xs px-2 py-1 bg-gray-100 rounded" onClick={() => {
-                          if (idx === 0) return;
-                          const arr = [...surveyData.selected_keys];
-                          [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-                          setSurveyData({ ...surveyData, selected_keys: arr, ordered_keys: arr });
-                        }}>Up</button>
-                        <button type="button" className="text-xs px-2 py-1 bg-gray-100 rounded" onClick={() => {
-                          if (idx === surveyData.selected_keys.length - 1) return;
-                          const arr = [...surveyData.selected_keys];
-                          [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
-                          setSurveyData({ ...surveyData, selected_keys: arr, ordered_keys: arr });
-                        }}>Down</button>
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+                <p className="text-sm text-gray-600 mb-4">
+                  Drag and drop the cards below to rank them in order of importance. Your highest priority concern should be at the top.
+                </p>
+                <div className="space-y-2">
+                  {surveyData.selected_keys.map((key, idx) => {
+                    const concern = concerns.find((c: any) => c.key === key);
+                    const isDragging = draggedIndex === idx;
+
+                    return (
+                      <div
+                        key={key}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedIndex(idx);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedIndex === null || draggedIndex === idx) return;
+
+                          const newOrder = [...surveyData.selected_keys];
+                          const [movedItem] = newOrder.splice(draggedIndex, 1);
+                          newOrder.splice(idx, 0, movedItem);
+
+                          setSurveyData({ ...surveyData, selected_keys: newOrder, ordered_keys: newOrder });
+                          setDraggedIndex(null);
+                        }}
+                        onDragEnd={() => setDraggedIndex(null)}
+                        className="flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-move"
+                        style={{
+                          backgroundColor: isDragging ? '#f3f4f6' : '#ffffff',
+                          borderColor: isDragging ? '#9ca3af' : '#e5e7eb',
+                          opacity: isDragging ? 0.5 : 1,
+                          boxShadow: isDragging ? 'none' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                        }}
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-bold text-sm"
+                          style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-900">{concern?.label || key}</span>
+                        </div>
+                        <div className="text-gray-400">
+                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7 4H13M7 10H13M7 16H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          </svg>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -793,7 +961,7 @@ export default function SubmissionForm() {
                 value={surveyData.user_style_sample}
                 onChange={(e) => setSurveyData({ ...surveyData, user_style_sample: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Please share your thoughts about this development application in your own words. This helps us match your writing style when preparing your submission."
+                placeholder="Please share your thoughts about this development application in your own words."
               />
             </div>
 

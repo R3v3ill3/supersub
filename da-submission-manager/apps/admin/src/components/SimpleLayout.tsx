@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeIcon,
   FolderIcon,
@@ -9,7 +9,7 @@ import {
   HeartIcon,
   ChartBarIcon,
 } from '@da/ui/icons';
-// import { useAuth } from '../contexts/AuthContext'; // Disabled for development
+import { useAuth } from '../hooks/useAuth';
 
 interface LayoutProps {
   children: ReactNode;
@@ -27,8 +27,9 @@ const navigation = [
 
 export default function SimpleLayout({ children }: LayoutProps) {
   const location = useLocation();
-  // const { user, logout } = useAuth(); // Disabled for development
-  // const [isLoggingOut, setIsLoggingOut] = useState(false); // Disabled for development
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const sidebarStyle: React.CSSProperties = {
     width: '256px',
@@ -65,16 +66,17 @@ export default function SimpleLayout({ children }: LayoutProps) {
     marginRight: '0.75rem'
   };
 
-  // const handleLogout = async () => { // Disabled for development
-  //   setIsLoggingOut(true);
-  //   try {
-  //     await logout();
-  //   } catch (error) {
-  //     console.error('Logout failed:', error);
-  //   } finally {
-  //     setIsLoggingOut(false);
-  //   }
-  // };
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div style={{ height: '100vh', display: 'flex' }}>
@@ -112,10 +114,35 @@ export default function SimpleLayout({ children }: LayoutProps) {
           })}
         </nav>
 
-        {/* User Profile Section - Disabled for development */}
-        {/* <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-          Development Mode - Authentication Disabled
-        </div> */}
+        <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+          {user ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1f2937' }}>
+                  {user.name}
+                </p>
+                <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>{user.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '0.375rem',
+                  border: '1px solid #e5e7eb',
+                  backgroundColor: '#f9fafb',
+                  color: '#1f2937',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: isLoggingOut ? 'wait' : 'pointer',
+                }}
+              >
+                {isLoggingOut ? 'Signing out…' : 'Sign out'}
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Main content */}

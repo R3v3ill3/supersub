@@ -1,17 +1,18 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useAuth } from './hooks/useAuth';
 import SimpleLayout from './components/SimpleLayout';
 import SimpleDashboard from './pages/SimpleDashboard';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import CreateProject from './pages/CreateProject';
+import EditProject from './pages/EditProject';
 import Submissions from './pages/Submissions';
 import Templates from './pages/Templates';
 import Settings from './pages/Settings';
 import SystemHealth from './pages/SystemHealth';
 import Analytics from './pages/Analytics';
 import LoginPage from './pages/Login';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,31 +23,22 @@ const queryClient = new QueryClient({
   },
 });
 
-const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <div>Loading...</div>; // Or a spinner component
-  }
-
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
-};
-
 export default function AppRoutes() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route
-              path="/*"
-              element={
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
                 <SimpleLayout>
                   <Routes>
                     <Route path="/" element={<SimpleDashboard />} />
                     <Route path="/projects" element={<Projects />} />
                     <Route path="/projects/new" element={<CreateProject />} />
+                    <Route path="/projects/:id/edit" element={<EditProject />} />
                     <Route path="/projects/:id" element={<ProjectDetail />} />
                     <Route path="/submissions" element={<Submissions />} />
                     <Route path="/templates" element={<Templates />} />
@@ -55,9 +47,9 @@ export default function AppRoutes() {
                     <Route path="/analytics" element={<Analytics />} />
                   </Routes>
                 </SimpleLayout>
-              }
-            />
-          </Route>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </QueryClientProvider>

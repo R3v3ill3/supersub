@@ -43,12 +43,6 @@ const analyzeTemplateSchema = z.object({
   projectId: z.string().uuid().optional(),
   version: z.string().default('v1')
 });
-
-const analyzeFileSchema = z.object({
-  projectId: z.string().uuid('Invalid project ID'),
-  templateType: z.enum(['grounds', 'followup_grounds']),
-  version: z.string().default('v1')
-});
 const uploadTemplateSchema = z.object({
   projectId: z.string().uuid(),
   templateType: z.enum(['submission_format', 'grounds', 'council_email', 'supporter_email', 'followup_grounds', 'combined_grounds']),
@@ -76,7 +70,7 @@ const generateSurveySchema = z.object({
  * Validate a Google Doc template (admin only)
  * GET /api/templates/validate?googleDocId=xxx
  */
-router.get('/validate', requireAuth, adminLimiter, async (req, res) => {
+router.get('/validate', async (req, res) => {
   try {
     const { googleDocId } = validateTemplateSchema.parse(req.query);
     
@@ -98,7 +92,7 @@ router.get('/validate', requireAuth, adminLimiter, async (req, res) => {
  * Preview analysis of a Google Doc template
  * GET /api/templates/preview?googleDocId=xxx
  */
-router.get('/preview', requireAuth, adminLimiter, async (req, res) => {
+router.get('/preview', async (req, res) => {
   try {
     const { googleDocId } = validateTemplateSchema.parse(req.query);
     
@@ -120,7 +114,7 @@ router.get('/preview', requireAuth, adminLimiter, async (req, res) => {
  * Analyze a Google Doc and extract concerns
  * POST /api/templates/analyze
  */
-router.post('/analyze', requireAuth, adminLimiter, async (req, res) => {
+router.post('/analyze', async (req, res) => {
   try {
     const { googleDocId, projectId, version } = analyzeTemplateSchema.parse(req.body);
     
@@ -158,85 +152,10 @@ router.post('/analyze', requireAuth, adminLimiter, async (req, res) => {
 });
 
 /**
- * Analyze an uploaded template file (DOCX/PDF) and extract concerns
- * POST /api/templates/analyze-file
- */
-router.post('/analyze-file', requireAuth, adminLimiter, async (req, res) => {
-  try {
-    const { projectId, templateType, version } = analyzeFileSchema.parse(req.body);
-
-    const supabase = getSupabase();
-    if (!supabase) {
-      return res.status(500).json({ success: false, error: 'Database not configured' });
-    }
-
-    // Look up the template file
-    const { data: templateFile, error: fileError } = await supabase
-      .from('template_files')
-      .select('id, active_version_id, template_versions!template_versions_template_file_id_fkey(id, storage_path, mimetype)')
-      .eq('project_id', projectId)
-      .eq('template_type', templateType)
-      .single();
-
-    if (fileError || !templateFile) {
-      return res.status(404).json({
-        success: false,
-        error: `No ${templateType} template found for this project. Please upload a template first.`
-      });
-    }
-
-    // Get the active version
-    const activeVersion = templateFile.template_versions?.find(
-      (v: any) => v.id === templateFile.active_version_id
-    );
-
-    if (!activeVersion) {
-      return res.status(404).json({
-        success: false,
-        error: 'No active template version found'
-      });
-    }
-
-    // Perform analysis on the uploaded file
-    const analysisResult = await getDocumentAnalysis().analyzeUploadedTemplate(
-      activeVersion.storage_path,
-      activeVersion.mimetype
-    );
-
-    // Save concerns to database
-    let savedConcerns = null;
-    try {
-      savedConcerns = await getDocumentAnalysis().generateSurveyFromAnalysis(
-        analysisResult,
-        projectId,
-        version
-      );
-    } catch (saveError: any) {
-      console.warn('Failed to save concerns to database:', saveError.message);
-      // Continue without saving - return analysis result anyway
-    }
-
-    res.json({
-      success: true,
-      data: {
-        analysis: analysisResult,
-        savedConcerns: savedConcerns || undefined
-      }
-    });
-  } catch (error: any) {
-    console.error('[analyze-file] Analysis failed:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message || 'Uploaded template analysis failed'
-    });
-  }
-});
-
-/**
  * Generate and save survey from analyzed document
  * POST /api/templates/generate-survey
  */
-router.post('/generate-survey', requireAuth, adminLimiter, async (req, res) => {
+router.post('/generate-survey', async (req, res) => {
   try {
     const { googleDocId, projectId, version, saveToDatabase } = generateSurveySchema.parse(req.body);
     
@@ -272,9 +191,8 @@ router.post('/generate-survey', requireAuth, adminLimiter, async (req, res) => {
  * Upload a template file
  * POST /api/templates/upload
  */
-router.post('/upload', requireAuth, adminLimiter, upload.single('file'), async (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res) => {
   try {
-    console.log('[upload] Received upload request:', { body: req.body, hasFile: !!req.file });
     const body = uploadTemplateSchema.parse({ ...req.body, canonicalMappings: req.body?.canonicalMappings ? JSON.parse(req.body.canonicalMappings) : undefined });
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'File is required' });
@@ -315,24 +233,11 @@ router.post('/upload', requireAuth, adminLimiter, upload.single('file'), async (
       throw new Error(upsertError.message);
     }
 
-    // Check if version label already exists, if so append timestamp
-    const { data: existingVersions } = await supabase
-      .from('template_versions')
-      .select('version_label')
-      .eq('template_file_id', templateFile.id)
-      .eq('version_label', body.version);
-
-    let versionLabel = body.version;
-    if (existingVersions && existingVersions.length > 0) {
-      versionLabel = `${body.version}-${Date.now()}`;
-      console.log(`[upload] Version ${body.version} exists, using ${versionLabel}`);
-    }
-
     const { data: version, error: versionError } = await supabase
       .from('template_versions')
       .insert({
         template_file_id: templateFile.id,
-        version_label: versionLabel,
+        version_label: body.version,
         storage_path: fileResult.storagePath,
         mimetype: fileResult.mimetype,
         original_filename: fileResult.originalFilename,
@@ -360,15 +265,6 @@ router.post('/upload', requireAuth, adminLimiter, upload.single('file'), async (
       },
     });
   } catch (error: any) {
-    console.error('[upload] Template upload failed:', error);
-    if (error.issues) {
-      // Zod validation error
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: error.issues
-      });
-    }
     res.status(400).json({ success: false, error: error.message || 'Template upload failed' });
   }
 });
@@ -418,7 +314,7 @@ async function extractPlaceholders(buffer: Buffer, mimetype: string) {
  * Get existing concern templates for a version
  * GET /api/templates/concerns?version=v1
  */
-router.get('/concerns', requireAuth, adminLimiter, async (req, res) => {
+router.get('/concerns', async (req, res) => {
   try {
     const { version = 'v1' } = req.query;
     const supabase = getSupabase();
@@ -460,7 +356,7 @@ router.get('/concerns', requireAuth, adminLimiter, async (req, res) => {
  * Update or create concern templates
  * PUT /api/templates/concerns
  */
-router.put('/concerns', requireAuth, adminLimiter, async (req, res) => {
+router.put('/concerns', async (req, res) => {
   try {
     const concernsSchema = z.object({
       version: z.string().default('v1'),
@@ -518,7 +414,7 @@ router.put('/concerns', requireAuth, adminLimiter, async (req, res) => {
  * Delete concern template
  * DELETE /api/templates/concerns/:version/:key
  */
-router.delete('/concerns/:version/:key', requireAuth, adminLimiter, async (req, res) => {
+router.delete('/concerns/:version/:key', async (req, res) => {
   try {
     const { version, key } = req.params;
     const supabase = getSupabase();
@@ -552,10 +448,9 @@ router.delete('/concerns/:version/:key', requireAuth, adminLimiter, async (req, 
   }
 });
 
-router.get('/files/:projectId', requireAuth, adminLimiter, async (req, res) => {
+router.get('/files/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
-    console.log('[files] Listing template files for project:', projectId);
     const supabase = getSupabase();
 
     if (!supabase) {
@@ -564,12 +459,11 @@ router.get('/files/:projectId', requireAuth, adminLimiter, async (req, res) => {
 
     const { data: files, error } = await supabase
       .from('template_files')
-      .select('id, project_id, template_type, active_version_id, updated_at, template_versions!template_versions_template_file_id_fkey(id, version_label, storage_path, mimetype, original_filename, merge_fields, created_at)')
+      .select('id, project_id, template_type, active_version_id, updated_at, template_versions(id, version_label, storage_path, mimetype, original_filename, merge_fields, created_at)')
       .eq('project_id', projectId)
       .order('updated_at', { ascending: false });
 
     if (error) {
-      console.error('[files] Database error:', error);
       throw new Error(error.message);
     }
 
@@ -590,15 +484,13 @@ router.get('/files/:projectId', requireAuth, adminLimiter, async (req, res) => {
       })),
     }));
 
-    console.log('[files] Found', transformed.length, 'template files');
     res.json({ success: true, data: transformed });
   } catch (error: any) {
-    console.error('[files] Failed to list template files:', error);
     res.status(400).json({ success: false, error: error.message || 'Failed to list template files' });
   }
 });
 
-router.post('/files/:fileId/activate', requireAuth, adminLimiter, async (req, res) => {
+router.post('/files/:fileId/activate', async (req, res) => {
   try {
     const { fileId } = req.params;
     const { versionId } = req.body;
@@ -627,7 +519,7 @@ router.post('/files/:fileId/activate', requireAuth, adminLimiter, async (req, re
   }
 });
 
-router.delete('/files/:fileId/version/:versionId', requireAuth, adminLimiter, async (req, res) => {
+router.delete('/files/:fileId/version/:versionId', async (req, res) => {
   try {
     const { fileId, versionId } = req.params;
     const supabase = getSupabase();
@@ -656,7 +548,7 @@ router.delete('/files/:fileId/version/:versionId', requireAuth, adminLimiter, as
  * Update council email body template for a project
  * PUT /api/templates/email-body/:projectId
  */
-router.put('/email-body/:projectId', requireAuth, adminLimiter, async (req, res) => {
+router.put('/email-body/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
     const { emailBody } = z.object({
@@ -704,7 +596,7 @@ router.put('/email-body/:projectId', requireAuth, adminLimiter, async (req, res)
  * Get Gold Coast default templates
  * GET /api/templates/defaults/gold-coast
  */
-router.get('/defaults/gold-coast', requireAuth, adminLimiter, async (req, res) => {
+router.get('/defaults/gold-coast', async (req, res) => {
   try {
     const goldCoastDefaults = {
       submissionTemplate: `# Gold Coast Council - Development Application Submission Template

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getSupabase } from '../lib/supabase';
 import { generateSubmission, generateSubmissionMock } from '../services/llm';
 import type { DocumentWorkflowResult } from '../services/documentWorkflow';
+import { aiGenerationLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ function extractLinks(text: string): string[] {
   return Array.from(set);
 }
 
-router.post('/api/generate/:submissionId', async (req, res) => {
+router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res) => {
   try {
     const { submissionId } = req.params;
     const version = String(process.env.TEMPLATE_VERSION || 'v1');
@@ -45,9 +46,11 @@ router.post('/api/generate/:submissionId', async (req, res) => {
     if (!surveyData) return res.status(400).json({ error: 'Survey response not found' });
     survey = surveyData;
 
-    const selectedKeys: string[] = survey.selected_keys ?? [];
+    // Use ordered_keys if available (user's priority order), otherwise fall back to selected_keys
+    const selectedKeys: string[] = survey.ordered_keys?.length > 0 ? survey.ordered_keys : (survey.selected_keys ?? []);
 
     // Load concern bodies for selected keys (DB first, fallback to file)
+    // We'll build a map first, then reconstruct in the correct order
     let concerns: Array<{ key: string; body: string }> = [];
     const { data: cData, error: cErr } = await supabase
       .from('concern_templates')
@@ -56,7 +59,12 @@ router.post('/api/generate/:submissionId', async (req, res) => {
       .in('key', selectedKeys)
       .eq('is_active', true);
     if (!cErr && cData && cData.length) {
-      concerns = cData.map((r: any) => ({ key: r.key, body: r.body }));
+      // Build a map of key -> body
+      const concernMap = new Map(cData.map((r: any) => [r.key, r.body]));
+      // Reconstruct in the user's priority order
+      concerns = selectedKeys
+        .filter((k) => concernMap.has(k))
+        .map((k) => ({ key: k, body: concernMap.get(k)! }));
     } else {
       const file = path.resolve(process.cwd(), `packages/templates/concerns.${version}.json`);
       const fileJson = JSON.parse(await fs.readFile(file, 'utf8')) as Array<{ key: string; body: string }>;

@@ -1,0 +1,122 @@
+/**
+ * Winston-based Logger with structured logging
+ * Provides file outputs, JSON formatting, and better error tracking
+ */
+
+import winston from 'winston';
+import * as fs from 'fs';
+import * as path from 'path';
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+type LoggerOptions = {
+  namespace?: string;
+};
+
+const { combine, timestamp, printf, colorize, errors, json } = winston.format;
+
+// Ensure logs directory exists
+const logsDir = path.join(process.cwd(), 'apps', 'api', 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Custom format for console output (human-readable)
+const consoleFormat = printf(({ level, message, timestamp, namespace, stack, ...metadata }) => {
+  const prefix = namespace ? `[${namespace}]` : '[api]';
+  let msg = `${timestamp} ${prefix} ${level}: ${message}`;
+
+  // Add stack trace for errors
+  if (stack) {
+    msg += `\n${stack}`;
+  }
+
+  // Add metadata if present
+  const metaKeys = Object.keys(metadata);
+  if (metaKeys.length > 0) {
+    msg += ` ${JSON.stringify(metadata)}`;
+  }
+
+  return msg;
+});
+
+// Create base winston logger
+const winstonLogger = winston.createLogger({
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+  format: combine(
+    errors({ stack: true }),
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' })
+  ),
+  defaultMeta: {
+    service: 'da-submission-api',
+    environment: process.env.NODE_ENV || 'development'
+  },
+  transports: [
+    // Console transport
+    new winston.transports.Console({
+      format: process.env.NODE_ENV === 'production'
+        ? combine(json())
+        : combine(colorize(), consoleFormat)
+    }),
+
+    // Error log file
+    new winston.transports.File({
+      filename: path.join(logsDir, 'error.log'),
+      level: 'error',
+      format: combine(json())
+    }),
+
+    // Combined log file
+    new winston.transports.File({
+      filename: path.join(logsDir, 'combined.log'),
+      format: combine(json())
+    })
+  ],
+  exitOnError: false
+});
+
+// Wrapper class to maintain backwards compatibility
+export class Logger {
+  private namespace?: string;
+
+  constructor(options?: LoggerOptions) {
+    this.namespace = options?.namespace;
+  }
+
+  private log(level: LogLevel, message: string, meta?: unknown) {
+    const metadata = meta && typeof meta === 'object' ? meta : { data: meta };
+    winstonLogger.log(level, message, {
+      namespace: this.namespace,
+      ...metadata
+    });
+  }
+
+  debug(message: string, meta?: unknown) {
+    this.log('debug', message, meta);
+  }
+
+  info(message: string, meta?: unknown) {
+    this.log('info', message, meta);
+  }
+
+  warn(message: string, meta?: unknown) {
+    this.log('warn', message, meta);
+  }
+
+  error(message: string, meta?: unknown) {
+    this.log('error', message, meta);
+  }
+}
+
+export const logger = new Logger({ namespace: 'api' });
+
+// Export winston logger for advanced usage
+export { winstonLogger };
+
+// HTTP log stream for Morgan integration
+export const httpLogStream = {
+  write: (message: string) => {
+    logger.info(message.trim(), { type: 'http' });
+  }
+};
+

@@ -16,7 +16,7 @@ export const api = {
   },
 
   survey: {
-    getTemplates: (params: { version?: string; track?: string }) =>
+    getTemplates: (params: { version?: string; track?: string; project_id?: string }) =>
       apiClient.get('/api/survey/templates', { params }),
     saveResponse: (submissionId: string, data: any) =>
       apiClient.post(`/api/survey/${submissionId}`, data),

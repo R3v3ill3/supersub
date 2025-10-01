@@ -14,6 +14,7 @@ export interface TemplateUploadResult {
 export class UploadService {
   private supabase: SupabaseClient;
   private bucket: string;
+  private bucketInitialized = false;
 
   constructor(bucketName = process.env.SUPABASE_TEMPLATE_BUCKET || 'templates') {
     const supabase = getSupabase();
@@ -24,7 +25,43 @@ export class UploadService {
     this.bucket = bucketName;
   }
 
+  private async ensureBucketExists(): Promise<void> {
+    if (this.bucketInitialized) return;
+
+    try {
+      // Check if bucket exists by listing it
+      const { data: buckets, error: listError } = await this.supabase.storage.listBuckets();
+
+      if (listError) {
+        console.warn('[upload] Could not list buckets:', listError.message);
+        return;
+      }
+
+      const bucketExists = buckets?.some(b => b.name === this.bucket);
+
+      if (!bucketExists) {
+        console.log(`[upload] Creating storage bucket: ${this.bucket}`);
+        const { error: createError } = await this.supabase.storage.createBucket(this.bucket, {
+          public: false,
+          fileSizeLimit: 52428800, // 50MB
+        });
+
+        if (createError) {
+          console.error('[upload] Failed to create bucket:', createError.message);
+        } else {
+          console.log('[upload] Bucket created successfully');
+        }
+      }
+
+      this.bucketInitialized = true;
+    } catch (error) {
+      console.warn('[upload] Error checking/creating bucket:', error);
+    }
+  }
+
   async uploadTemplateFile(projectId: string, type: TemplateUploadType, file: Buffer, mimetype: string, originalFilename: string): Promise<TemplateUploadResult> {
+    await this.ensureBucketExists();
+
     const extension = this.getExtension(originalFilename);
     const path = `${projectId}/${type}/${randomUUID()}${extension}`;
 
@@ -45,6 +82,26 @@ export class UploadService {
       size: file.length,
       originalFilename,
     };
+  }
+
+  async downloadFromStorage(storagePath: string): Promise<Buffer> {
+    await this.ensureBucketExists();
+
+    const { data, error } = await this.supabase.storage
+      .from(this.bucket)
+      .download(storagePath);
+
+    if (error) {
+      throw new Error(`Failed to download file from storage: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error(`File not found in storage: ${storagePath}`);
+    }
+
+    // Convert Blob to Buffer
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
 
   private getExtension(filename: string): string {

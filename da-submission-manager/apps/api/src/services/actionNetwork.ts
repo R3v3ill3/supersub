@@ -44,13 +44,29 @@ async function withRetry<T>(fn: RequestFn<T>, opts?: PRetryOptions) {
 export class ActionNetworkClient {
   private client: AxiosInstance;
 
-  constructor(config: ActionNetworkConfig) {
-    const baseURL = config.baseUrl ?? 'https://actionnetwork.org/api/v2';
+  constructor(config: ActionNetworkConfig | string) {
+    // Handle legacy string API key parameter
+    const normalizedConfig: ActionNetworkConfig = typeof config === 'string'
+      ? { apiKey: config }
+      : config;
+
+    const baseURL = normalizedConfig.baseUrl ?? 'https://actionnetwork.org/api/v2';
+
+    console.log('[ActionNetworkClient] Creating client with config:', {
+      baseURL,
+      hasApiKey: !!normalizedConfig.apiKey,
+      apiKeyLength: normalizedConfig.apiKey?.length,
+      apiKeyPreview: normalizedConfig.apiKey ? `${normalizedConfig.apiKey.substring(0, 8)}...` : 'NONE'
+    });
+
+    if (!normalizedConfig.apiKey) {
+      throw new Error('Action Network API key is required');
+    }
 
     this.client = axios.create({
       baseURL,
       headers: {
-        'OSDI-API-Token': config.apiKey,
+        'OSDI-API-Token': normalizedConfig.apiKey,
         'Content-Type': 'application/json',
         accept: 'application/hal+json',
       },
@@ -60,7 +76,10 @@ export class ActionNetworkClient {
     this.client.interceptors.response.use(undefined, (error) => {
       if (error.response) {
         const { status, data } = error.response;
-        error.message = `Action Network request failed (${status}): ${JSON.stringify(data)}`;
+        const dataPreview = typeof data === 'string'
+          ? `HTML response (${data.length} chars)`
+          : JSON.stringify(data);
+        error.message = `Action Network API returned ${status}: ${dataPreview}`;
       }
       return Promise.reject(error);
     });
@@ -164,7 +183,13 @@ export class ActionNetworkClient {
   }
 
   async listForms() {
+    console.log('[ActionNetworkClient] Fetching forms from Action Network...');
     const data = await withRetry(() => this.get<any>('/forms'));
+    console.log('[ActionNetworkClient] Forms response received:', {
+      hasData: !!data,
+      hasEmbedded: !!data?._embedded,
+      formsCount: data?._embedded?.['osdi:forms']?.length || 0
+    });
     return (data?._embedded?.['osdi:forms'] || []).map((form: any) => {
       const id = form.identifiers?.find((id: string) => id.startsWith('action_network:form_id:'))?.split(':').pop();
       return {

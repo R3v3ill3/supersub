@@ -5,6 +5,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 import { Logger } from '../lib/logger';
 import { resolveActiveTemplate } from './templateVersionResolver';
+import { TemplateCombinerService } from './templateCombiner';
+import { UploadService } from './upload';
+import { extractDocxText, extractPdfText } from './templateParser';
 import Handlebars from 'handlebars';
 
 type SubmissionData = {
@@ -14,10 +17,22 @@ type SubmissionData = {
   applicant_first_name: string;
   applicant_last_name: string;
   applicant_email: string;
+  applicant_residential_address?: string;
+  applicant_suburb?: string;
+  applicant_state?: string;
+  applicant_postcode?: string;
   applicant_postal_address?: string;
+  postal_suburb?: string;
+  postal_state?: string;
+  postal_postcode?: string;
+  postal_email?: string;
+  lot_number?: string;
+  plan_number?: string;
   site_address: string;
   application_number?: string;
   submission_pathway: 'direct' | 'review' | 'draft';
+  submission_track?: 'followup' | 'comprehensive' | 'single';
+  is_returning_submitter?: boolean;
   review_deadline?: string | null;
   submitted_to_council_at?: string | null;
   status: string;
@@ -53,6 +68,16 @@ type ProjectData = {
   enable_ai_generation: boolean;
   action_network_config?: Record<string, any>;
   test_submission_email?: string | null;
+  is_dual_track?: boolean;
+  dual_track_config?: {
+    original_grounds_template_id: string;
+    followup_grounds_template_id: string;
+    track_selection_prompt?: string;
+    track_descriptions?: {
+      followup: string;
+      comprehensive: string;
+    };
+  };
 };
 
 export type DocumentWorkflowResult = {
@@ -126,6 +151,24 @@ Kind regards,
     this.googleDocs = new GoogleDocsService();
     this.emailService = new EmailService();
     this.logger = new Logger({ namespace: 'documentWorkflow' });
+
+    // Register Handlebars helpers for template processing
+    Handlebars.registerHelper('if', function(conditional, options) {
+      if (conditional) {
+        return options.fn(this);
+      } else {
+        return options.inverse(this);
+      }
+    });
+
+    Handlebars.registerHelper('applicant_full_name', function(firstName: string, lastName: string) {
+      return [firstName, lastName].filter(Boolean).join(' ').trim();
+    });
+
+    Handlebars.registerHelper('format_date', function(date?: string) {
+      if (!date) return new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+      return new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+    });
   }
 
   private getClient(): SupabaseClient<Database> {
@@ -407,14 +450,18 @@ Kind regards,
   ): Promise<DocumentWorkflowResult> {
     const supabase = this.getClient();
 
-    // Generate both documents (cover + grounds)
-    const { cover, grounds } = await this.createCoverAndGrounds(submission, project, generatedContent);
+    // Prepare complete submission data for all templates
+    const submissionData = await this.prepareSubmissionData(submission, project, generatedContent);
 
-    // Export PDFs
-    const coverPdf = await this.googleDocs.exportToPdf(cover.documentId);
-    const coverPdfName = `DA_Cover_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-    const groundsPdf = await this.googleDocs.exportToPdf(grounds.documentId);
-    const groundsPdfName = `DA_Grounds_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    // 1. Generate cover letter content
+    const coverContent = await this.generateCoverContent(project, submissionData);
+    const coverFileName = `DA_Cover_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
+    const coverFile = await this.createFileFromMarkdown(coverContent, coverFileName);
+
+    // 2. Generate grounds document content
+    const groundsContent = await this.generateGroundsContent(submission, project, submissionData);
+    const groundsFileName = `DA_Submission_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
+    const groundsFile = await this.createFileFromMarkdown(groundsContent, groundsFileName);
 
     // Email subject (prefer council_subject_template if present)
     const subjectTpl = project.council_subject_template || project.subject_template || 'Development Application Submission - {{site_address}}';
@@ -438,8 +485,8 @@ Kind regards,
       subject,
       bodyText,
       [
-        { filename: coverPdfName, buffer: coverPdf },
-        { filename: groundsPdfName, buffer: groundsPdf }
+        { filename: coverFileName, buffer: coverFile },
+        { filename: groundsFileName, buffer: groundsFile }
       ],
       {
         name: `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim(),
@@ -458,38 +505,16 @@ Kind regards,
       .from('submissions')
       .update({
         status: 'SUBMITTED',
-        google_doc_id: cover.documentId,
-        google_doc_url: cover.editUrl,
-        pdf_url: cover.pdfUrl,
-        grounds_doc_id: grounds.documentId,
-        grounds_pdf_url: grounds.pdfUrl,
         submitted_to_council_at: submittedAt,
         council_confirmation_id: emailResult.messageId
       })
       .eq('id', submission.id);
 
-    // Save document record
-    await this.saveDocumentRecord(submission.id, cover, {
-      templateId: project.cover_template_id || project.google_doc_template_id,
-      docType: 'cover',
-      status: 'submitted',
-      lastModifiedAt: submittedAt,
-      reviewCompletedAt: submittedAt,
-    });
-    await this.saveDocumentRecord(submission.id, grounds, {
-      templateId: project.grounds_template_id,
-      docType: 'grounds',
-      status: 'submitted',
-      lastModifiedAt: submittedAt,
-      reviewCompletedAt: submittedAt,
-    });
+    // No Google Docs created for direct pathway, so no document records to save
+    // PDFs are attached directly to email
 
     return {
       submissionId: submission.id,
-      documentId: cover.documentId,
-      editUrl: cover.editUrl,
-      viewUrl: cover.viewUrl,
-      pdfUrl: cover.pdfUrl,
       emailSent: true,
       status: 'SUBMITTED'
     };
@@ -676,7 +701,7 @@ Kind regards,
   }
 
   /**
-   * Create cover and grounds documents
+   * Create cover email and grounds submission document with template combination
    */
   private async createCoverAndGrounds(
     submission: SubmissionData,
@@ -686,51 +711,201 @@ Kind regards,
     cover: { documentId: string; editUrl: string; viewUrl: string; pdfUrl: string; pdfFileId: string };
     grounds: { documentId: string; editUrl: string; viewUrl: string; pdfUrl: string; pdfFileId: string };
   }> {
-    const coverTemplate = await resolveActiveTemplate(project.id, 'council_email');
-    const groundsTemplate = await resolveActiveTemplate(project.id, 'grounds');
+    this.logger.info('Creating cover and grounds documents', { submissionId: submission.id, isDualTrack: project.is_dual_track });
 
-    if (!coverTemplate || !groundsTemplate) {
-      throw new Error('Project is missing cover or grounds template configuration');
-    }
+    // Prepare complete submission data for all templates
+    const submissionData = await this.prepareSubmissionData(submission, project, generatedGroundsText);
 
-    const applicantName = `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim();
-    const basePlaceholders = {
-      applicant_name: applicantName,
-      applicant_email: submission.applicant_email,
-      applicant_postal_address: submission.applicant_postal_address || '',
-      site_address: submission.site_address,
-      application_number: submission.application_number || project.default_application_number || '',
-      submission_date: new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }),
-      council_name: project.council_name,
-      project_name: project.name
-    };
+    // 1. Generate cover letter/email
+    const coverContent = await this.generateCoverContent(project, submissionData);
+    const coverTitle = `DA_Cover_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+    const cover = await this.createDocumentFromMarkdown(coverContent, coverTitle);
 
-    // Cover doc placeholders
-    const coverPlaceholders = {
-      ...basePlaceholders,
-      submission_body: 'Please see the attached Grounds for Submission accompanying this cover letter.'
-    };
-    const coverTitle = `DA Cover - ${submission.site_address} - ${new Date().toISOString().split('T')[0]}`;
-    const cover = await this.googleDocs.createSubmissionDocument(
-      coverTemplate.storagePath,
-      coverPlaceholders,
-      coverTitle
-    );
-
-    // Grounds doc
-    const groundsText = generatedGroundsText || submission.grounds_text_generated || 'Grounds for submission will be detailed here.';
-    const groundsPlaceholders = {
-      ...basePlaceholders,
-      submission_body: groundsText
-    };
-    const groundsTitle = `DA Grounds - ${submission.site_address} - ${new Date().toISOString().split('T')[0]}`;
-    const grounds = await this.googleDocs.createSubmissionDocument(
-      groundsTemplate.storagePath,
-      groundsPlaceholders,
-      groundsTitle
-    );
+    // 2. Generate grounds document with template combination
+    const groundsContent = await this.generateGroundsContent(submission, project, submissionData);
+    const groundsTitle = `DA_Submission_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}`;
+    const grounds = await this.createDocumentFromMarkdown(groundsContent, groundsTitle);
 
     return { cover, grounds };
+  }
+
+  /**
+   * Prepare complete submission data with all fields for template merging
+   */
+  private async prepareSubmissionData(
+    submission: SubmissionData,
+    project: ProjectData,
+    generatedGroundsText?: string
+  ): Promise<Record<string, any>> {
+    const applicantFullName = `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim();
+    const submissionDate = new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const applicationNumber = submission.application_number || project.default_application_number || '';
+
+    // Check if postal address is same as residential
+    const postalAddressSame = !submission.applicant_postal_address ||
+      submission.applicant_postal_address === submission.applicant_residential_address;
+
+    return {
+      // Applicant details
+      applicant_first_name: submission.applicant_first_name,
+      applicant_last_name: submission.applicant_last_name,
+      applicant_name: applicantFullName,
+      applicant_full_name: applicantFullName,
+      applicant_email: submission.applicant_email,
+
+      // Residential address
+      applicant_residential_address: submission.applicant_residential_address || '',
+      applicant_suburb: submission.applicant_suburb || '',
+      applicant_state: submission.applicant_state || '',
+      applicant_postcode: submission.applicant_postcode || '',
+
+      // Postal address
+      postal_address_same: postalAddressSame,
+      applicant_postal_address: submission.applicant_postal_address || submission.applicant_residential_address || '',
+      postal_suburb: submission.postal_suburb || submission.applicant_suburb || '',
+      postal_state: submission.postal_state || submission.applicant_state || '',
+      postal_postcode: submission.postal_postcode || submission.applicant_postcode || '',
+      postal_email: submission.postal_email || submission.applicant_email,
+
+      // Property details
+      lot_number: submission.lot_number || '',
+      plan_number: submission.plan_number || '',
+      site_address: submission.site_address,
+      application_number: applicationNumber,
+      application_number_line: applicationNumber ? `Application Number: ${applicationNumber}` : '',
+
+      // Council details
+      council_name: project.council_name,
+      council_email: project.council_email,
+
+      // Submission details
+      submission_date: submissionDate,
+      submission_pathway: submission.submission_pathway,
+      submission_track: submission.submission_track || 'single',
+      is_returning_submitter: submission.is_returning_submitter || false,
+      previous_submission_date: submission.is_returning_submitter ? 'October 2024' : '', // TODO: Get from history
+
+      // Generated content placeholder (will be filled by template combiner)
+      grounds_content: generatedGroundsText || submission.grounds_text_generated || '',
+
+      // Project details
+      project_name: project.name,
+      project_slug: project.slug
+    };
+  }
+
+  /**
+   * Generate cover letter/email content
+   */
+  private async generateCoverContent(
+    project: ProjectData,
+    submissionData: Record<string, any>
+  ): Promise<string> {
+    // Load cover template (email body or default)
+    let coverTemplate: string;
+
+    if (project.council_email_body_template) {
+      coverTemplate = project.council_email_body_template;
+    } else {
+      // Load default Gold Coast cover template
+      const uploadService = new UploadService();
+      try {
+        const buffer = await uploadService.downloadFromStorage('templates/gold-coast-cover-template.md');
+        coverTemplate = buffer.toString('utf-8');
+      } catch (error) {
+        // Fallback to basic template
+        coverTemplate = DocumentWorkflowService.DEFAULT_COUNCIL_EMAIL_BODY;
+      }
+    }
+
+    // Merge with Handlebars
+    const template = Handlebars.compile(coverTemplate);
+    return template(submissionData);
+  }
+
+  /**
+   * Generate grounds document with template combination for dual-track
+   */
+  private async generateGroundsContent(
+    submission: SubmissionData,
+    project: ProjectData,
+    submissionData: Record<string, any>
+  ): Promise<string> {
+    const uploadService = new UploadService();
+    const templateCombiner = new TemplateCombinerService();
+
+    // 1. Load structure template (submission_format type from template_files)
+    let structureTemplate: string;
+    try {
+      const structureTemplateData = await resolveActiveTemplate(project.id, 'submission_format');
+      if (structureTemplateData) {
+        const buffer = await uploadService.downloadFromStorage(structureTemplateData.storagePath);
+        structureTemplate = buffer.toString('utf-8');
+        this.logger.info('Loaded submission_format template from project', { projectId: project.id });
+      } else {
+        throw new Error('No submission_format template found');
+      }
+    } catch (error) {
+      this.logger.warn('Project submission_format template not found, using basic template');
+      structureTemplate = '# Submission\n\n## Property Details\n**Property Address:** {{site_address}}\n**Application Number:** {{application_number}}\n\n## Submitter Details\n**Name:** {{applicant_full_name}}\n**Email:** {{applicant_email}}\n\n## Grounds for Submission\n\n{{grounds_content}}';
+    }
+
+    // 2. Get grounds content based on track (dual-track or single)
+    let groundsContent: string;
+
+    if (project.is_dual_track && project.dual_track_config) {
+      const track = (submission.submission_track || 'comprehensive') as 'followup' | 'comprehensive';
+      this.logger.info('Using dual-track template combination', { track });
+
+      try {
+        groundsContent = await templateCombiner.getTrackSpecificTemplate(
+          project.id,
+          track,
+          project.dual_track_config as any
+        );
+      } catch (error: any) {
+        this.logger.error('Failed to combine dual-track templates', { error: error.message });
+        throw new Error(`Template combination failed: ${error.message}`);
+      }
+    } else if (project.grounds_template_id) {
+      // Single-track: load single grounds template
+      this.logger.info('Using single-track grounds template');
+      const buffer = await uploadService.downloadFromStorage(project.grounds_template_id);
+      const isDocx = project.grounds_template_id.endsWith('.docx');
+      const isPdf = project.grounds_template_id.endsWith('.pdf');
+
+      if (isDocx) {
+        groundsContent = await extractDocxText(buffer);
+      } else if (isPdf) {
+        groundsContent = await extractPdfText(buffer);
+      } else {
+        groundsContent = buffer.toString('utf-8');
+      }
+    } else {
+      throw new Error('No grounds template configured for project');
+    }
+
+    // 3. Merge grounds content into structure template
+    submissionData.grounds_content = groundsContent;
+    const template = Handlebars.compile(structureTemplate);
+    return template(submissionData);
+  }
+
+  /**
+   * Create Google Doc from markdown content
+   */
+  private async createDocumentFromMarkdown(
+    content: string,
+    title: string
+  ): Promise<{ documentId: string; editUrl: string; viewUrl: string; pdfUrl: string; pdfFileId: string }> {
+    // Create a blank Google Doc and populate with content
+    // Google Docs service will need to support plain text/markdown creation
+    const placeholders = { submission_body: content };
+    return await this.googleDocs.createSubmissionDocument(
+      null, // No template needed, creating from content
+      placeholders,
+      title
+    );
   }
 
   /**
@@ -838,6 +1013,16 @@ This draft submission has been prepared to help you participate in the planning 
       result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
     }
     return result;
+  }
+
+  /**
+   * Create text file buffer from markdown content
+   * Note: PDF generation removed - now sending as markdown/text files
+   */
+  private async createFileFromMarkdown(content: string, title: string): Promise<Buffer> {
+    // For now, just return the markdown content as a buffer
+    // TODO: In future, implement proper PDF generation with a modern library
+    return Buffer.from(content, 'utf-8');
   }
 
   async finalizeAndSubmit(

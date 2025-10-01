@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { GoogleDocsService } from './googleDocs';
+import { UploadService } from './upload';
+import { extractDocxText, extractPdfText } from './templateParser';
 import { getSupabase } from '../lib/supabase';
 
 export type ExtractedConcern = {
@@ -61,14 +63,14 @@ export class DocumentAnalysisService {
     try {
       // Extract text content from Google Doc
       const documentText = await this.googleDocs.exportToText(googleDocId);
-      
+
       if (!documentText.trim()) {
         throw new Error('Document appears to be empty or inaccessible');
       }
 
       // Use OpenAI to analyze the document and extract concerns
       const analysisResult = await this.performAIAnalysis(documentText);
-      
+
       return {
         extractedConcerns: analysisResult.concerns,
         documentSummary: analysisResult.summary,
@@ -86,6 +88,56 @@ export class DocumentAnalysisService {
       };
     } catch (error: any) {
       throw new Error(`Document analysis failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Analyze an uploaded template file (DOCX/PDF) to extract grounds for submission concerns
+   */
+  async analyzeUploadedTemplate(storagePath: string, mimetype: string): Promise<DocumentAnalysisResult> {
+    if (!this.openai) {
+      throw new Error('OpenAI is disabled. Set OPENAI_ENABLED=true and provide OPENAI_API_KEY to use document analysis.');
+    }
+
+    try {
+      // Download file from storage
+      const uploadService = new UploadService();
+      const fileBuffer = await uploadService.downloadFromStorage(storagePath);
+
+      // Extract text based on mimetype
+      let documentText: string;
+      if (mimetype.includes('word') || mimetype.includes('docx') || storagePath.endsWith('.docx')) {
+        documentText = await extractDocxText(fileBuffer);
+      } else if (mimetype.includes('pdf') || storagePath.endsWith('.pdf')) {
+        documentText = await extractPdfText(fileBuffer);
+      } else {
+        throw new Error(`Unsupported file type: ${mimetype}. Only DOCX and PDF files are supported.`);
+      }
+
+      if (!documentText.trim()) {
+        throw new Error('Document appears to be empty or text could not be extracted');
+      }
+
+      // Use OpenAI to analyze the document and extract concerns
+      const analysisResult = await this.performAIAnalysis(documentText);
+
+      return {
+        extractedConcerns: analysisResult.concerns,
+        documentSummary: analysisResult.summary,
+        suggestedSurveyTitle: analysisResult.surveyTitle,
+        analysisMetadata: {
+          totalConcerns: analysisResult.concerns.length,
+          categories: analysisResult.concerns
+            .map((c) => c.category)
+            .filter((value): value is string => Boolean(value))
+            .filter((value, index, self) => self.indexOf(value) === index),
+          documentLength: documentText.length,
+          analysisModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          analysisTimestamp: new Date().toISOString()
+        }
+      };
+    } catch (error: any) {
+      throw new Error(`Uploaded template analysis failed: ${error.message}`);
     }
   }
 
