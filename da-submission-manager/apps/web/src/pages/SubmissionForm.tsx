@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SubmissionEditor from '../components/SubmissionEditor';
+import GoogleAddressAutocomplete from '../components/GoogleAddressAutocomplete';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
 
@@ -667,13 +668,21 @@ export default function SubmissionForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Residential Address *
                 </label>
-                <input
-                  type="text"
-                  required
+                <GoogleAddressAutocomplete
                   value={formData.applicant_residential_address}
-                  onChange={(e) => setFormData({ ...formData, applicant_residential_address: e.target.value })}
+                  onChange={(address) => setFormData({ ...formData, applicant_residential_address: address })}
+                  onAddressSelect={(components) => {
+                    setFormData({
+                      ...formData,
+                      applicant_residential_address: components.fullAddress,
+                      applicant_suburb: components.suburb,
+                      applicant_state: components.state,
+                      applicant_postcode: components.postcode
+                    });
+                  }}
+                  placeholder="Start typing your street address..."
+                  required
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-                  placeholder="Street address"
                 />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input

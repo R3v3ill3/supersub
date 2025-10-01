@@ -12,6 +12,7 @@
   "dependencies": {
     "@da/ui": "workspace:*",
     "@headlessui/react": "^2.2.8",
+    "@react-google-maps/api": "^2.20.7",
     "@tanstack/react-query": "^5.90.2",
     "axios": "^1.12.2",
     "react": "^18.3.1",
