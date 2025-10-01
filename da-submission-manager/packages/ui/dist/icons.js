@@ -5,7 +5,7 @@ export { ArrowUpTrayIcon as UploadIcon, ArrowDownTrayIcon as DownloadIcon, Cloud
 // === NAVIGATION ===
 export { ArrowPathIcon as RefreshIcon, ArrowPathIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, MagnifyingGlassIcon as SearchIcon, MagnifyingGlassIcon, FunnelIcon as FilterIcon, FunnelIcon, HomeIcon, Bars3Icon as MenuIcon, Bars3Icon, } from '@heroicons/react/24/outline';
 // === ACTIONS ===
-export { PlusIcon as AddIcon, PlusIcon, PencilIcon as EditIcon, PencilIcon, TrashIcon as DeleteIcon, TrashIcon, EyeIcon as ViewIcon, EyeIcon, EyeSlashIcon as HideIcon, Cog6ToothIcon as SettingsIcon, Cog6ToothIcon as ConfigIcon, XMarkIcon as CloseIcon, XMarkIcon, ArrowUpOnSquareIcon as ShareIcon, ArrowUpOnSquareIcon, } from '@heroicons/react/24/outline';
+export { PlusIcon as AddIcon, PlusIcon, PencilIcon as EditIcon, PencilIcon, TrashIcon as DeleteIcon, TrashIcon, EyeIcon as ViewIcon, EyeIcon, EyeSlashIcon as HideIcon, Cog6ToothIcon as SettingsIcon, Cog6ToothIcon as ConfigIcon, XMarkIcon as CloseIcon, XMarkIcon, ArrowUpOnSquareIcon as ShareIcon, ArrowUpOnSquareIcon, BoltIcon as LightningIcon, BoltIcon, } from '@heroicons/react/24/outline';
 // === STATUS ===  
 export { CheckCircleIcon as SuccessIcon, CheckCircleIcon, XCircleIcon as ErrorIcon, XCircleIcon, ExclamationTriangleIcon as WarningIcon, ExclamationTriangleIcon, ExclamationCircleIcon as AlertIcon, ExclamationCircleIcon, InformationCircleIcon as InfoIcon, ClockIcon as PendingIcon, ClockIcon, } from '@heroicons/react/24/outline';
 // === COMMUNICATION ===

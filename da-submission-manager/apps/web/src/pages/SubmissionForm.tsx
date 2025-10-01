@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { SuccessIcon, BoltIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
 
@@ -117,6 +119,7 @@ export default function SubmissionForm() {
   const [actionNetworkResult, setActionNetworkResult] = useState<ActionNetworkSyncResult | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [generatedText, setGeneratedText] = useState<string>('');
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
   const {
     data: projectResponse,
@@ -1065,27 +1068,69 @@ export default function SubmissionForm() {
     return (
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Review & Edit Your Submission
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Review Your Submission
+            </h1>
+            <button
+              onClick={() => setIsEditMode(!isEditMode)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            >
+              {isEditMode ? '👁️ Preview' : '✏️ Edit'}
+            </button>
+          </div>
           <p className="text-gray-600 mb-6">
-            Please review your generated submission below. You can edit the text directly before submitting it to council.
+            {isEditMode 
+              ? 'Edit your submission text directly. Click Preview to see formatted version.'
+              : 'Review your formatted submission below. Click Edit to make changes.'}
           </p>
 
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Submission Text
-            </label>
-            <textarea
-              value={generatedText}
-              onChange={(e) => setGeneratedText(e.target.value)}
-              rows={20}
-              className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-              style={{ minHeight: '500px' }}
-            />
-            <p className="text-sm text-gray-500 mt-2">
-              Word count: {generatedText.split(/\s+/).filter(Boolean).length} words
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                {isEditMode ? 'Submission Text (Markdown)' : 'Formatted Preview'}
+              </label>
+              <p className="text-sm text-gray-500">
+                Word count: {generatedText.split(/\s+/).filter(Boolean).length} words
+              </p>
+            </div>
+            
+            {isEditMode ? (
+              <textarea
+                value={generatedText}
+                onChange={(e) => setGeneratedText(e.target.value)}
+                rows={20}
+                className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                style={{ minHeight: '500px' }}
+              />
+            ) : (
+              <div 
+                className="w-full border border-gray-300 rounded-md px-6 py-4 bg-gray-50"
+                style={{ minHeight: '500px', maxHeight: '700px', overflowY: 'auto' }}
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  className="prose prose-sm md:prose-base max-w-none"
+                  components={{
+                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-900" {...props} />,
+                    p: ({node, ...props}) => <p className="mb-4 text-gray-800 leading-relaxed" {...props} />,
+                    strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
+                    ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-2 text-gray-800" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-2 text-gray-800" {...props} />,
+                    li: ({node, ...props}) => <li className="ml-4 leading-relaxed" {...props} />,
+                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-4 text-gray-700" {...props} />,
+                    code: ({node, inline, ...props}: any) => 
+                      inline 
+                        ? <code className="bg-gray-200 px-1 py-0.5 rounded text-sm font-mono text-gray-900" {...props} />
+                        : <code className="block bg-gray-200 p-3 rounded text-sm font-mono overflow-x-auto mb-4" {...props} />,
+                  }}
+                >
+                  {generatedText}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

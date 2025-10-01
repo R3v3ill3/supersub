@@ -6,6 +6,8 @@ import { ActionNetworkClient } from '../services/actionNetwork';
 import { TemplateCombinerService, DualTrackConfig } from '../services/templateCombiner';
 import { submissionLimiter, standardLimiter } from '../middleware/rateLimit';
 import { requireAuth } from '../middleware/auth';
+import { DocumentWorkflowService } from '../services/documentWorkflow';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -286,10 +288,10 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
       return res.status(500).json({ error: 'Database not configured' });
     }
 
-    // Get submission details
+    // Get submission details including project info
     const { data: submission, error: submissionError } = await supabase
       .from('submissions')
-      .select('*')
+      .select('*, projects!inner(*)')
       .eq('id', submissionId)
       .single();
 
@@ -297,16 +299,7 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
       return res.status(404).json({ error: 'Submission not found' });
     }
 
-    // Update submission status and store final text
-    await supabase
-      .from('submissions')
-      .update({
-        status: 'SUBMITTED',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', submissionId);
-
-    // Store the final edited text in llm_drafts or a new table
+    // Store the final edited text in llm_drafts before processing
     await supabase.from('llm_drafts').insert({
       submission_id: submissionId,
       model: 'user-edited',
@@ -319,15 +312,31 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
       provider: 'user'
     });
 
-    // TODO: Send email with final text
-    // This should integrate with your existing email service
+    // Trigger document workflow to generate PDFs and send emails
+    // This will handle the submission based on the project's submission_pathway
+    const documentWorkflow = new DocumentWorkflowService();
+    logger.info(`[submissions] Processing document workflow for submission ${submissionId}`);
+    
+    const workflowResult = await documentWorkflow.processSubmission(submissionId, finalText);
+    
+    logger.info(`[submissions] Document workflow completed`, { 
+      submissionId, 
+      emailSent: workflowResult.emailSent,
+      status: workflowResult.status 
+    });
 
     res.json({
       ok: true,
       submissionId,
-      status: 'SUBMITTED'
+      status: workflowResult.status,
+      emailSent: workflowResult.emailSent,
+      documentId: workflowResult.documentId
     });
   } catch (error: any) {
+    logger.error('[submissions] Error processing submission', { 
+      submissionId: req.params.submissionId, 
+      error: error.message 
+    });
     res.status(400).json({ error: error.message });
   }
 });
