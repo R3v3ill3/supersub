@@ -1,7 +1,4 @@
 {
-  "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm --filter @da/ui build && pnpm --filter admin build",
-  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
