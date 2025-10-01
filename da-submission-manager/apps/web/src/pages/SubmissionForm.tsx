@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { SuccessIcon } from '@da/ui/icons';
+import { SuccessIcon, BoltIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
@@ -284,6 +284,25 @@ export default function SubmissionForm() {
   const handleSurveySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     saveSurveyMutation.mutate(surveyData);
+  };
+
+  const handleFastTrack = () => {
+    const concerns = surveyTemplates?.concerns || [];
+    const allConcernKeys = concerns.map((c: any) => c.key);
+    
+    if (allConcernKeys.length === 0) {
+      return;
+    }
+    
+    const fastTrackData: SurveyData = {
+      selected_keys: allConcernKeys,
+      ordered_keys: allConcernKeys,
+      user_style_sample: 'I object to this development on the following comprehensive grounds.',
+      custom_grounds: '',
+      submission_track: surveyData.submission_track
+    };
+    
+    saveSurveyMutation.mutate(fastTrackData);
   };
 
   const handleGenerate = () => {
@@ -699,7 +718,7 @@ export default function SubmissionForm() {
               disabled={createSubmissionMutation.isPending}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-md disabled:opacity-50"
             >
-              {createSubmissionMutation.isPending ? 'Starting...' : 'Continue to Survey'}
+              {createSubmissionMutation.isPending ? 'Starting...' : 'Continue'}
             </button>
 
             {createSubmissionMutation.error && (
@@ -723,6 +742,42 @@ export default function SubmissionForm() {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="bg-white rounded-lg shadow-lg p-8">
+          
+          {/* Fast Track Banner */}
+          <div className="mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-lg p-6">
+            <div className="flex items-start gap-4">
+              <BoltIcon className="w-8 h-8 text-yellow-600 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  ⚡ Fast Track - Generate with All Issues
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  Skip the survey and automatically generate a comprehensive submission 
+                  including all {concerns.length} objection grounds in the recommended order.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleFastTrack}
+                  disabled={saveSurveyMutation.isPending || loadingSurvey}
+                  className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-3 px-6 rounded-md disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
+                >
+                  <BoltIcon className="w-5 h-5 inline mr-2 -mt-1" />
+                  {saveSurveyMutation.isPending ? 'Processing...' : 'Fast Track My Submission'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="relative mb-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500">Or customize your submission</span>
+            </div>
+          </div>
+
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">
               Tell Us Your Concerns

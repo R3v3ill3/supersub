@@ -47,6 +47,8 @@ export {
   XMarkIcon,
   ArrowUpOnSquareIcon as ShareIcon,
   ArrowUpOnSquareIcon,
+  BoltIcon as LightningIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 
 // === STATUS ===  
