@@ -1,4 +1,5 @@
 {
+  "buildCommand": "cd ../.. && pnpm --filter @da/ui build && pnpm --filter web build",
   "rewrites": [
     {
       "source": "/(.*)",
