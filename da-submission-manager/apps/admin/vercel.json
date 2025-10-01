@@ -1,18 +1,17 @@
 {
   "version": 2,
-  "name": "dasub-admin",
   "buildCommand": "pnpm --filter admin build",
-  "outputDirectory": "apps/admin/dist",
   "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "dist",
   "framework": "vite",
-  "rootDirectory": "da-submission-manager",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "env": {
     "NODE_ENV": "production"
   }
 }
+

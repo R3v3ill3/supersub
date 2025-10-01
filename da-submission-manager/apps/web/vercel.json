@@ -1,18 +1,17 @@
 {
   "version": 2,
-  "name": "dasub-web",
   "buildCommand": "pnpm --filter web build",
-  "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "dist",
   "framework": "vite",
-  "rootDirectory": "da-submission-manager",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "env": {
     "NODE_ENV": "production"
   }
 }
+
