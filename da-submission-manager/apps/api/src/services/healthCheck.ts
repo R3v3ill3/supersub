@@ -437,19 +437,22 @@ export class HealthCheckService {
       const memUsage = process.memoryUsage();
       const totalMemMB = memUsage.heapTotal / 1024 / 1024;
       const usedMemMB = memUsage.heapUsed / 1024 / 1024;
-      const usagePercent = (usedMemMB / totalMemMB) * 100;
-      
+      const rssMB = memUsage.rss / 1024 / 1024; // Resident Set Size (actual RAM usage)
+
+      // Use absolute thresholds instead of percentages
+      // Since heap auto-scales, percentage is misleading
       let status = HealthStatus.HEALTHY;
-      let message = `Memory usage: ${usedMemMB.toFixed(1)}MB / ${totalMemMB.toFixed(1)}MB (${usagePercent.toFixed(1)}%)`;
-      
-      if (usagePercent > 90) {
+      let message = `Heap: ${usedMemMB.toFixed(1)}MB, RSS: ${rssMB.toFixed(1)}MB`;
+
+      // Warn if heap exceeds 1GB, critical if exceeds 2GB
+      if (usedMemMB > 2048) {
         status = HealthStatus.UNHEALTHY;
-        message = `High memory usage: ${message}`;
-      } else if (usagePercent > 75) {
+        message = `High heap usage: ${message}`;
+      } else if (usedMemMB > 1024) {
         status = HealthStatus.DEGRADED;
-        message = `Elevated memory usage: ${message}`;
+        message = `Elevated heap usage: ${message}`;
       }
-      
+
       return {
         status,
         timestamp: new Date(),
@@ -458,7 +461,7 @@ export class HealthCheckService {
         details: {
           heapUsedMB: usedMemMB,
           heapTotalMB: totalMemMB,
-          usagePercent,
+          rssMB,
           external: memUsage.external / 1024 / 1024
         }
       };
