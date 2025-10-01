@@ -62,6 +62,10 @@ export const api = {
     }) => apiClient.post('/submissions', data),
     submit: (submissionId: string, data: { finalText: string }) =>
       apiClient.post(`/submissions/${submissionId}/submit`, data),
+    downloadPdf: (submissionId: string, fileType: 'cover' | 'grounds') => 
+      apiClient.get(`/submissions/${submissionId}/download/${fileType}`, {
+        responseType: 'blob',
+      }),
   },
 
   documents: {

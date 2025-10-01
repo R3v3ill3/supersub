@@ -59,7 +59,6 @@ The above grounds focus on planning issues and demonstrate how the proposed deve
 I understand and acknowledge that:
 
 ✓ The information provided in this submission is true and correct  
-✓ I have read the privacy notice as stated on this form  
 ✓ This submission is NOT confidential and will be displayed through PD Online on the City of Gold Coast's website  
 ✓ I acknowledge Queensland State Laws will accept this communication as containing my signature within the meaning of the Electronic Transactions (Queensland) Act 2001 which can be found on the Queensland Legislation website
 

@@ -503,7 +503,7 @@ Kind regards,
       bodyHtml
     );
 
-    // Update submission
+    // Update submission and store PDFs for download
     const submittedAt = new Date().toISOString();
 
     await supabase
@@ -512,12 +512,16 @@ Kind regards,
       .update({
         status: 'SUBMITTED',
         submitted_to_council_at: submittedAt,
-        council_confirmation_id: emailResult.messageId
+        council_confirmation_id: emailResult.messageId,
+        cover_pdf_data: coverFile,
+        grounds_pdf_data: groundsFile,
+        cover_pdf_filename: coverFileName,
+        grounds_pdf_filename: groundsFileName
       } as any)
       .eq('id', submission.id);
 
     // No Google Docs created for direct pathway, so no document records to save
-    // PDFs are attached directly to email
+    // PDFs are attached directly to email and stored in submissions table
 
     return {
       submissionId: submission.id,

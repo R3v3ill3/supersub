@@ -128,7 +128,6 @@ export class SubmissionFormatterService {
     sections.push('## Declaration\n');
     sections.push('I understand and acknowledge that:\n');
     sections.push('✓ The information provided in this submission is true and correct');
-    sections.push('✓ I have read the privacy notice as stated on this form');
     sections.push('✓ This submission is NOT confidential and will be displayed through PD Online on the City of Gold Coast\'s website');
     sections.push('✓ I acknowledge Queensland State Laws will accept this communication as containing my signature within the meaning of the Electronic Transactions (Queensland) Act 2001 which can be found on the Queensland Legislation website\n');
     sections.push('**By submitting this form electronically, I agree with the declaration above.**\n');

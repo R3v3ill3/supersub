@@ -5,6 +5,7 @@ import { SuccessIcon, BoltIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import SubmissionEditor from '../components/SubmissionEditor';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
 
@@ -165,8 +166,8 @@ export default function SubmissionForm() {
     postal_postcode: '',
     postal_email: '',
     // Property details
-    lot_number: '',
-    plan_number: '',
+    lot_number: '1',
+    plan_number: 'RP1 42226',
     site_address: '',
     application_number: '',
     submission_pathway: 'review',
@@ -184,7 +185,9 @@ export default function SubmissionForm() {
   const [actionNetworkResult, setActionNetworkResult] = useState<ActionNetworkSyncResult | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [generatedText, setGeneratedText] = useState<string>('');
+  const [originalGeneratedText, setOriginalGeneratedText] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
 
   const {
     data: projectResponse,
@@ -328,7 +331,9 @@ export default function SubmissionForm() {
       return response.data;
     },
     onSuccess: (data) => {
-      setGeneratedText(data.preview || '');
+      const preview = data.preview || '';
+      setGeneratedText(preview);
+      setOriginalGeneratedText(preview); // Save original for reset functionality
       setStep(4);
     },
   });
@@ -340,7 +345,14 @@ export default function SubmissionForm() {
       return response.data;
     },
     onSuccess: () => {
-      navigate('/thank-you');
+      navigate('/thank-you', { 
+        state: { 
+          submissionId,
+          applicantEmail: formData.applicant_email,
+          applicantName: `${formData.applicant_first_name} ${formData.applicant_last_name}`,
+          siteAddress: formData.site_address
+        } 
+      });
     },
     onError: (error: any) => {
       console.error('Submission error:', error);
@@ -1142,23 +1154,34 @@ export default function SubmissionForm() {
             <h1 className="text-3xl font-bold text-gray-900">
               Review Your Submission
             </h1>
-            <button
-              onClick={() => setIsEditMode(!isEditMode)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-            >
-              {isEditMode ? '👁️ Preview' : '✏️ Edit'}
-            </button>
+            <div className="flex gap-2">
+              {isEditMode && generatedText !== originalGeneratedText && (
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-md transition-colors"
+                  title="Reset to original draft"
+                >
+                  🔄 Reset
+                </button>
+              )}
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                {isEditMode ? '👁️ Preview' : '✏️ Edit'}
+              </button>
+            </div>
           </div>
           <p className="text-gray-600 mb-6">
             {isEditMode 
-              ? 'Edit your submission text directly. Click Preview to see formatted version.'
-              : 'Review your formatted submission below. Click Edit to make changes.'}
+              ? 'Edit your applicant details and grounds for submission. Grey text indicates protected structure that cannot be edited.'
+              : 'Review your formatted submission below. Click Edit to make changes to your details or grounds.'}
           </p>
 
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">
-                {isEditMode ? 'Submission Text (Markdown)' : 'Formatted Preview'}
+                {isEditMode ? 'Edit Your Submission' : 'Formatted Preview'}
               </label>
               <p className="text-sm text-gray-500">
                 Word count: {generatedText.split(/\s+/).filter(Boolean).length} words
@@ -1166,12 +1189,9 @@ export default function SubmissionForm() {
             </div>
             
             {isEditMode ? (
-              <textarea
+              <SubmissionEditor 
                 value={generatedText}
-                onChange={(e) => setGeneratedText(e.target.value)}
-                rows={20}
-                className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                style={{ minHeight: '500px' }}
+                onChange={(newValue) => setGeneratedText(newValue)}
               />
             ) : (
               <div 
@@ -1227,6 +1247,46 @@ export default function SubmissionForm() {
                   ? submitMutation.error.message
                   : 'Failed to submit. Please try again.'}
               </p>
+            </div>
+          )}
+
+          {/* Reset Confirmation Modal */}
+          {showResetConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <div className="flex items-start mb-4">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Reset to Original Draft?
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      This will discard all your edits and restore the original generated draft. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGeneratedText(originalGeneratedText);
+                      setShowResetConfirm(false);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-md transition-colors"
+                  >
+                    Reset to Original
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

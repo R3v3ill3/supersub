@@ -341,6 +341,68 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
   }
 });
 
+// Download submission PDFs
+router.get('/api/submissions/:submissionId/download/:fileType', async (req, res) => {
+  try {
+    const { submissionId, fileType } = req.params;
+
+    if (!['cover', 'grounds', 'both'].includes(fileType)) {
+      return res.status(400).json({ error: 'Invalid file type. Must be cover, grounds, or both' });
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Get submission with PDF data
+    const { data: submission, error: submissionError } = await supabase
+      .from('submissions')
+      .select('id, cover_pdf_data, grounds_pdf_data, cover_pdf_filename, grounds_pdf_filename, site_address')
+      .eq('id', submissionId)
+      .single();
+
+    if (submissionError || !submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    if (fileType === 'cover') {
+      if (!submission.cover_pdf_data) {
+        return res.status(404).json({ error: 'Cover letter PDF not found' });
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${submission.cover_pdf_filename || 'cover_letter.pdf'}"`);
+      return res.send(Buffer.from(submission.cover_pdf_data));
+    }
+
+    if (fileType === 'grounds') {
+      if (!submission.grounds_pdf_data) {
+        return res.status(404).json({ error: 'Grounds PDF not found' });
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${submission.grounds_pdf_filename || 'submission.pdf'}"`);
+      return res.send(Buffer.from(submission.grounds_pdf_data));
+    }
+
+    // For 'both', we need to combine or zip them
+    // For now, just return an error suggesting to download separately
+    if (fileType === 'both') {
+      return res.status(400).json({ 
+        error: 'Please download files separately',
+        coverAvailable: !!submission.cover_pdf_data,
+        groundsAvailable: !!submission.grounds_pdf_data
+      });
+    }
+
+  } catch (error: any) {
+    logger.error('[submissions] Error downloading PDF', { 
+      submissionId: req.params.submissionId, 
+      error: error.message 
+    });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 
 
