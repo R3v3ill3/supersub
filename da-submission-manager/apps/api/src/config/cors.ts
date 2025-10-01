@@ -46,6 +46,24 @@ const PRODUCTION_ORIGINS = getProductionOrigins();
 // Log configured origins on startup
 console.log('[CORS] Configured origins:', PRODUCTION_ORIGINS);
 
+// Helper function to check if origin matches pattern (supports wildcards)
+function matchesOriginPattern(origin: string, pattern: string): boolean {
+  // Exact match
+  if (origin === pattern) return true;
+
+  // Wildcard support for Vercel preview deployments
+  // Pattern: https://myapp-*.vercel.app
+  if (pattern.includes('*')) {
+    const regexPattern = pattern
+      .replace(/\./g, '\\.')  // Escape dots
+      .replace(/\*/g, '[a-zA-Z0-9-]+');  // Replace * with alphanumeric+hyphen
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(origin);
+  }
+
+  return false;
+}
+
 // Development origins are handled dynamically with localhost/127.0.0.1 prefix matching
 export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
@@ -58,7 +76,7 @@ export const corsOptions: CorsOptions = {
         return callback(null, true);
       }
       // Also allow configured production origins in development for testing
-      if (PRODUCTION_ORIGINS.includes(origin)) {
+      if (PRODUCTION_ORIGINS.some(pattern => matchesOriginPattern(origin, pattern))) {
         return callback(null, true);
       }
       console.warn(`[CORS] Blocked request from: ${origin}`);
@@ -73,7 +91,7 @@ export const corsOptions: CorsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.some(pattern => matchesOriginPattern(origin, pattern))) {
       callback(null, true);
     } else {
       console.warn(`[CORS] Production: Blocked request from unauthorized origin: ${origin}`);
