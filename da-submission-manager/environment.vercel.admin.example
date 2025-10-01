@@ -3,7 +3,7 @@
 
 # API Configuration
 VITE_API_URL=https://your-api.railway.app/api
-VITE_WEB_URL=https://submit.yourdomain.com
+VITE_WEB_URL=https://cv.uconstruct.app
 
 # Environment
 NODE_ENV=production

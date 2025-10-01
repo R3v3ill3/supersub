@@ -1,8 +1,17 @@
 import axios from 'axios';
 
+const DEFAULT_BASE_URL = 'http://localhost:3500/api';
+
+// Normalise the base URL so we always end up with a single trailing /api
+function resolveBaseUrl() {
+  const configured = (import.meta.env.VITE_API_URL as string | undefined) || DEFAULT_BASE_URL;
+  const trimmed = configured.replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
 // API client configured to connect to the backend API
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3500',
+  baseURL: resolveBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,20 +20,20 @@ export const apiClient = axios.create({
 // API functions for public interface
 export const api = {
   projects: {
-    getConfig: (slug: string) => apiClient.get(`/api/projects/${slug}/public-config`),
-    get: (slug: string) => apiClient.get(`/api/projects/${slug}`),
+    getConfig: (slug: string) => apiClient.get(`/projects/${slug}/public-config`),
+    get: (slug: string) => apiClient.get(`/projects/${slug}`),
   },
 
   survey: {
     getTemplates: (params: { version?: string; track?: string; project_id?: string }) =>
-      apiClient.get('/api/survey/templates', { params }),
+      apiClient.get('/survey/templates', { params }),
     saveResponse: (submissionId: string, data: any) =>
-      apiClient.post(`/api/survey/${submissionId}`, data),
+      apiClient.post(`/survey/${submissionId}`, data),
   },
 
   generation: {
     generate: (submissionId: string, params?: any) =>
-      apiClient.post(`/api/generate/${submissionId}`, {}, { params }),
+      apiClient.post(`/generate/${submissionId}`, {}, { params }),
   },
 
   submissions: {
@@ -50,26 +59,26 @@ export const api = {
       submission_pathway: 'direct' | 'review' | 'draft';
       submission_track?: 'followup' | 'comprehensive';
       is_returning_submitter?: boolean;
-    }) => apiClient.post('/api/submissions', data),
+    }) => apiClient.post('/submissions', data),
     submit: (submissionId: string, data: { finalText: string }) =>
-      apiClient.post(`/api/submissions/${submissionId}/submit`, data),
+      apiClient.post(`/submissions/${submissionId}/submit`, data),
   },
 
   documents: {
     getStatus: (submissionId: string) =>
-      apiClient.get(`/api/documents/${submissionId}/status`),
+      apiClient.get(`/documents/${submissionId}/status`),
     getPreview: (submissionId: string) =>
-      apiClient.get(`/api/documents/${submissionId}/preview`),
+      apiClient.get(`/documents/${submissionId}/preview`),
     updateStatus: (submissionId: string, data: {
       status: 'created' | 'user_editing' | 'finalized' | 'submitted' | 'approved';
       reviewStatus?: 'not_started' | 'in_progress' | 'changes_requested' | 'ready_for_submission' | 'submitted';
       reviewStartedAt?: string;
       reviewCompletedAt?: string;
       lastModifiedAt?: string;
-    }) => apiClient.put(`/api/documents/${submissionId}/status`, data),
+    }) => apiClient.put(`/documents/${submissionId}/status`, data),
     finalize: (submissionId: string, data: {
       confirm: true;
       notifyApplicant?: boolean;
-    }) => apiClient.post(`/api/documents/${submissionId}/finalize`, data),
+    }) => apiClient.post(`/documents/${submissionId}/finalize`, data),
   },
 };

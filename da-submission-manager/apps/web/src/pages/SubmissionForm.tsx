@@ -810,15 +810,33 @@ export default function SubmissionForm() {
             {surveyData.selected_keys.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Drag to prioritize your concerns (top = most important)
+                  Prioritize your concerns (top = most important)
                 </label>
-                <p className="text-sm text-gray-600 mb-4">
-                  Drag and drop the cards below to rank them in order of importance. Your highest priority concern should be at the top.
+                <p className="text-sm text-gray-600 mb-2">
+                  <span className="hidden md:inline">Drag and drop the cards below to rank them in order of importance.</span>
+                  <span className="md:hidden">Tap the arrow buttons to reorder your concerns.</span>
+                  {' '}Your highest priority concern should be at the top.
                 </p>
                 <div className="space-y-2">
                   {surveyData.selected_keys.map((key, idx) => {
                     const concern = concerns.find((c: any) => c.key === key);
                     const isDragging = draggedIndex === idx;
+                    const isFirst = idx === 0;
+                    const isLast = idx === surveyData.selected_keys.length - 1;
+
+                    const moveUp = () => {
+                      if (isFirst) return;
+                      const newOrder = [...surveyData.selected_keys];
+                      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+                      setSurveyData({ ...surveyData, selected_keys: newOrder, ordered_keys: newOrder });
+                    };
+
+                    const moveDown = () => {
+                      if (isLast) return;
+                      const newOrder = [...surveyData.selected_keys];
+                      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+                      setSurveyData({ ...surveyData, selected_keys: newOrder, ordered_keys: newOrder });
+                    };
 
                     return (
                       <div
@@ -844,7 +862,7 @@ export default function SubmissionForm() {
                           setDraggedIndex(null);
                         }}
                         onDragEnd={() => setDraggedIndex(null)}
-                        className="flex items-center gap-3 p-4 rounded-lg border-2 transition-all cursor-move"
+                        className="flex items-center gap-2 md:gap-3 p-3 md:p-4 rounded-lg border-2 transition-all md:cursor-move"
                         style={{
                           backgroundColor: isDragging ? '#f3f4f6' : '#ffffff',
                           borderColor: isDragging ? '#9ca3af' : '#e5e7eb',
@@ -852,14 +870,47 @@ export default function SubmissionForm() {
                           boxShadow: isDragging ? 'none' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
                         }}
                       >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full text-white font-bold text-sm"
+                        {/* Priority number badge */}
+                        <div className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full text-white font-bold text-xs md:text-sm flex-shrink-0"
                           style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
                           {idx + 1}
                         </div>
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-gray-900">{concern?.label || key}</span>
+
+                        {/* Concern label */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm md:text-base font-medium text-gray-900 break-words">
+                            {concern?.label || key}
+                          </span>
                         </div>
-                        <div className="text-gray-400">
+
+                        {/* Mobile: Up/Down buttons */}
+                        <div className="flex md:hidden flex-col gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={moveUp}
+                            disabled={isFirst}
+                            className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 active:bg-gray-300 transition-colors touch-manipulation"
+                            aria-label="Move up"
+                          >
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M10 15V5M10 5L5 10M10 5L15 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={moveDown}
+                            disabled={isLast}
+                            className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 active:bg-gray-300 transition-colors touch-manipulation"
+                            aria-label="Move down"
+                          >
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M10 5V15M10 15L15 10M10 15L5 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </button>
+                        </div>
+
+                        {/* Desktop: Drag handle */}
+                        <div className="hidden md:block text-gray-400 flex-shrink-0">
                           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M7 4H13M7 10H13M7 16H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                           </svg>

@@ -31,6 +31,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+console.log('[env check] OPENAI key prefix:', (process.env.OPENAI_API_KEY || 'missing').slice(0, 8));
+
 // Initialize Sentry (before all middleware)
 // initSentry(app);
 
