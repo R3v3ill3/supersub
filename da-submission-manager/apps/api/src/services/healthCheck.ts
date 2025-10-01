@@ -4,6 +4,8 @@ import { ActionNetworkClient } from './actionNetwork';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import nodemailer from 'nodemailer';
+import { promises as fs } from 'fs';
+import os from 'os';
 
 export enum HealthStatus {
   HEALTHY = 'healthy',
@@ -402,16 +404,13 @@ export class HealthCheckService {
    */
   async checkFileSystem(): Promise<HealthCheckResult> {
     const startTime = Date.now();
-    
+
     try {
-      const fs = require('fs').promises;
-      const os = require('os');
-      
       // Check temp directory write permissions
       const testFile = `${os.tmpdir()}/health-check-${Date.now()}.tmp`;
       await fs.writeFile(testFile, 'test');
       await fs.unlink(testFile);
-      
+
       return {
         status: HealthStatus.HEALTHY,
         timestamp: new Date(),
@@ -490,13 +489,22 @@ export class HealthCheckService {
         };
       }
 
-      // Check pending operations
+      // Check pending operations (table might not exist in all deployments)
       const { data: pendingOps, error } = await supabase
         .from('recovery_operations')
         .select('count')
         .in('status', ['pending', 'retrying']);
 
       if (error) {
+        // If table doesn't exist, mark as unknown instead of unhealthy
+        if (error.message.includes('not found') || error.message.includes('does not exist')) {
+          return {
+            status: HealthStatus.UNKNOWN,
+            timestamp: new Date(),
+            responseTime: Date.now() - startTime,
+            message: 'Queue table not configured'
+          };
+        }
         return {
           status: HealthStatus.UNHEALTHY,
           timestamp: new Date(),
