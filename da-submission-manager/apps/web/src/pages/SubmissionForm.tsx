@@ -171,6 +171,7 @@ export default function SubmissionForm() {
   const [submissionId, setSubmissionId] = useState<string>('');
   const [actionNetworkResult, setActionNetworkResult] = useState<ActionNetworkSyncResult | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [generatedText, setGeneratedText] = useState<string>('');
 
   const {
     data: projectResponse,
@@ -276,7 +277,7 @@ export default function SubmissionForm() {
         plan_number: data.plan_number,
         site_address: data.site_address,
         application_number: data.application_number,
-        submission_pathway: data.submission_pathway,
+        submission_pathway: 'review', // Always review pathway now
         submission_track: data.submission_track,
         is_returning_submitter: data.is_returning_submitter,
       });
@@ -311,6 +312,18 @@ export default function SubmissionForm() {
   const generateMutation = useMutation({
     mutationFn: async () => {
       const response = await api.generation.generate(submissionId, { process_document: 'true' });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setGeneratedText(data.preview || '');
+      setStep(4);
+    },
+  });
+
+  // Submit final submission mutation
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.submissions.submit(submissionId, { finalText: generatedText });
       return response.data;
     },
     onSuccess: () => {
@@ -736,44 +749,6 @@ export default function SubmissionForm() {
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                How would you like to proceed? *
-              </label>
-              <div className="space-y-3">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="review"
-                    checked={formData.submission_pathway === 'review'}
-                    onChange={(e) => setFormData({ ...formData, submission_pathway: e.target.value as any })}
-                    className="mr-3"
-                  />
-                  <span>I'd like to review and edit the submission before sending</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="direct"
-                    checked={formData.submission_pathway === 'direct'}
-                    onChange={(e) => setFormData({ ...formData, submission_pathway: e.target.value as any })}
-                    className="mr-3"
-                  />
-                  <span>Send the submission directly to council</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="draft"
-                    checked={formData.submission_pathway === 'draft'}
-                    onChange={(e) => setFormData({ ...formData, submission_pathway: e.target.value as any })}
-                    className="mr-3"
-                  />
-                  <span>I need more information and want to prepare my own submission</span>
-                </label>
-              </div>
-            </div>
-
             <button
               type="submit"
               disabled={createSubmissionMutation.isPending}
@@ -1012,7 +987,7 @@ export default function SubmissionForm() {
           <p className="text-gray-600 mb-8">
             Based on your responses, we'll create a personalized submission that combines your concerns with approved facts and follows your writing style.
           </p>
-          
+
           <button
             onClick={handleGenerate}
             disabled={generateMutation.isPending}
@@ -1027,6 +1002,64 @@ export default function SubmissionForm() {
                 {generateMutation.error instanceof Error
                   ? generateMutation.error.message
                   : 'Failed to generate submission. Please try again.'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 4) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Review & Edit Your Submission
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Please review your generated submission below. You can edit the text directly before submitting it to council.
+          </p>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Submission Text
+            </label>
+            <textarea
+              value={generatedText}
+              onChange={(e) => setGeneratedText(e.target.value)}
+              rows={20}
+              className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              style={{ minHeight: '500px' }}
+            />
+            <p className="text-sm text-gray-500 mt-2">
+              Word count: {generatedText.split(/\s+/).filter(Boolean).length} words
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setStep(3)}
+              disabled={submitMutation.isPending}
+              className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={() => submitMutation.mutate()}
+              disabled={submitMutation.isPending || !generatedText.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-md disabled:opacity-50"
+            >
+              {submitMutation.isPending ? 'Submitting...' : 'Submit to Council'}
+            </button>
+          </div>
+
+          {submitMutation.error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mt-4">
+              <p className="text-sm text-red-600">
+                {submitMutation.error instanceof Error
+                  ? submitMutation.error.message
+                  : 'Failed to submit. Please try again.'}
               </p>
             </div>
           )}

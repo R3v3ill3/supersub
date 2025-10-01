@@ -44,6 +44,8 @@ export const api = {
       submission_track?: 'followup' | 'comprehensive';
       is_returning_submitter?: boolean;
     }) => apiClient.post('/api/submissions', data),
+    submit: (submissionId: string, data: { finalText: string }) =>
+      apiClient.post(`/api/submissions/${submissionId}/submit`, data),
   },
 
   documents: {

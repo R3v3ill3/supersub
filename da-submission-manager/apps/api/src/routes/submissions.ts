@@ -269,6 +269,69 @@ router.post('/api/submissions', submissionLimiter, async (req, res) => {
   }
 });
 
+/**
+ * Submit final edited submission text
+ */
+router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { finalText } = req.body;
+
+    if (!finalText || typeof finalText !== 'string') {
+      return res.status(400).json({ error: 'Final text is required' });
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Get submission details
+    const { data: submission, error: submissionError } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('id', submissionId)
+      .single();
+
+    if (submissionError || !submission) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    // Update submission status and store final text
+    await supabase
+      .from('submissions')
+      .update({
+        status: 'SUBMITTED',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', submissionId);
+
+    // Store the final edited text in llm_drafts or a new table
+    await supabase.from('llm_drafts').insert({
+      submission_id: submissionId,
+      model: 'user-edited',
+      temperature: 0,
+      prompt_version: 'v1',
+      input_summary: { source: 'user_edit' },
+      output_text: finalText,
+      tokens_prompt: 0,
+      tokens_completion: 0,
+      provider: 'user'
+    });
+
+    // TODO: Send email with final text
+    // This should integrate with your existing email service
+
+    res.json({
+      ok: true,
+      submissionId,
+      status: 'SUBMITTED'
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 export default router;
 
 
