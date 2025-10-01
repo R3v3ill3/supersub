@@ -93,9 +93,23 @@ function addParagraphBreaks(text: string): string {
   
   // Add double newlines after sentences (period/exclamation/question mark followed by space and capital letter)
   processed = processed.replace(/([.!?])\s+([A-Z])/g, '$1\n\n$2');
+
+  // Ensure numbered sections (e.g., 1. Heading) start on a new paragraph when following a sentence
+  processed = processed.replace(/([.!?])\s+(\d+\.\s+[A-Z])/g, '$1\n\n$2');
   
   // Ensure double newlines before numbered sections (1., 2., etc.) - both at start and after newline
   processed = processed.replace(/(^|\n)(\d+\.\s+[A-Z])/gm, '$1\n$2');
+
+  // Format numbered section headings: keep them bold and separated from body text
+  processed = processed.replace(
+    /(^|\n)(\d+\.\s+(?:[A-Z][A-Za-z\-/]+(?:\s+[A-Z][A-Za-z\-/]+)*))(?:\s+)(?=[A-Z][a-z])/g,
+    (_match, prefix, heading) => {
+      const trimmed = heading.trim();
+      const isAlreadyBold = trimmed.startsWith('**') && trimmed.endsWith('**');
+      const boldHeading = isAlreadyBold ? trimmed : `**${trimmed}**`;
+      return `${prefix}${boldHeading}\n\n`;
+    }
+  );
   
   // Ensure double newlines before headings (###, ##, #)
   processed = processed.replace(/(^|\n)(#{1,6}\s)/gm, '$1\n$2');
@@ -104,7 +118,7 @@ function addParagraphBreaks(text: string): string {
   processed = processed.replace(/(^|\n)([•\-\*]\s)/gm, '$1\n$2');
   
   // Add breaks after bold sections followed by new sentences
-  processed = processed.replace(/(\*\*[^*]+\*\*)\s+([A-Z])/g, '$1\n\n$2');
+  processed = processed.replace(/(\*\*[^*]+[.!?]\*\*)\s+([A-Z])/g, '$1\n\n$2');
   
   // Add breaks before subsections (1.1, 2.3, etc.)
   processed = processed.replace(/(^|\n)(\d+\.\d+\s)/gm, '$1\n$2');
