@@ -78,6 +78,7 @@ export const aiGenerationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req: Request) => process.env.NODE_ENV === 'development',
+  validate: { trustProxy: false }, // Disable validation warnings - we handle proxy correctly
   keyGenerator: (req: Request) => {
     // Use submission ID from params as the key
     const submissionId = req.params.submissionId || req.body.submissionId;

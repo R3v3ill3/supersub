@@ -1,9 +1,13 @@
 {
-  "type": "object",
-  "properties": {
-    "final_text": { "type": "string" }
-  },
-  "required": ["final_text"],
-  "additionalProperties": false
+  "name": "submission_response",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "final_text": { "type": "string" }
+    },
+    "required": ["final_text"],
+    "additionalProperties": false
+  }
 }
 
