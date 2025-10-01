@@ -80,7 +80,7 @@ export const corsOptions: CorsOptions = {
         return callback(null, true);
       }
       console.warn(`[CORS] Blocked request from: ${origin}`);
-      return callback(new Error('Not allowed by CORS'));
+      return callback(null, false);
     }
 
     // In production, only allow configured origins
@@ -96,7 +96,7 @@ export const corsOptions: CorsOptions = {
     } else {
       console.warn(`[CORS] Production: Blocked request from unauthorized origin: ${origin}`);
       console.warn(`[CORS] Allowed origins: ${allowedOrigins.join(', ')}`);
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false);
     }
   },
   credentials: true,
