@@ -8,6 +8,7 @@ import { resolveActiveTemplate } from './templateVersionResolver';
 import { TemplateCombinerService } from './templateCombiner';
 import { UploadService } from './upload';
 import { extractDocxText, extractPdfText } from './templateParser';
+import { PdfGeneratorService } from './pdfGenerator';
 import Handlebars from 'handlebars';
 
 type SubmissionData = {
@@ -455,15 +456,17 @@ Kind regards,
     // Prepare complete submission data for all templates
     const submissionData = await this.prepareSubmissionData(submission, project, generatedContent);
 
-    // 1. Generate cover letter content
+    // 1. Generate cover letter content and PDF
     const coverContent = await this.generateCoverContent(project, submissionData);
-    const coverFileName = `DA_Cover_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
-    const coverFile = await this.createFileFromMarkdown(coverContent, coverFileName);
+    const coverTitle = `DA Cover Letter - ${submission.site_address}`;
+    const coverFileName = `DA_Cover_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const coverFile = await this.createFileFromMarkdown(coverContent, coverTitle);
 
-    // 2. Generate grounds document content
+    // 2. Generate grounds document content and PDF
     const groundsContent = await this.generateGroundsContent(submission, project, submissionData);
-    const groundsFileName = `DA_Submission_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.md`;
-    const groundsFile = await this.createFileFromMarkdown(groundsContent, groundsFileName);
+    const groundsTitle = `DA Submission - ${submission.site_address}`;
+    const groundsFileName = `DA_Submission_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    const groundsFile = await this.createFileFromMarkdown(groundsContent, groundsTitle);
 
     // Email subject (prefer council_subject_template if present)
     const subjectTpl = project.council_subject_template || project.subject_template || 'Development Application Submission - {{site_address}}';
@@ -1039,13 +1042,12 @@ This draft submission has been prepared to help you participate in the planning 
   }
 
   /**
-   * Create text file buffer from markdown content
-   * Note: PDF generation removed - now sending as markdown/text files
+   * Create PDF file buffer from markdown content using Puppeteer
    */
   private async createFileFromMarkdown(content: string, title: string): Promise<Buffer> {
-    // For now, just return the markdown content as a buffer
-    // TODO: In future, implement proper PDF generation with a modern library
-    return Buffer.from(content, 'utf-8');
+    const pdfGenerator = new PdfGeneratorService();
+    this.logger.info('Generating PDF from markdown', { title });
+    return await pdfGenerator.generatePdfFromMarkdown(content, title);
   }
 
   async finalizeAndSubmit(
