@@ -322,7 +322,7 @@ Kind regards,
       updated_at: now,
     };
 
-    if (options && options.reviewStatus === 'in_progress' && !submission.review_started_at) {
+    if (options && options.reviewStatus === 'in_progress' && !(submission as any).review_started_at) {
       updates.review_started_at = options.reviewStartedAt ?? now;
     }
 
@@ -332,6 +332,7 @@ Kind regards,
 
     const { data: updatedSubmission, error: updateError } = await supabase
       .from('submissions')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update(updates)
       .eq('id', submissionId)
       .select('review_started_at, review_completed_at')
@@ -343,6 +344,7 @@ Kind regards,
 
     const { error: docError } = await supabase
       .from('documents')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update({
         status,
         last_modified_at: now,
@@ -503,11 +505,12 @@ Kind regards,
 
     await supabase
       .from('submissions')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update({
         status: 'SUBMITTED',
         submitted_to_council_at: submittedAt,
         council_confirmation_id: emailResult.messageId
-      })
+      } as any)
       .eq('id', submission.id);
 
     // No Google Docs created for direct pathway, so no document records to save
@@ -562,6 +565,7 @@ Kind regards,
     // Update submission
     await supabase
       .from('submissions')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update({
         status: 'AWAITING_REVIEW',
         google_doc_id: documentResult.documentId,
@@ -570,7 +574,7 @@ Kind regards,
         review_started_at: nowIso,
         last_modified_at: nowIso,
         review_deadline: reviewDeadline
-      })
+      } as any)
       .eq('id', submission.id);
 
     // Save document record
@@ -632,12 +636,13 @@ Kind regards,
     // Update submission
     await supabase
       .from('submissions')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update({
         status: 'DRAFT_SENT',
         google_doc_id: documentResult.documentId,
         google_doc_url: documentResult.editUrl,
         pdf_url: documentResult.pdfUrl
-      })
+      } as any)
       .eq('id', submission.id);
 
     // Save document record
@@ -900,7 +905,14 @@ Kind regards,
   ): Promise<{ documentId: string; editUrl: string; viewUrl: string; pdfUrl: string; pdfFileId: string }> {
     // Create a blank Google Doc and populate with content
     // Google Docs service will need to support plain text/markdown creation
-    const placeholders = { submission_body: content };
+    const placeholders = {
+      applicant_name: '',
+      applicant_email: '',
+      site_address: '',
+      application_number: '',
+      submission_date: new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }),
+      submission_body: content
+    };
     return await this.googleDocs.createSubmissionDocument(
       '', // No template needed, creating from content
       placeholders,
@@ -1080,6 +1092,7 @@ This draft submission has been prepared to help you participate in the planning 
 
     const { data: updatedSubmission, error: updateError } = await supabase
       .from('submissions')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update({
         status: 'SUBMITTED',
         submitted_to_council_at: now,
@@ -1096,6 +1109,7 @@ This draft submission has been prepared to help you participate in the planning 
 
     await supabase
       .from('documents')
+      // @ts-expect-error - Supabase type inference issue with partial updates
       .update({
         status: 'submitted',
         review_completed_at: now,

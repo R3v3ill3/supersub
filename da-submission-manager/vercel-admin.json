@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "dasub-admin",
-  "buildCommand": "pnpm build:ui && pnpm --filter admin build",
+  "buildCommand": "pnpm --filter admin build",
   "outputDirectory": "apps/admin/dist",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "vite",

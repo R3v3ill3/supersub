@@ -4,7 +4,6 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration, httpIntegration, expressIntegration } from '@sentry/node';
 import type { Express } from 'express';
 
 /**
@@ -32,14 +31,7 @@ export function initSentry(app: Express) {
     // Profiling
     profilesSampleRate: environment === 'production' ? 0.1 : 1.0,
 
-    integrations: [
-      // Express integration for request tracking
-      httpIntegration({ tracing: true }),
-      expressIntegration({ app }),
-
-      // Profiling integration
-      nodeProfilingIntegration(),
-    ],
+    integrations: [],
 
     // Filter out sensitive data
     beforeSend(event) {
@@ -80,7 +72,8 @@ export function getSentryRequestHandler() {
   if (!process.env.SENTRY_DSN) {
     return (_req: any, _res: any, next: any) => next();
   }
-  return Sentry.requestDataHandler();
+  // In v10, request handling is automatic via integrations
+  return (_req: any, _res: any, next: any) => next();
 }
 
 /**
@@ -92,7 +85,8 @@ export function getSentryTracingHandler() {
   if (!process.env.SENTRY_DSN) {
     return (_req: any, _res: any, next: any) => next();
   }
-  return Sentry.tracingHandler();
+  // In v10, tracing is automatic via integrations
+  return (_req: any, _res: any, next: any) => next();
 }
 
 /**
@@ -104,7 +98,11 @@ export function getSentryErrorHandler() {
   if (!process.env.SENTRY_DSN) {
     return (_err: any, _req: any, _res: any, next: any) => next(_err);
   }
-  return Sentry.expressErrorHandler();
+  // In v10, use setupExpressErrorHandler during init
+  return (_err: any, _req: any, _res: any, next: any) => {
+    Sentry.captureException(_err);
+    next(_err);
+  };
 }
 
 /**
