@@ -106,9 +106,24 @@ export class EmailQueueService {
         .update({ status: 'processing', updated_at: new Date().toISOString() })
         .eq('id', job.id);
       
+      // Convert attachment data back to Buffers if needed
+      let payload = { ...job.payload };
+      if (payload.attachments && Array.isArray(payload.attachments)) {
+        payload.attachments = payload.attachments.map((att: any) => {
+          if (att.content && typeof att.content === 'object' && att.content.type === 'Buffer') {
+            // Convert from {type: 'Buffer', data: [1,2,3...]} back to Buffer
+            return {
+              ...att,
+              content: Buffer.from(att.content.data)
+            };
+          }
+          return att;
+        });
+      }
+      
       // The payload should be compatible with EmailService.sendEmail
       await this.emailService.sendEmail({
-        ...job.payload,
+        ...payload,
         emailType: job.email_type,
         emailQueueId: job.id
       });
