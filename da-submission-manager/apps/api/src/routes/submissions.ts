@@ -179,7 +179,7 @@ router.post('/api/submissions', submissionLimiter, async (req, res) => {
             custom_fields: personCustomFields,
           });
 
-          const personUrl = person?._links?.self?.href ?? null;
+          const personUrl = (person as any)?._links?.self?.href ?? null;
 
           if (personUrl) {
             await Promise.all([

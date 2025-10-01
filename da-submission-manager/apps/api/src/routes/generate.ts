@@ -5,6 +5,7 @@ import { getSupabase } from '../lib/supabase';
 import { generateSubmission, generateSubmissionMock } from '../services/llm';
 import type { DocumentWorkflowResult } from '../services/documentWorkflow';
 import { aiGenerationLimiter } from '../middleware/rateLimit';
+import { SubmissionFormatterService } from '../services/submissionFormatter';
 
 const router = Router();
 
@@ -117,6 +118,34 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
 
     const { finalText, usage, model, temperature, provider } = gen;
 
+    // Format the grounds into proper Gold Coast submission structure
+    const formatter = new SubmissionFormatterService();
+    const formattedSubmission = formatter.formatGoldCoastSubmission({
+      lot_number: submission.lot_number || undefined,
+      plan_number: submission.plan_number || undefined,
+      site_address: submission.site_address,
+      application_number: submission.application_number,
+      applicant_first_name: submission.applicant_first_name,
+      applicant_last_name: submission.applicant_last_name,
+      applicant_residential_address: submission.applicant_residential_address,
+      applicant_suburb: submission.applicant_suburb,
+      applicant_state: submission.applicant_state,
+      applicant_postcode: submission.applicant_postcode,
+      applicant_email: submission.applicant_email,
+      postal_address_same: submission.applicant_postal_address ? false : true,
+      applicant_postal_address: submission.applicant_postal_address || undefined,
+      postal_suburb: submission.postal_suburb || undefined,
+      postal_state: submission.postal_state || undefined,
+      postal_postcode: submission.postal_postcode || undefined,
+      postal_email: submission.postal_email || undefined,
+      grounds_content: finalText,
+      submission_date: new Date().toLocaleDateString('en-AU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+    });
+
     // Persist draft with provider information
     const inputSummary = {
       version,
@@ -134,7 +163,7 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       temperature,
       prompt_version: version,
       input_summary: inputSummary,
-      output_text: finalText,
+      output_text: formattedSubmission, // Store the formatted version
       tokens_prompt: usage.prompt,
       tokens_completion: usage.completion,
       provider: provider || 'unknown' // Track which AI provider was used
@@ -147,28 +176,14 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       .update({ status: 'READY_FOR_REVIEW' })
       .eq('id', submissionId);
 
-    // Check if we should also process the document workflow
-    const processDocument = req.query.process_document === 'true';
-    let workflowResult: DocumentWorkflowResult | null = null;
-
     // Document workflow trigger is now handled via dedicated API routes
 
-    const response: any = { 
-      ok: true, 
-      preview: finalText, 
-      submissionId, 
-      status: workflowResult?.status || 'READY_FOR_REVIEW' 
+    const response: any = {
+      ok: true,
+      preview: formattedSubmission, // Return the formatted submission
+      submissionId,
+      status: 'READY_FOR_REVIEW'
     };
-
-    if (workflowResult) {
-      response.document = {
-        id: workflowResult.documentId,
-        editUrl: workflowResult.editUrl,
-        viewUrl: workflowResult.viewUrl,
-        pdfUrl: workflowResult.pdfUrl,
-        emailSent: workflowResult.emailSent
-      };
-    }
 
     res.json(response);
   } catch (err: any) {

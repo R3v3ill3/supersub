@@ -4,7 +4,7 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
+import { nodeProfilingIntegration, httpIntegration, expressIntegration } from '@sentry/node';
 import type { Express } from 'express';
 
 /**
@@ -34,8 +34,8 @@ export function initSentry(app: Express) {
 
     integrations: [
       // Express integration for request tracking
-      new Sentry.Integrations.Http({ tracing: true }),
-      new Sentry.Integrations.Express({ app }),
+      httpIntegration({ tracing: true }),
+      expressIntegration({ app }),
 
       // Profiling integration
       nodeProfilingIntegration(),
@@ -77,10 +77,10 @@ export function initSentry(app: Express) {
  * Returns a no-op middleware if Sentry is not configured
  */
 export function getSentryRequestHandler() {
-  if (!process.env.SENTRY_DSN || !Sentry.Handlers) {
+  if (!process.env.SENTRY_DSN) {
     return (_req: any, _res: any, next: any) => next();
   }
-  return Sentry.Handlers.requestHandler();
+  return Sentry.requestDataHandler();
 }
 
 /**
@@ -89,10 +89,10 @@ export function getSentryRequestHandler() {
  * Returns a no-op middleware if Sentry is not configured
  */
 export function getSentryTracingHandler() {
-  if (!process.env.SENTRY_DSN || !Sentry.Handlers) {
+  if (!process.env.SENTRY_DSN) {
     return (_req: any, _res: any, next: any) => next();
   }
-  return Sentry.Handlers.tracingHandler();
+  return Sentry.tracingHandler();
 }
 
 /**
@@ -101,10 +101,10 @@ export function getSentryTracingHandler() {
  * Returns a no-op middleware if Sentry is not configured
  */
 export function getSentryErrorHandler() {
-  if (!process.env.SENTRY_DSN || !Sentry.Handlers) {
-    return (_err: any, _req: any, _res: any, next: any) => next();
+  if (!process.env.SENTRY_DSN) {
+    return (_err: any, _req: any, _res: any, next: any) => next(_err);
   }
-  return Sentry.Handlers.errorHandler();
+  return Sentry.expressErrorHandler();
 }
 
 /**

@@ -362,7 +362,9 @@ export class EmailService {
     applicantDetails: {
       name: string;
       siteAddress: string;
-    }
+    },
+    bodyText?: string,
+    bodyHtml?: string
   ): Promise<EmailResult> {
     const context = {
         ...applicantDetails,
@@ -391,7 +393,9 @@ export class EmailService {
     applicantDetails: {
       name: string;
       siteAddress: string;
-    }
+    },
+    bodyText?: string,
+    bodyHtml?: string
   ): Promise<EmailResult> {
     const context = {
         ...applicantDetails,
@@ -408,14 +412,14 @@ export class EmailService {
   }
 
   async sendReviewDeadlineReminder(options: ReviewReminderOptions): Promise<void> {
-    return this.enqueueTemplatedEmail('review-deadline-reminder', options, {
+    await this.enqueueTemplatedEmail('review-deadline-reminder', options, {
       to: options.to,
       submissionId: options.submissionId
     });
   }
 
   async sendReviewCompletionConfirmation(options: ReviewCompletionOptions): Promise<void> {
-    return this.enqueueTemplatedEmail('review-completion-confirmation', options, {
+    await this.enqueueTemplatedEmail('review-completion-confirmation', options, {
         to: options.to,
         submissionId: options.submissionId,
     });
@@ -438,7 +442,8 @@ export class EmailService {
       siteAddress: string;
       postalAddress?: string;
       applicationNumber?: string;
-    }
+    },
+    bodyHtml?: string
   ): Promise<EmailResult> {
     const context = {
       ...applicantDetails,

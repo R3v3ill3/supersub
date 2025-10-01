@@ -153,7 +153,7 @@ Kind regards,
     this.logger = new Logger({ namespace: 'documentWorkflow' });
 
     // Register Handlebars helpers for template processing
-    Handlebars.registerHelper('if', function(conditional, options) {
+    Handlebars.registerHelper('if', function(this: any, conditional, options) {
       if (conditional) {
         return options.fn(this);
       } else {
@@ -305,7 +305,7 @@ Kind regards,
   ): Promise<void> {
     const supabase = this.getClient();
 
-    const now = options?.lastModifiedAt ?? new Date().toISOString();
+    const now = (options?.lastModifiedAt) ?? new Date().toISOString();
 
     const { data: submission, error: submissionError } = await supabase
       .from('submissions')
@@ -317,16 +317,16 @@ Kind regards,
       throw new Error(`Submission not found: ${submissionError?.message ?? submissionId}`);
     }
 
-    const updates: Partial<SubmissionRow> & { last_modified_at: string; updated_at: string } = {
+    const updates: any = {
       last_modified_at: now,
       updated_at: now,
     };
 
-    if (options?.reviewStatus === 'in_progress' && !submission.review_started_at) {
+    if (options && options.reviewStatus === 'in_progress' && !submission.review_started_at) {
       updates.review_started_at = options.reviewStartedAt ?? now;
     }
 
-    if (options?.reviewStatus === 'ready_for_submission' || status === 'finalized' || status === 'approved') {
+    if (options && (options.reviewStatus === 'ready_for_submission' || status === 'finalized' || status === 'approved')) {
       updates.review_completed_at = options.reviewCompletedAt ?? now;
     }
 
@@ -346,10 +346,10 @@ Kind regards,
       .update({
         status,
         last_modified_at: now,
-        review_started_at: options?.reviewStartedAt ?? updatedSubmission.review_started_at ?? submission.review_started_at ?? null,
-        review_completed_at: options?.reviewCompletedAt ?? updatedSubmission.review_completed_at ?? submission.review_completed_at ?? null,
+        review_started_at: (options?.reviewStartedAt) ?? (updatedSubmission as any).review_started_at ?? (submission as any).review_started_at ?? null,
+        review_completed_at: (options?.reviewCompletedAt) ?? (updatedSubmission as any).review_completed_at ?? (submission as any).review_completed_at ?? null,
         updated_at: now,
-      })
+      } as any)
       .eq('submission_id', submissionId);
 
     if (docError) {
@@ -372,9 +372,9 @@ Kind regards,
     }
 
     return {
-      documentId: data.id,
-      googleDocUrl: data.google_doc_url,
-      pdfUrl: data.pdf_url,
+      documentId: (data as any).id,
+      googleDocUrl: (data as any).google_doc_url,
+      pdfUrl: (data as any).pdf_url,
     };
   }
 
@@ -902,7 +902,7 @@ Kind regards,
     // Google Docs service will need to support plain text/markdown creation
     const placeholders = { submission_body: content };
     return await this.googleDocs.createSubmissionDocument(
-      null, // No template needed, creating from content
+      '', // No template needed, creating from content
       placeholders,
       title
     );
@@ -931,7 +931,7 @@ Kind regards,
     const supabase = this.getClient();
     const nowIso = options.lastModifiedAt ?? new Date().toISOString();
 
-    const payload: Database['public']['Tables']['documents']['Insert'] = {
+    const payload: any = {
       submission_id: submissionId,
       google_doc_id: documentResult.documentId,
       google_doc_url: documentResult.editUrl,
@@ -1047,7 +1047,7 @@ This draft submission has been prepared to help you participate in the planning 
     }
 
     const submissionData = submission as SubmissionData;
-    const project = submission.projects as ProjectData;
+    const project = (submission as any).projects as ProjectData;
 
     if (!submissionData.google_doc_id) {
       throw new Error('Submission document not generated');
@@ -1085,7 +1085,7 @@ This draft submission has been prepared to help you participate in the planning 
         submitted_to_council_at: now,
         council_confirmation_id: emailResult?.messageId ?? null,
         updated_at: now,
-      })
+      } as any)
       .eq('id', submissionId)
       .select('id, submitted_to_council_at')
       .single();
@@ -1101,7 +1101,7 @@ This draft submission has been prepared to help you participate in the planning 
         review_completed_at: now,
         last_modified_at: now,
         updated_at: now,
-      })
+      } as any)
       .eq('submission_id', submissionId);
 
     return {

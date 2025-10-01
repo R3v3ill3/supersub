@@ -231,7 +231,7 @@ ${documentText}
 Extract 5-12 distinct concerns that cover the main areas of potential community opposition to development applications.`;
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai!.chat.completions.create({
         model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature: 0.3,
         max_tokens: 2000,

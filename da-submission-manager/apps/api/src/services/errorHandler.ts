@@ -123,9 +123,9 @@ export class ErrorHandler {
     // Log to database
     await this.logError(error);
     
-    // Send analytics
-    if (typeof this.analyticsService.trackError === 'function') {
-      this.analyticsService.trackError({
+    // Send analytics (if trackError method exists)
+    if (this.analyticsService && typeof (this.analyticsService as any).trackError === 'function') {
+      (this.analyticsService as any).trackError({
         errorId: error.id,
         type: error.type,
         code: error.code,
