@@ -10,24 +10,33 @@ interface CorsOptions {
   allowedHeaders: string[];
 }
 
+// Helper to normalize origin URLs (add https:// if missing)
+function normalizeOrigin(origin: string): string {
+  origin = origin.trim();
+  if (!origin.startsWith('http://') && !origin.startsWith('https://')) {
+    return `https://${origin}`;
+  }
+  return origin;
+}
+
 // Get production origins from environment variables
 function getProductionOrigins(): string[] {
   const origins: string[] = [];
 
   // Add admin origin if configured
   if (process.env.ADMIN_ORIGIN) {
-    origins.push(process.env.ADMIN_ORIGIN);
+    origins.push(normalizeOrigin(process.env.ADMIN_ORIGIN));
   }
 
   // Add web origin if configured
   if (process.env.WEB_ORIGIN) {
-    origins.push(process.env.WEB_ORIGIN);
+    origins.push(normalizeOrigin(process.env.WEB_ORIGIN));
   }
 
   // Add any custom origins from comma-separated list
   if (process.env.ADDITIONAL_ORIGINS) {
     const additionalOrigins = process.env.ADDITIONAL_ORIGINS.split(',')
-      .map(o => o.trim())
+      .map(o => normalizeOrigin(o))
       .filter(Boolean);
     origins.push(...additionalOrigins);
   }
