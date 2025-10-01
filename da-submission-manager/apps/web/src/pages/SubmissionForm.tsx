@@ -321,7 +321,8 @@ export default function SubmissionForm() {
       return response.data;
     },
     onSuccess: () => {
-      setStep(3);
+      // Auto-trigger generation after survey is saved
+      generateMutation.mutate();
     },
   });
 
@@ -852,11 +853,11 @@ export default function SubmissionForm() {
                 <button
                   type="button"
                   onClick={handleFastTrack}
-                  disabled={saveSurveyMutation.isPending || loadingSurvey}
+                  disabled={saveSurveyMutation.isPending || generateMutation.isPending || loadingSurvey}
                   className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-3 px-6 rounded-md disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
                 >
                   <BoltIcon className="w-5 h-5 inline mr-2 -mt-1" />
-                  {saveSurveyMutation.isPending ? 'Processing...' : 'Fast Track My Submission'}
+                  {saveSurveyMutation.isPending || generateMutation.isPending ? 'Generating Submission...' : 'Fast Track My Submission'}
                 </button>
               </div>
             </div>
@@ -1100,10 +1101,10 @@ export default function SubmissionForm() {
 
             <button
               type="submit"
-              disabled={saveSurveyMutation.isPending || surveyData.selected_keys.length === 0}
+              disabled={saveSurveyMutation.isPending || generateMutation.isPending || surveyData.selected_keys.length === 0}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-md disabled:opacity-50"
             >
-              {saveSurveyMutation.isPending ? 'Saving...' : 'Continue to Generation'}
+              {saveSurveyMutation.isPending || generateMutation.isPending ? 'Generating Submission...' : 'Generate My Submission'}
             </button>
 
             {saveSurveyMutation.error && (
@@ -1115,46 +1116,24 @@ export default function SubmissionForm() {
                 </p>
               </div>
             )}
+
+            {generateMutation.error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <p className="text-sm text-red-600">
+                  {generateMutation.error instanceof Error
+                    ? generateMutation.error.message
+                    : 'Failed to generate submission. Please try again.'}
+                </p>
+              </div>
+            )}
           </form>
         </div>
       </div>
     );
   }
 
-  if (step === 3) {
-    return (
-      <div className="max-w-2xl mx-auto py-12 px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <SuccessIcon className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Ready to Generate Your Submission
-          </h1>
-          <p className="text-gray-600 mb-8">
-            Based on your responses, we'll create a personalized submission that combines your concerns with approved facts and follows your writing style.
-          </p>
-
-          <button
-            onClick={handleGenerate}
-            disabled={generateMutation.isPending}
-            className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-md disabled:opacity-50"
-          >
-            {generateMutation.isPending ? 'Generating Submission...' : 'Generate My Submission'}
-          </button>
-
-          {generateMutation.error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mt-4">
-              <p className="text-sm text-red-600">
-                {generateMutation.error instanceof Error
-                  ? generateMutation.error.message
-                  : 'Failed to generate submission. Please try again.'}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
+  // Step 3 removed - generation now happens automatically after survey save
+  
   if (step === 4) {
     return (
       <div className="max-w-4xl mx-auto py-12 px-4">
@@ -1234,7 +1213,7 @@ export default function SubmissionForm() {
 
           <div className="flex items-center justify-between">
             <button
-              onClick={() => setStep(3)}
+              onClick={() => setStep(2)}
               disabled={submitMutation.isPending}
               className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
             >
