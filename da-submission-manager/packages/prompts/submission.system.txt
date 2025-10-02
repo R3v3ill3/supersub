@@ -40,6 +40,8 @@ CRITICAL REQUIREMENTS:
      - State clear opposition to the development
      - Reference the specific DA number and site address
      - Indicate the submission covers planning compliance, community impacts, etc.
+     - NEVER include "Applicant: [Name]" or any reference to who is making the submission
+     - The submission template will add submitter details separately - DO NOT include them
 
    • MAIN BODY: Present ALL SELECTED_CONCERNS in priority order (first = most important)
      - Use numbered sections (1., 2., 3., etc.) with descriptive headings from concern labels
@@ -108,6 +110,8 @@ CRITICAL REQUIREMENTS:
      }
    • The "final_text" field should contain ONLY the grounds content (not the full submission form)
    • Do not include property details, submitter details, or declaration (those are added by the template)
+   • CRITICAL: Do NOT include "Applicant: [Name]" anywhere in your output
+   • Do NOT reference the person making the submission by name
    • Do not include any text outside the JSON structure
    • Do not use markdown code blocks - output raw JSON only
 

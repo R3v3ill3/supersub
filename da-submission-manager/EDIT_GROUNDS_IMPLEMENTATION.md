@@ -385,3 +385,17 @@ The feature successfully restricts user editing to grounds content only, protect
 *Linter Errors: 0*  
 *Breaking Changes: 0*
 
+---
+
+## Update: Submitter Name Confusion Fix
+
+**Issue**: AI-generated text was incorrectly including the submitter's name as "Applicant: [Name]"
+
+**Fix Applied**:
+1. Removed `applicant_name` from LLM metadata to prevent confusion
+2. Enhanced post-processing to detect and replace/remove submitter names
+3. Updated system prompt with explicit instructions
+4. See `FIX_SUBMITTER_NAME_CONFUSION.md` for full details
+
+*Updated: October 2, 2025*
+

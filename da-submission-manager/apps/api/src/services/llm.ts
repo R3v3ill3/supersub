@@ -11,7 +11,6 @@ type GenerateArgs = {
   meta: {
     recipient_name: string;
     subject: string;
-    applicant_name: string;
     application_number: string;
     site_address: string;
     submission_track?: string;
@@ -111,7 +110,7 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
           temperature,
           maxTokens,
           maxWords,
-          applicantName: args.meta.applicant_name
+          siteAddress: args.meta.site_address
         }
       }
     }
@@ -193,7 +192,7 @@ async function generateWithClaude(args: GenerateArgs, system: string, user: stri
           model,
           temperature,
           maxWords,
-          applicantName: args.meta.applicant_name
+          siteAddress: args.meta.site_address
         }
       }
     }
@@ -266,7 +265,7 @@ export async function generateSubmission(args: GenerateArgs) {
         {
           operation: 'generate_submission_openai',
           metadata: { 
-            applicantName: args.meta.applicant_name,
+            siteAddress: args.meta.site_address,
             model: process.env.OPENAI_MODEL || 'gpt-4o-mini'
           }
         },
@@ -294,7 +293,7 @@ export async function generateSubmission(args: GenerateArgs) {
         {
           operation: 'generate_submission_claude',
           metadata: { 
-            applicantName: args.meta.applicant_name,
+            siteAddress: args.meta.site_address,
             model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
           }
         },
@@ -315,7 +314,7 @@ export async function generateSubmission(args: GenerateArgs) {
         operation: 'generate_submission',
         retryable: true,
         metadata: { 
-          applicantName: args.meta.applicant_name,
+          siteAddress: args.meta.site_address,
           openaiEnabled,
           claudeEnabled,
           openaiKey: !!process.env.OPENAI_API_KEY,

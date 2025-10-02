@@ -129,14 +129,11 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
     ];
 
     // Note: applicant_* fields are the SUBMITTER (objector), not the developer
-    // The applicant_name is passed for logging/tracking but should NOT be used in grounds text
-    const applicantName = [submission.applicant_first_name, submission.applicant_last_name].filter(Boolean).join(' ').trim();
-    
+    // DO NOT pass submitter name to avoid confusion - the AI should not reference the submitter by name
     const applicationNumber = submission.application_number || undefined;
     const meta = {
       recipient_name: 'Council Assessment Team',
       subject: 'Submission regarding Development Application',
-      applicant_name: applicantName || 'Submitter', // For logging only - AI instructed not to use this
       application_number: applicationNumber || '',
       site_address: submission.site_address || ''
     } as any;
@@ -171,13 +168,30 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
 
     let { finalText, usage, model, temperature, provider } = gen;
     
-    // Post-process: Remove any instance of "by [Name]" pattern to prevent submitter name appearing
-    // This is a safety measure since AI sometimes includes it despite instructions
-    const namePattern = /\s+by\s+[A-Z][a-z]+\s+[A-Z][a-z]+/g;
-    const cleanedText = finalText.replace(namePattern, '');
-    if (cleanedText !== finalText) {
-      console.log('[generate] Removed name reference from output');
-      finalText = cleanedText;
+    // Post-process: Remove any instance of submitter name appearing as applicant
+    // This includes patterns like "Applicant: [Name]" or "by [Name]"
+    // We need to be careful to only remove the submitter's name, not legitimate applicant references
+    const submitterFullName = `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim();
+    
+    if (submitterFullName) {
+      // Pattern 1: "Applicant: [Submitter Name]" - common at start of generated text
+      const applicantPattern = new RegExp(`Applicant:\\s*${submitterFullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+      
+      // Pattern 2: "by [Submitter Name]" - sometimes appears in signatures
+      const byPattern = new RegExp(`\\s+by\\s+${submitterFullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+      
+      // Apply both patterns
+      let cleanedText = finalText.replace(applicantPattern, 'Applicant: [Developer Name]');
+      cleanedText = cleanedText.replace(byPattern, '');
+      
+      if (cleanedText !== finalText) {
+        console.log('[generate] Removed submitter name references from output', {
+          submitterName: submitterFullName,
+          applicantPatternFound: applicantPattern.test(finalText),
+          byPatternFound: byPattern.test(finalText)
+        });
+        finalText = cleanedText;
+      }
     }
     
     console.log('[generate] LLM generation complete', { 
