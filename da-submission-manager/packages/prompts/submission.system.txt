@@ -40,6 +40,9 @@ CRITICAL REQUIREMENTS:
      - State clear opposition to the development
      - Reference the specific DA number and site address
      - Indicate the submission covers planning compliance, community impacts, etc.
+     - CRITICAL: DO NOT mention the submitter's name (this is auto-added by the form)
+     - CRITICAL: DO NOT mention the developer's name (it is not provided to you)
+     - Use phrases like "this development application" or "the proposed development" (generic)
 
    • MAIN BODY: Present ALL SELECTED_CONCERNS in priority order (first = most important)
      - Use numbered sections (1., 2., 3., etc.) with descriptive headings from concern labels

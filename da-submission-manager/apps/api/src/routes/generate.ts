@@ -126,13 +126,13 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       ...concerns.flatMap((c) => extractLinks(c.body))
     ];
 
-    const applicantName = [submission.applicant_first_name, submission.applicant_last_name].filter(Boolean).join(' ').trim();
-
+    // Note: applicant_* fields are the SUBMITTER (objector), not the developer
+    // We don't pass the submitter's name to AI to avoid confusion
     const applicationNumber = submission.application_number || undefined;
     const meta = {
       recipient_name: 'Council Assessment Team',
       subject: 'Submission regarding Development Application',
-      applicant_name: applicantName || 'Applicant',
+      applicant_name: '', // Intentionally blank - submitter name should NOT appear in grounds
       application_number: applicationNumber || '',
       site_address: submission.site_address || ''
     } as any;
