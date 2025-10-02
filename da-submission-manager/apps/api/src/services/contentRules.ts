@@ -45,10 +45,36 @@ export function sanitizeAndValidate(text: string, opts: ValidationOptions) {
   const decoded = text
     .replace(/&#x27;/g, "'")
     .replace(/&#39;/g, "'")
+    .replace(/&#x2019;/g, "'")
     .replace(/&quot;/g, '"')
+    .replace(/&#x201C;/g, '"')
+    .replace(/&#x201D;/g, '"')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>');
+    .replace(/&gt;/g, '>')
+    .replace(/&#x2013;/g, '-')
+    .replace(/&#x2014;/g, '-')
+    .replace(/&#x2022;/g, '•')
+    .replace(/&#8226;/g, '•')
+    .replace(/&#160;/g, ' ')
+    .replace(/&#x00A0;/g, ' ')
+    .replace(/&#x2026;/g, '...');
+
+  const fullyDecoded = decoded
+    .replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => {
+      try {
+        return String.fromCharCode(parseInt(hex, 16));
+      } catch {
+        return _match;
+      }
+    })
+    .replace(/&#(\d+);/g, (_match, dec) => {
+      try {
+        return String.fromCharCode(parseInt(dec, 10));
+      } catch {
+        return _match;
+      }
+    });
   
   const sanitized = decoded
     .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces

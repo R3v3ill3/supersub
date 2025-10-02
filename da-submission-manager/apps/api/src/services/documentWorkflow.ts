@@ -513,7 +513,8 @@ Kind regards,
         status: 'SUBMITTED',
         submitted_to_council_at: submittedAt,
         council_confirmation_id: emailResult.messageId,
-        grounds_pdf_data: groundsFile,
+        // Supabase JS client requires BYTEA data to be base64-encoded
+        grounds_pdf_data: groundsFile.toString('base64'),
         grounds_pdf_filename: groundsFileName
       } as any)
       .eq('id', submission.id);

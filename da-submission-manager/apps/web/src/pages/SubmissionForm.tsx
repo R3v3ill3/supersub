@@ -340,6 +340,8 @@ export default function SubmissionForm() {
       return response.data;
     },
     onSuccess: () => {
+      // Move to loading step before generation
+      setStep(3);
       // Auto-trigger generation after survey is saved
       generateMutation.mutate();
     },
@@ -1168,7 +1170,115 @@ export default function SubmissionForm() {
     );
   }
 
-  // Step 3 removed - generation now happens automatically after survey save
+  // Step 3 - Loading/Generating state
+  if (step === 3) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              Generating Your Submission
+            </h1>
+            <p className="text-gray-600 mb-8">
+              Our AI is crafting a professional submission based on your input. This may take 30-60 seconds.
+            </p>
+
+            {/* Spinner */}
+            <div className="flex justify-center mb-8">
+              <div className="relative w-24 h-24">
+                {/* Outer spinning circle */}
+                <div className="absolute inset-0 border-8 border-blue-200 rounded-full"></div>
+                <div 
+                  className="absolute inset-0 border-8 border-transparent border-t-blue-600 rounded-full animate-spin"
+                  style={{ animationDuration: '1s' }}
+                ></div>
+                {/* Inner pulsing circle */}
+                <div className="absolute inset-3 bg-blue-100 rounded-full animate-pulse"></div>
+                {/* Center icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg 
+                    className="w-10 h-10 text-blue-600" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-8">
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 rounded-full animate-progress"
+                  style={{
+                    animation: 'progress 3s ease-in-out infinite'
+                  }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Status messages */}
+            <div className="space-y-3 text-sm text-gray-600">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Analyzing your concerns...</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Drafting submission text...</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                <span>Formatting document...</span>
+              </div>
+            </div>
+
+            {generateMutation.error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 mt-6">
+                <p className="text-sm text-red-600 mb-3">
+                  {generateMutation.error instanceof Error
+                    ? generateMutation.error.message
+                    : 'Failed to generate submission. Please try again.'}
+                </p>
+                <button
+                  onClick={() => generateMutation.mutate()}
+                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md text-sm"
+                >
+                  Retry Generation
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Add CSS animation for progress bar */}
+        <style>{`
+          @keyframes progress {
+            0% {
+              width: 0%;
+              opacity: 0.8;
+            }
+            50% {
+              width: 70%;
+              opacity: 1;
+            }
+            100% {
+              width: 100%;
+              opacity: 0.9;
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
   
   if (step === 4) {
     return (

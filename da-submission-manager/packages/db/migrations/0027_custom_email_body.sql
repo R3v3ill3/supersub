@@ -5,3 +5,4 @@ ALTER TABLE submissions
 -- Add comment to explain the field
 COMMENT ON COLUMN submissions.custom_email_body IS 'User-edited cover letter content to be used as the email body when submitting to council';
 
+

@@ -139,3 +139,4 @@ Added a new step in the submission wizard that allows users to review and edit t
 - Allow editing email subject line
 - Show character count limits (if council has any)
 
+

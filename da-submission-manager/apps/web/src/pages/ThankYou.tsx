@@ -14,19 +14,19 @@ export default function ThankYou() {
     siteAddress?: string;
   } | null;
 
-  const handleDownload = async (fileType: 'cover' | 'grounds', fileName: string) => {
+  const handleDownload = async () => {
     if (!state?.submissionId) return;
 
     try {
-      setDownloading(fileType);
-      const response = await api.submissions.downloadPdf(state.submissionId, fileType);
+      setDownloading('grounds');
+      const response = await api.submissions.downloadPdf(state.submissionId, 'grounds');
       
       // Create a blob and download link
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = 'DA_Submission.pdf';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -60,24 +60,16 @@ export default function ThankYou() {
           )}
 
           {state?.submissionId && (
-            <div className="mt-6 space-y-3">
-              <p className="text-sm font-medium text-gray-700 mb-3">Download your submission:</p>
+            <div className="mt-6">
+              <p className="text-sm font-medium text-gray-700 mb-3">Download a copy of your submission:</p>
               
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex justify-center">
                 <button
-                  onClick={() => handleDownload('cover', 'DA_Cover_Letter.pdf')}
-                  disabled={downloading === 'cover'}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium py-2 px-6 rounded-md transition-colors"
+                  onClick={handleDownload}
+                  disabled={!!downloading}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium py-3 px-8 rounded-md transition-colors"
                 >
-                  {downloading === 'cover' ? 'Downloading...' : 'Download Cover Letter'}
-                </button>
-                
-                <button
-                  onClick={() => handleDownload('grounds', 'DA_Submission.pdf')}
-                  disabled={downloading === 'grounds'}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium py-2 px-6 rounded-md transition-colors"
-                >
-                  {downloading === 'grounds' ? 'Downloading...' : 'Download Submission'}
+                  {downloading ? 'Downloading...' : 'Download Your Submission PDF'}
                 </button>
               </div>
             </div>
