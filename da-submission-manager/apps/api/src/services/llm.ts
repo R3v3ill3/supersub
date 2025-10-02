@@ -14,6 +14,7 @@ type GenerateArgs = {
     applicant_name: string;
     application_number: string;
     site_address: string;
+    submission_track?: string;
   };
   approvedFacts: string;
   selectedConcerns: Array<{ key: string; body: string }>;
@@ -243,7 +244,7 @@ export async function generateSubmission(args: GenerateArgs) {
     subject: args.meta.subject,
     application_number: args.meta.application_number,
     site_address: args.meta.site_address,
-    submission_track: args.meta.submission_track || '',
+    submission_track: '', // Not currently passed from generate.ts, template doesn't require it
     approved_facts: args.approvedFacts,
     selected_concerns: args.selectedConcerns,
     user_style_sample: args.styleSample,
