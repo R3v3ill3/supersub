@@ -9,6 +9,7 @@ import { TemplateCombinerService } from './templateCombiner';
 import { UploadService } from './upload';
 import { extractDocxText, extractPdfText } from './templateParser';
 import { PdfGeneratorService } from './pdfGenerator';
+import { PuppeteerPdfService } from './puppeteerPdfService';
 import Handlebars from 'handlebars';
 
 type SubmissionData = {
@@ -1066,8 +1067,23 @@ This draft submission has been prepared to help you participate in the planning 
    * Create PDF file buffer from markdown content using Puppeteer
    */
   private async createFileFromMarkdown(content: string, title: string): Promise<Buffer> {
+    const engine = process.env.PDF_ENGINE?.toLowerCase();
+
+    if (engine === 'puppeteer') {
+      try {
+        const puppeteerPdfService = new PuppeteerPdfService();
+        this.logger.info('Generating PDF with Puppeteer', { title });
+        return await puppeteerPdfService.generatePdfFromMarkdown(content, title);
+      } catch (error: any) {
+        this.logger.error('Puppeteer PDF generation failed, falling back to pdfkit', {
+          title,
+          error: error?.message || error
+        });
+      }
+    }
+
     const pdfGenerator = new PdfGeneratorService();
-    this.logger.info('Generating PDF from markdown', { title });
+    this.logger.info('Generating PDF with pdfkit', { title });
     return await pdfGenerator.generatePdfFromMarkdown(content, title);
   }
 
