@@ -60,14 +60,10 @@ export const api = {
       submission_track?: 'followup' | 'comprehensive';
       is_returning_submitter?: boolean;
     }) => apiClient.post('/submissions', data),
-    submit: (submissionId: string, data: { finalText: string; emailBody?: string }) =>
+    submit: (submissionId: string, data: { finalText: string; emailBody?: string; downloadPdf?: boolean }) =>
       apiClient.post(`/submissions/${submissionId}/submit`, data),
     previewEmailBody: (submissionId: string, data: { finalText: string }) =>
       apiClient.post(`/submissions/${submissionId}/preview-email-body`, data),
-    downloadPdf: (submissionId: string, fileType: 'cover' | 'grounds') => 
-      apiClient.get(`/submissions/${submissionId}/download/${fileType}`, {
-        responseType: 'blob',
-      }),
   },
 
   documents: {

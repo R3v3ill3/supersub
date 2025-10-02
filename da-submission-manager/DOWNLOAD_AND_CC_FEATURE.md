@@ -1,9 +1,9 @@
-# Download and CC Feature Implementation
+# Optional Download and CC Feature Implementation
 
 ## Overview
-This document describes the implementation of two new features for the web app submission flow:
+This document describes the implementation of features for the web app submission flow:
 1. **CC Applicant**: Automatically CC the applicant on the submission email sent to the council
-2. **Download PDFs**: Allow users to download their submission PDFs after submitting
+2. **Optional PDF Download**: Allow users to optionally download their submission PDFs during submission
 
 ## Changes Made
 
@@ -56,28 +56,26 @@ psql -h <host> -U <user> -d <database> -f packages/db/migrations/0026_pdf_storag
 - Passes: `submissionId`, `applicantEmail`, `applicantName`, `siteAddress`
 
 #### Thank You Page (`apps/web/src/pages/ThankYou.tsx`)
-- Completely redesigned to show download options
-- Displays confirmation that email was sent to applicant
-- Provides two download buttons:
-  - "Download Cover Letter" - downloads the cover letter PDF
-  - "Download Submission" - downloads the main submission PDF
-- Shows loading state while downloading
-- Handles download errors gracefully
+- Displays confirmation that email was sent to applicant and PDF was downloaded (if opted in)
+- Simple confirmation page without download buttons (downloads happen during submission)
+- Shows clear status of what happened during submission
 
 ## User Flow
 
 1. User fills out the submission form with their email address
 2. User completes the survey and reviews the generated submission
-3. User clicks "Submit" to finalize
-4. Backend processes the submission:
+3. User reaches email preview step and can choose to download PDF automatically (default: enabled)
+4. User clicks "Submit" to finalize
+5. Backend processes the submission:
    - Generates cover letter and grounds PDFs
-   - Stores PDFs in the database
    - Sends email to council with PDFs attached
    - **CCs the applicant** on the email (NEW)
-5. User is redirected to Thank You page with:
+   - **Optionally** returns PDF data for immediate download (NEW)
+6. If user opted for download: PDF downloads immediately
+7. User is redirected to Thank You page with:
    - Confirmation message
    - Notice that they were CC'd on the email
-   - Download buttons for both PDFs (NEW)
+   - Confirmation of PDF download (if opted in)
 
 ## Testing
 
@@ -86,19 +84,19 @@ psql -h <host> -U <user> -d <database> -f packages/db/migrations/0026_pdf_storag
 2. Check the email inbox for the applicant
 3. Verify they received a CC of the submission email with PDFs attached
 
-### Test Download Functionality
-1. Submit a form successfully
-2. On the Thank You page, click "Download Cover Letter"
-3. Verify the PDF downloads correctly
-4. Click "Download Submission"
-5. Verify the PDF downloads correctly
-6. Check that both PDFs contain the correct content
+### Test Optional Download Functionality
+1. Submit a form successfully with download option enabled (default)
+2. Verify PDF downloads immediately during submission
+3. Submit a form with download option disabled
+4. Verify no automatic download occurs
+5. Check that email is sent in both cases with PDF attached
+6. Verify PDF content is correct in both cases
 
 ### Test Error Handling
-1. Try to download PDFs for a non-existent submission ID
-2. Verify appropriate error message is shown
-3. Test with network disconnection
-4. Verify error handling works gracefully
+1. Test with network disconnection during submission
+2. Verify error handling works gracefully
+3. Test submission with invalid data
+4. Verify appropriate error messages are shown
 
 ## Configuration
 
@@ -131,47 +129,32 @@ const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
 ## Database Impact
 
 ### Storage Considerations
-- PDFs are stored as BYTEA (binary data) in PostgreSQL
-- Average PDF size: 100-500 KB per file
-- Two PDFs per submission: ~200 KB - 1 MB total
-- For 1000 submissions: ~200 MB - 1 GB storage
-
-### Performance
-- Added index on submissions table for faster lookups
-- PDFs are only loaded when downloading, not during normal queries
-- Consider adding a cleanup job to remove old PDFs after a retention period (e.g., 90 days)
+- No PDF storage in database for downloads (eliminates storage concerns)
+- PDFs are generated on-demand and sent immediately or via email
+- Minimal database impact compared to storing binary data
 
 ## Future Enhancements
 
-1. **Combined PDF Download**: Add functionality to download both PDFs as a ZIP file
-2. **Email-only Downloads**: Send download links via email instead of storing in database
-3. **Cloud Storage**: Move PDFs to S3/Cloud Storage and store URLs instead of binary data
-4. **Retention Policy**: Automatically delete PDFs after X days to save storage
-5. **Preview**: Add ability to preview PDFs in browser before downloading
-6. **Resend Email**: Add button to resend the submission email to applicant
+1. **Combined PDF Download**: Add functionality to download both PDFs as a ZIP file (during submission)
+2. **Email-only Downloads**: Send download links via email instead of immediate download
+3. **Cloud Storage**: Move PDFs to S3/Cloud Storage and store URLs for persistent access
+4. **Preview**: Add ability to preview PDFs in browser before downloading
+5. **Resend Email**: Add button to resend the submission email to applicant
+6. **Download History**: Track which users downloaded their PDFs for analytics
 
 ## Rollback Instructions
 
 If you need to rollback these changes:
 
-1. **Database**: Remove the PDF columns:
-```sql
-ALTER TABLE submissions 
-  DROP COLUMN cover_pdf_data,
-  DROP COLUMN grounds_pdf_data,
-  DROP COLUMN cover_pdf_filename,
-  DROP COLUMN grounds_pdf_filename;
-```
+1. **API**: Revert the changes to:
+   - `apps/api/src/services/email.ts` (CC functionality)
+   - `apps/api/src/services/documentWorkflow.ts` (optional download logic)
+   - `apps/api/src/routes/submissions.ts` (downloadPdf parameter)
 
-2. **API**: Revert the changes to:
-   - `apps/api/src/services/email.ts`
-   - `apps/api/src/services/documentWorkflow.ts`
-   - `apps/api/src/routes/submissions.ts`
-
-3. **Web App**: Revert the changes to:
-   - `apps/web/src/lib/api.ts`
-   - `apps/web/src/pages/SubmissionForm.tsx`
-   - `apps/web/src/pages/ThankYou.tsx`
+2. **Web App**: Revert the changes to:
+   - `apps/web/src/lib/api.ts` (downloadPdf parameter in submit method)
+   - `apps/web/src/pages/SubmissionForm.tsx` (remove download checkbox and logic)
+   - `apps/web/src/pages/ThankYou.tsx` (revert to simple confirmation)
 
 ## Support
 
