@@ -479,29 +479,7 @@ Kind regards,
     const coverBodyHtml = `<div style="white-space: pre-wrap; font-family: Arial, sans-serif;">${coverContent.replace(/\n/g, '<br />')}</div>`;
 
     // 2. Generate grounds document content and PDF (the only attachment)
-    // IMPORTANT: Use the formatted submission from llm_drafts (same as what's shown on review screen)
-    // instead of regenerating from templates. This ensures PDF matches the preview exactly.
-    let groundsContent: string;
-    
-    // Try to retrieve the formatted submission from llm_drafts table
-    const { data: llmDraft } = await supabase
-      .from('llm_drafts')
-      .select('output_text')
-      .eq('submission_id', submission.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (llmDraft && (llmDraft as any).output_text) {
-      // Use the pre-formatted submission that was generated during the AI generation step
-      this.logger.info('Using formatted submission from llm_drafts for PDF', { submissionId: submission.id });
-      groundsContent = (llmDraft as any).output_text;
-    } else {
-      // Fallback: generate from template if no formatted submission is found
-      this.logger.warn('No formatted submission found in llm_drafts, generating from template', { submissionId: submission.id });
-      groundsContent = await this.generateGroundsContent(submission, project, submissionData);
-    }
-    
+    const groundsContent = await this.generateGroundsContent(submission, project, submissionData);
     const groundsTitle = `DA Submission - ${submission.site_address}`;
     const groundsFileName = `DA_Submission_${submission.site_address.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     const groundsFile = await this.createFileFromMarkdown(groundsContent, groundsTitle);
