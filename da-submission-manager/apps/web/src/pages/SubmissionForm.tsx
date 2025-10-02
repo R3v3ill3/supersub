@@ -1302,7 +1302,7 @@ export default function SubmissionForm() {
               Review Your Submission
             </h1>
             <div className="flex gap-2">
-              {isEditMode && generatedText !== originalGeneratedText && (
+              {isEditMode && groundsText !== originalGroundsText && (
                 <button
                   onClick={() => setShowResetConfirm(true)}
                   className="px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-md transition-colors"
@@ -1321,28 +1321,35 @@ export default function SubmissionForm() {
           </div>
           <p className="text-gray-600 mb-6">
             {isEditMode 
-              ? 'Edit your submission text directly. You can modify any part of the submission. Click Preview to see the formatted version.'
-              : 'Review your formatted submission below. Click Edit to make changes.'}
+              ? 'Edit your objection grounds below. The full submission with headers, property details, and declaration will be generated automatically when you submit.'
+              : 'Review your complete formatted submission below. Click Edit to modify your objection grounds.'}
           </p>
 
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">
-                {isEditMode ? 'Edit Your Submission' : 'Formatted Preview'}
+                {isEditMode ? 'Edit Your Objection Grounds' : 'Complete Formatted Submission'}
               </label>
               <p className="text-sm text-gray-500">
-                Word count: {generatedText.split(/\s+/).filter(Boolean).length} words
+                Word count: {groundsText.split(/\s+/).filter(Boolean).length} words
               </p>
             </div>
             
             {isEditMode ? (
-              <textarea
-                value={generatedText}
-                onChange={(e) => setGeneratedText(e.target.value)}
-                rows={30}
-                className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                style={{ minHeight: '600px' }}
-              />
+              <div>
+                <textarea
+                  value={groundsText}
+                  onChange={(e) => setGroundsText(e.target.value)}
+                  rows={30}
+                  className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  style={{ minHeight: '600px' }}
+                  placeholder="Edit your objection grounds here..."
+                />
+                <p className="text-sm text-gray-600 mt-2 italic">
+                  💡 You're editing only the objection grounds. Your property details, contact information, 
+                  and the legal declaration will be added automatically from your form data when you submit.
+                </p>
+              </div>
             ) : (
               <div 
                 className="w-full border border-gray-300 rounded-md px-6 py-4 bg-gray-50"
@@ -1367,7 +1374,7 @@ export default function SubmissionForm() {
                         : <code className="block bg-gray-200 p-3 rounded text-sm font-mono overflow-x-auto mb-4" {...props} />,
                   }}
                 >
-                  {addParagraphBreaks(generatedText)}
+                  {addParagraphBreaks(fullPreview)}
                 </ReactMarkdown>
               </div>
             )}
@@ -1383,7 +1390,7 @@ export default function SubmissionForm() {
             </button>
             <button
               onClick={() => previewEmailBodyMutation.mutate()}
-              disabled={previewEmailBodyMutation.isPending || !generatedText.trim()}
+              disabled={previewEmailBodyMutation.isPending || !groundsText.trim()}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-md disabled:opacity-50"
             >
               {previewEmailBodyMutation.isPending ? 'Loading Email Preview...' : 'Continue to Email Preview'}
@@ -1415,7 +1422,7 @@ export default function SubmissionForm() {
                       Reset to Original Draft?
                     </h3>
                     <p className="text-sm text-gray-600 mb-4">
-                      This will discard all your edits and restore the original generated draft. This action cannot be undone.
+                      This will discard all your edits and restore the original generated objection grounds. This action cannot be undone.
                     </p>
                   </div>
                 </div>
@@ -1428,7 +1435,7 @@ export default function SubmissionForm() {
                   </button>
                   <button
                     onClick={() => {
-                      setGeneratedText(originalGeneratedText);
+                      setGroundsText(originalGroundsText);
                       setShowResetConfirm(false);
                     }}
                     className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-md transition-colors"

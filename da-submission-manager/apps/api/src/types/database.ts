@@ -35,6 +35,10 @@ export type Tables = {
       action_network_payload: JSONValue | null;
       submission_track: 'followup' | 'comprehensive' | 'single' | null;
       is_returning_submitter: boolean | null;
+      cover_pdf_data: string | null;
+      grounds_pdf_data: string | null;
+      cover_pdf_filename: string | null;
+      grounds_pdf_filename: string | null;
     };
     Insert: Partial<Tables['submissions']['Row']>;
     Update: Partial<Tables['submissions']['Row']>;

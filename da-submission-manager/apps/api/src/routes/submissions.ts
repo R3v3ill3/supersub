@@ -374,14 +374,48 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
       return res.status(404).json({ error: 'Submission not found' });
     }
 
+    // Helper function to decode PDF data from Supabase BYTEA column
+    // Supabase may store data as hex-encoded JSON-serialized Buffer
+    const decodePdfData = (data: any): Buffer => {
+      if (Buffer.isBuffer(data)) {
+        return data;
+      }
+      
+      if (typeof data === 'string') {
+        // Check if it's hex-encoded (starts with \x)
+        if (data.startsWith('\\x')) {
+          try {
+            // Decode from hex
+            const hexData = data.slice(2);
+            const hexBuffer = Buffer.from(hexData, 'hex');
+            const jsonString = hexBuffer.toString('utf8');
+            
+            // Check if it's JSON-serialized Buffer
+            if (jsonString.startsWith('{"type":"Buffer"')) {
+              const bufferJson = JSON.parse(jsonString);
+              return Buffer.from(bufferJson.data);
+            }
+            
+            return hexBuffer;
+          } catch (e) {
+            // Fall through to base64
+          }
+        }
+        
+        // Try base64 decode
+        return Buffer.from(data, 'base64');
+      }
+      
+      throw new Error('Unsupported PDF data format');
+    };
+
     if (fileType === 'cover') {
       if (!submission.cover_pdf_data) {
         return res.status(404).json({ error: 'Cover letter PDF not found' });
       }
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${submission.cover_pdf_filename || 'cover_letter.pdf'}"`);
-      // Supabase returns BYTEA as base64-encoded string, so we need to decode it
-      return res.send(Buffer.from(submission.cover_pdf_data, 'base64'));
+      return res.send(decodePdfData(submission.cover_pdf_data));
     }
 
     if (fileType === 'grounds') {
@@ -390,8 +424,7 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
       }
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${submission.grounds_pdf_filename || 'submission.pdf'}"`);
-      // Supabase returns BYTEA as base64-encoded string, so we need to decode it
-      return res.send(Buffer.from(submission.grounds_pdf_data, 'base64'));
+      return res.send(decodePdfData(submission.grounds_pdf_data));
     }
 
     // For 'both', we need to combine or zip them
