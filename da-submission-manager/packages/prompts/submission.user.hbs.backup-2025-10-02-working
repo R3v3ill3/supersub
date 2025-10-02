@@ -1,0 +1,51 @@
+RECIPIENT_NAME: {{recipient_name}}
+SUBJECT: {{subject}}
+
+APPLICATION_NUMBER: {{application_number}}
+SITE_ADDRESS: {{site_address}}
+SUBMISSION_TRACK: {{submission_track}}
+
+APPROVED_FACTS:
+{{{approved_facts}}}
+
+SELECTED_CONCERNS:
+{{#each selected_concerns}}
+- KEY: {{this.key}}
+  BODY: |
+{{{indent this.body 2}}}
+{{/each}}
+
+USER_STYLE_SAMPLE:
+{{{user_style_sample}}}
+
+CUSTOM_GROUNDS (user-provided additional concerns):
+{{{custom_grounds}}}
+
+---
+
+EXAMPLE OF CORRECT CONCERN REPRODUCTION:
+
+If SELECTED_CONCERNS contains:
+  KEY: bulk_excavation
+  BODY: |
+    Approximately 12,600 m³ of cut, 2,400 m³ of fill, and 7,000 m³ of soil export, with steep batters and extensive retaining walls causing significant construction impacts and permanent visual scarring.
+
+Your output section should include:
+
+## 4. Bulk Excavation and Earthworks
+
+The proposed development involves extensive earthworks. Approximately 12,600 m³ of cut, 2,400 m³ of fill, and 7,000 m³ of soil export are planned, with steep batters and extensive retaining walls causing significant construction impacts and permanent visual scarring.
+
+CORRECT ELEMENTS:
+✓ All specific measurements preserved: "12,600 m³", "2,400 m³", "7,000 m³"
+✓ All technical terms preserved: "steep batters", "extensive retaining walls"
+✓ All impacts preserved: "construction impacts", "permanent visual scarring"
+✓ Only minimal text added for flow: "The proposed development involves extensive earthworks."
+
+INCORRECT (DO NOT DO THIS):
+✗ "The development involves substantial excavation with significant visual impacts."
+   [This loses all specific measurements and technical details]
+✗ "Approximately 12,000+ m³ of excavation is proposed."
+   [This generalizes and loses the breakdown of cut/fill/export]
+
+REMEMBER: Include ALL data points, measurements, and technical terms from the source verbatim.

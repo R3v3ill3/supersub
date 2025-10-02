@@ -8,6 +8,7 @@ export type ExtractedConcern = {
   key: string;
   label: string;
   body: string;
+  full_text?: string;  // Complete section text for AI generation
   priority: number;
   category?: string;
 };

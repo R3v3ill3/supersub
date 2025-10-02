@@ -1138,28 +1138,33 @@ export default function SubmissionForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                In your own words, briefly describe your thoughts on this development *
+                Provide an optional introductory paragraph stating your opinion
               </label>
+              <p className="text-sm text-gray-600 mb-2">
+                This will appear verbatim at the start of your submission. If left blank, a standard opening will be generated.
+              </p>
               <textarea
-                required
                 rows={4}
                 value={surveyData.user_style_sample}
                 onChange={(e) => setSurveyData({ ...surveyData, user_style_sample: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Please share your thoughts about this development application in your own words."
+                placeholder="Optional: e.g., 'I strongly oppose this development due to its significant impacts on our rural community...'"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Add any additional grounds you'd like included
+                Add any additional concerns of your own
               </label>
+              <p className="text-sm text-gray-600 mb-2">
+                These will appear first in your submission, before the selected concerns. Your text will not be modified.
+              </p>
               <textarea
                 rows={3}
                 value={surveyData.custom_grounds}
                 onChange={(e) => setSurveyData({ ...surveyData, custom_grounds: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Optional: additional points that matter to you."
+                placeholder="Optional: e.g., 'I am particularly concerned about impacts on local wildlife corridors and koala habitat connectivity...'"
               />
             </div>
 
@@ -1376,9 +1381,9 @@ export default function SubmissionForm() {
                     h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-4 mb-2 text-gray-900" {...props} />,
                     p: ({node, ...props}) => <p className="mb-4 text-gray-800 leading-relaxed" {...props} />,
                     strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
-                    ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-2 text-gray-800" {...props} />,
-                    ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-2 text-gray-800" {...props} />,
-                    li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
+                    ul: ({node, ...props}) => <ul className="list-disc list-outside ml-6 mb-4 space-y-2 text-gray-800" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal list-outside ml-6 mb-4 space-y-2 text-gray-800" {...props} />,
+                    li: ({node, ...props}) => <li className="leading-relaxed pl-2" {...props} />,
                     blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-4 text-gray-700" {...props} />,
                     code: ({node, inline, ...props}: any) => 
                       inline 
