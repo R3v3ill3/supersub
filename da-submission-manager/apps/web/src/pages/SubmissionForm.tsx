@@ -24,7 +24,6 @@ interface FormData {
   postal_suburb: string;
   postal_state: string;
   postal_postcode: string;
-  postal_email: string;
   // Property details
   lot_number: string;
   plan_number: string;
@@ -178,10 +177,9 @@ export default function SubmissionForm() {
     postal_suburb: '',
     postal_state: 'QLD',
     postal_postcode: '',
-    postal_email: '',
     // Property details
     lot_number: '1',
-    plan_number: 'RP1 42226',
+    plan_number: 'RP14226',
     site_address: '',
     application_number: '',
     submission_pathway: 'review',
@@ -310,7 +308,7 @@ export default function SubmissionForm() {
         applicant_postal_city: data.postal_address_same ? data.applicant_suburb : data.postal_suburb,
         applicant_postal_region: data.postal_address_same ? data.applicant_state : data.postal_state,
         applicant_postal_postcode: data.postal_address_same ? data.applicant_postcode : data.postal_postcode,
-        postal_email: data.postal_address_same ? data.applicant_email : data.postal_email,
+        postal_email: data.applicant_email, // Always use the main email address
         // Property details
         lot_number: data.lot_number,
         plan_number: data.plan_number,
@@ -829,7 +827,7 @@ export default function SubmissionForm() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
                       placeholder="Postal address"
                     />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <input
                         type="text"
                         value={formData.postal_suburb}
@@ -860,13 +858,6 @@ export default function SubmissionForm() {
                         placeholder="Postcode"
                       />
                     </div>
-                    <input
-                      type="email"
-                      value={formData.postal_email}
-                      onChange={(e) => setFormData({ ...formData, postal_email: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Email address (if different)"
-                    />
                   </div>
                 )}
               </div>

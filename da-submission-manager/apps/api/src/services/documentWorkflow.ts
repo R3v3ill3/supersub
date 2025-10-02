@@ -170,7 +170,9 @@ Kind regards,
       }
     });
 
-    Handlebars.registerHelper('applicant_full_name', function(firstName: string, lastName: string) {
+    // Helper renamed to avoid conflict with applicant_full_name variable in templates
+    // This helper is not currently used but preserved for backwards compatibility
+    Handlebars.registerHelper('build_applicant_full_name', function(firstName: string, lastName: string) {
       return [firstName, lastName].filter(Boolean).join(' ').trim();
     });
 
