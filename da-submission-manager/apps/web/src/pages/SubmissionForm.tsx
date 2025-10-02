@@ -1378,7 +1378,7 @@ export default function SubmissionForm() {
                     strong: ({node, ...props}) => <strong className="font-bold text-gray-900" {...props} />,
                     ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-2 text-gray-800" {...props} />,
                     ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-2 text-gray-800" {...props} />,
-                    li: ({node, ...props}) => <li className="ml-4 leading-relaxed" {...props} />,
+                    li: ({node, ...props}) => <li className="leading-relaxed" {...props} />,
                     blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-4 text-gray-700" {...props} />,
                     code: ({node, inline, ...props}: any) => 
                       inline 
