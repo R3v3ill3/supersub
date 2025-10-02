@@ -50,8 +50,9 @@ export class PdfGeneratorService {
         
         doc.moveDown(1.5);
 
-        // Process content line by line with better formatting
-        const lines = content.split('\n');
+        // Normalize content for PDF-safe characters and process line by line
+        const normalizedContent = this.normalizeContent(content);
+        const lines = normalizedContent.split('\n');
         let inList = false;
         let previousWasHeading = false;
         
@@ -267,6 +268,38 @@ export class PdfGeneratorService {
       });
       doc.moveDown(paragraphGap / 10);
     }
+  }
+
+  /**
+   * Normalize content to remove HTML entities and ensure PDF-safe characters
+   */
+  private normalizeContent(text: string): string {
+    if (!text) return text;
+
+    return text
+      .replace(/&#x27;|&#39;|&#x2019;/g, "'")
+      .replace(/&quot;|&#x201C;|&#x201D;/g, '"')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&#x2013;|&#x2014;/g, '-')
+      .replace(/&#x2022;|&#8226;/g, '•')
+      .replace(/&#160;|&#x00A0;/g, ' ')
+      .replace(/&#x2026;/g, '...')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&rsquo;/g, "'")
+      .replace(/&lsquo;/g, "'")
+      .replace(/&ldquo;/g, '"')
+      .replace(/&rdquo;/g, '"')
+      .replace(/&#x2610;|&#x25A1;/g, '[ ]')
+      .replace(/&#x2611;|&#9745;/g, '[x]')
+      .replace(/&#x00AD;/g, '')
+      .replace(/&#x00B7;/g, '·')
+      .replace(/&#x2212;/g, '-')
+      .replace(/&#x2018;/g, "'")
+      .replace(/&#x201A;/g, ',')
+      .replace(/&#x2032;/g, "'")
+      .replace(/&#x2033;/g, '"');
   }
 
   /**
