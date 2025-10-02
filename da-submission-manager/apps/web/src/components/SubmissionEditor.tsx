@@ -24,6 +24,14 @@ export default function SubmissionEditor({ value, onChange }: SubmissionEditorPr
   useEffect(() => {
     // Parse the markdown into editable and non-editable sections
     const parsed = parseSubmission(value);
+    
+    // Debug: Log all sections to see what's happening
+    console.log('=== PARSED SECTIONS ===');
+    parsed.forEach((section, idx) => {
+      console.log(`[${idx}] ${section.type} (editable: ${section.editable}):`, 
+        section.content.substring(0, 100));
+    });
+    
     setSections(parsed);
   }, [value]);
 
