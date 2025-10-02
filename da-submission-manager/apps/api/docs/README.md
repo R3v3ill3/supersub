@@ -36,6 +36,7 @@ Overview of monitoring, status tracking, and health endpoints for the DA Submiss
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | PDF_ENGINE | Set to `puppeteer` to enable Chromium-based PDF generation; defaults to `pdfkit`. | No | pdfkit |
+| DISABLE_GROUNDS_TEMPLATES | If `true`, skips project-specific grounds templates and uses the generated content directly. | No | false |
 
 ## Database Migration `0016_monitoring_views.sql`
 
@@ -49,4 +50,5 @@ Overview of monitoring, status tracking, and health endpoints for the DA Submiss
 - Public status endpoint is rate limited (30 requests/minute).
 - Refresh helper should run periodically to keep materialized views current.
 - Status tracker RPCs allow automated retry workflows.
+- Debian-based Docker image must include `libgbm1` and other Chromium dependencies when using Puppeteer.
 

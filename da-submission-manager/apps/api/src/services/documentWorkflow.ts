@@ -865,27 +865,33 @@ Kind regards,
   ): Promise<string> {
     const uploadService = new UploadService();
     const templateCombiner = new TemplateCombinerService();
+    const disableTemplates = process.env.DISABLE_GROUNDS_TEMPLATES === 'true';
 
     // 1. Load structure template (submission_format type from template_files)
     let structureTemplate: string;
-    try {
-      const structureTemplateData = await resolveActiveTemplate(project.id, 'submission_format');
-      if (structureTemplateData) {
-        const buffer = await uploadService.downloadFromStorage(structureTemplateData.storagePath);
-        structureTemplate = buffer.toString('utf-8');
-        this.logger.info('Loaded submission_format template from project', { projectId: project.id });
-      } else {
-        throw new Error('No submission_format template found');
+    if (!disableTemplates) {
+      try {
+        const structureTemplateData = await resolveActiveTemplate(project.id, 'submission_format');
+        if (structureTemplateData) {
+          const buffer = await uploadService.downloadFromStorage(structureTemplateData.storagePath);
+          structureTemplate = buffer.toString('utf-8');
+          this.logger.info('Loaded submission_format template from project', { projectId: project.id });
+        } else {
+          throw new Error('No submission_format template found');
+        }
+      } catch (error) {
+        this.logger.warn('Project submission_format template not found, using basic template');
+        structureTemplate = '# Submission\n\n## Property Details\n**Property Address:** {{site_address}}\n**Application Number:** {{application_number}}\n\n## Submitter Details\n**Name:** {{applicant_full_name}}\n**Email:** {{applicant_email}}\n\n## Grounds for Submission\n\n{{grounds_content}}';
       }
-    } catch (error) {
-      this.logger.warn('Project submission_format template not found, using basic template');
+    } else {
+      this.logger.info('Grounds templates disabled via configuration, using basic submission template');
       structureTemplate = '# Submission\n\n## Property Details\n**Property Address:** {{site_address}}\n**Application Number:** {{application_number}}\n\n## Submitter Details\n**Name:** {{applicant_full_name}}\n**Email:** {{applicant_email}}\n\n## Grounds for Submission\n\n{{grounds_content}}';
     }
 
     // 2. Get grounds content based on track (dual-track or single)
     let groundsContent: string;
 
-    if (project.is_dual_track && project.dual_track_config) {
+    if (!disableTemplates && project.is_dual_track && project.dual_track_config) {
       const track = (submission.submission_track || 'comprehensive') as 'followup' | 'comprehensive';
       this.logger.info('Using dual-track template combination', { track });
 
@@ -900,7 +906,7 @@ Kind regards,
         // Fallback to using the generated content directly
         groundsContent = submissionData.grounds_content || 'No grounds content available';
       }
-    } else if (project.grounds_template_id) {
+    } else if (!disableTemplates && project.grounds_template_id) {
       // Single-track: load single grounds template
       this.logger.info('Using single-track grounds template');
       try {
@@ -921,7 +927,11 @@ Kind regards,
         groundsContent = submissionData.grounds_content || 'No grounds content available';
       }
     } else {
-      this.logger.warn('No grounds template configured, using generated content directly');
+      if (!disableTemplates) {
+        this.logger.warn('No grounds template configured, using generated content directly');
+      } else {
+        this.logger.info('Grounds templates disabled, using generated content directly');
+      }
       // Use the generated content directly instead of throwing error
       groundsContent = submissionData.grounds_content || 'No grounds content available';
     }
