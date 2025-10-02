@@ -138,7 +138,14 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
     } as any;
 
     const enabled = process.env.OPENAI_ENABLED !== 'false';
-    console.log('[generate] Calling LLM generation', { submissionId, enabled, concernCount: concerns.length });
+    console.log('[generate] Calling LLM generation', { 
+      submissionId, 
+      enabled, 
+      concernCount: concerns.length,
+      concernKeys: concerns.map(c => c.key),
+      firstConcernPreview: concerns[0] ? concerns[0].body.substring(0, 100) + '...' : 'none',
+      hasMeasurements: concerns.some(c => c.body.includes('12,600'))
+    });
 
     const gen = enabled
       ? await generateSubmission({
@@ -161,7 +168,11 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       submissionId, 
       provider, 
       model, 
-      textLength: finalText.length 
+      temperature,
+      textLength: finalText.length,
+      textPreview: finalText.substring(0, 150) + '...',
+      tokensUsed: usage.completion,
+      deploymentCheck: 'BUILD_' + new Date().toISOString()
     });
 
     // Format the grounds into proper Gold Coast submission structure

@@ -1,6 +1,21 @@
 import { Router } from 'express';
+import { getSupabase } from '../lib/supabase';
 
 const router = Router();
+
+/**
+ * Diagnostic endpoint to check deployment version
+ * GET /api/diagnostic/version
+ */
+router.get('/api/diagnostic/version', async (req, res) => {
+  res.json({
+    success: true,
+    deployedAt: new Date().toISOString(),
+    version: 'v2.1-diagnostic-enhanced',
+    nodeVersion: process.version,
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 /**
  * Diagnostic endpoint to check AI configuration
@@ -49,6 +64,54 @@ router.get('/api/diagnostic/ai-config', async (req, res) => {
       success: true,
       config,
       warning: !config.willUseAI ? 'AI is DISABLED - system will use mock concatenation mode' : null
+    });
+    
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Diagnostic endpoint to check what concern will be loaded for a specific key
+ * GET /api/diagnostic/concern/:key
+ */
+router.get('/api/diagnostic/concern/:key', async (req, res) => {
+  try {
+    const { key } = req.params;
+    const version = (req.query.version as string) || 'v1';
+    
+    // This mimics what the generate endpoint does
+    const supabase = getSupabase();
+    if (!supabase) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    const { data, error } = await supabase
+      .from('concern_templates')
+      .select('id, key, label, body, is_active, version')
+      .eq('key', key)
+      .eq('version', version)
+      .eq('is_active', true);
+    
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    
+    const hasMeasurements = data?.some(c => c.body.includes('12,600'));
+    
+    res.json({
+      success: true,
+      key,
+      version,
+      count: data?.length || 0,
+      concerns: data || [],
+      hasMultiple: (data?.length || 0) > 1,
+      hasMeasurements,
+      warning: (data?.length || 0) > 1 ? 'WARNING: Multiple active concerns with same key! System will use first one returned.' : 
+               !hasMeasurements && key === 'bulk_excavation' ? 'WARNING: bulk_excavation concern does NOT contain measurements!' : null
     });
     
   } catch (error: any) {
