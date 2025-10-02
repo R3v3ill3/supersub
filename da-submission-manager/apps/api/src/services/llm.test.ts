@@ -13,7 +13,6 @@ describe('generateSubmissionMock', () => {
       meta: {
         recipient_name: 'Team',
         subject: 'Subject',
-        applicant_name: 'Name',
         application_number: '',
         site_address: ''
       },

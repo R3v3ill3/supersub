@@ -39,7 +39,6 @@ describe('Prompt Strengthening - Data Preservation', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: 'COM/2025/271',
         site_address: '940 Currumbin Creek Road'
       },
@@ -66,7 +65,6 @@ describe('Prompt Strengthening - Data Preservation', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: 'COM/2025/271',
         site_address: '940 Currumbin Creek Road'
       },
@@ -90,7 +88,6 @@ describe('Prompt Strengthening - Data Preservation', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: 'COM/2025/271',
         site_address: '940 Currumbin Creek Road'
       },
@@ -116,7 +113,6 @@ describe('Prompt Strengthening - Data Preservation', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: 'COM/2025/271',
         site_address: '940 Currumbin Creek Road'
       },
@@ -156,7 +152,6 @@ describe('Prompt Strengthening - Data Preservation', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: 'COM/2025/271',
         site_address: '940 Currumbin Creek Road'
       },
@@ -189,7 +184,6 @@ describe('Prompt Strengthening - Data Preservation', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: '',
         site_address: ''
       },
@@ -226,7 +220,6 @@ describe('Prompt Strengthening - Comprehensive Multi-Concern Test', () => {
       meta: {
         recipient_name: 'Council Assessment Team',
         subject: 'Submission regarding Development Application',
-        applicant_name: 'Test Resident',
         application_number: 'COM/2025/271',
         site_address: '940 Currumbin Creek Road'
       },
@@ -265,7 +258,6 @@ describe('Mock vs Real Generation Comparison', () => {
       meta: {
         recipient_name: 'Team',
         subject: 'Test',
-        applicant_name: 'Test',
         application_number: '',
         site_address: ''
       },
