@@ -162,16 +162,20 @@ export class DocumentAnalysisService {
       is_active: true
     }));
 
-    // Save to database
+    // Save to database - include full_text if available from extraction
     const { data, error } = await supabase
       .from('concern_templates')
-      .upsert(concernTemplates.map(template => ({
-        version: template.version,
-        key: template.key,
-        label: template.label,
-        body: template.body,
-        is_active: template.is_active
-      })), {
+      .upsert(concernTemplates.map((template, index) => {
+        const concern = analysisResult.extractedConcerns[index];
+        return {
+          version: template.version,
+          key: template.key,
+          label: template.label,
+          body: template.body,
+          full_text: concern.full_text || null,  // Store full_text if extracted
+          is_active: template.is_active
+        };
+      }), {
         onConflict: 'version,key'
       })
       .select();

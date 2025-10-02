@@ -4,17 +4,32 @@ import { sanitizeAndValidate } from './contentRules';
 export type ExtractedConcern = {
   key: string;
   label: string;
-  body: string;
+  body: string;  // Short summary for UI display (1-3 sentences)
+  full_text?: string;  // Complete section text for AI generation (optional for backward compatibility)
 };
 
 export async function extractConcernsFromText(groundsText: string): Promise<ExtractedConcern[]> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const system = `You extract a concise list of concerns from a "Grounds for Submission" document.
-Rules:
-- Output JSON only: {"concerns":[{"key":"...","label":"...","body":"..."}, ...]}
-- 5–15 items. key: lowercase snake_case; label: short title; body: 1–3 sentences concise, factual.
-- Do not invent content. Only summarise from the provided text.`;
+  const system = `You extract structured concerns from a "Grounds for Submission" document.
+
+For each concern, provide:
+1. key: lowercase_snake_case identifier (e.g., "bulk_excavation_and_earthworks")
+2. label: Short descriptive title (5-10 words) for UI display
+3. summary: Brief 1-3 sentence overview for user selection interface
+4. full_text: COMPLETE text from the document section including:
+   - ALL specific measurements, quantities, statistics (e.g., "12,600 m³ of cut")
+   - ALL planning code references (e.g., "Part 3, Section 3.7.2.1(1)")
+   - ALL standards references (e.g., "Australian Standards AS2890.3.2015")
+   - ALL technical terms (e.g., "1:1 batters", "retaining walls", "Armco barrier")
+   - ALL specific violations and non-compliance details
+   - EVERY fact, argument, and detail from that section
+
+CRITICAL: full_text must be COMPREHENSIVE, not summarized. Extract the complete section verbatim.
+Include formatting like bullet points, sub-sections, and paragraph breaks.
+
+Output JSON: {"concerns":[{"key":"...","label":"...","summary":"...","full_text":"..."}, ...]}
+Extract 5-15 concerns. Do not invent content - only extract what is explicitly in the text.`;
 
   const user = `TEXT:\n\n${groundsText}`;
 
@@ -36,8 +51,13 @@ Rules:
   }
   const list: ExtractedConcern[] = Array.isArray(json.concerns) ? json.concerns : [];
   return list
-    .filter((c: any) => c && c.key && c.label && c.body)
-    .map((c: any) => ({ key: String(c.key), label: String(c.label), body: String(c.body) }));
+    .filter((c: any) => c && c.key && c.label && (c.body || c.summary))
+    .map((c: any) => ({ 
+      key: String(c.key), 
+      label: String(c.label), 
+      body: String(c.summary || c.body || ''),  // Use summary if available, fall back to body
+      full_text: c.full_text ? String(c.full_text) : undefined  // Optional full text
+    }));
 }
 
 export async function generateGroundsText(args: {

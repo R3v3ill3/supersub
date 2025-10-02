@@ -67,6 +67,14 @@ CRITICAL REQUIREMENTS:
      - Use **bold** for emphasis on key planning terms, code references, and critical data points
      - Use bullet points where the source material does
 
+   • CUSTOM_GROUNDS (if provided):
+     - If CUSTOM_GROUNDS contains text, include it as additional sections AFTER all SELECTED_CONCERNS
+     - DO NOT modify, rephrase, or paraphrase the user's custom text
+     - Present it with appropriate formatting and structure
+     - Treat custom grounds with the same fidelity as SELECTED_CONCERNS
+     - If the custom grounds are brief, format as a numbered section with appropriate heading
+     - If no custom grounds provided, skip this section entirely
+
    • CONCLUSION: Strong closing paragraph (3-4 sentences)
      - Summarize the key planning grounds
      - Restate opposition and request for refusal

@@ -80,20 +80,33 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
 
     // Load concern bodies for selected keys (DB first, fallback to file)
     // We'll build a map first, then reconstruct in the correct order
+    // IMPORTANT: Use full_text for generation if available, fall back to body for backward compatibility
     let concerns: Array<{ key: string; body: string }> = [];
     const { data: cData, error: cErr } = await supabase
       .from('concern_templates')
-      .select('key,body,is_active,version')
+      .select('key,body,full_text,is_active,version')
       .eq('version', version)
       .in('key', selectedKeys)
       .eq('is_active', true);
     if (!cErr && cData && cData.length) {
-      // Build a map of key -> body
-      const concernMap = new Map(cData.map((r: any) => [r.key, r.body]));
+      // Build a map of key -> body (prefer full_text if available)
+      const concernMap = new Map(
+        cData.map((r: any) => [r.key, r.full_text || r.body])
+      );
       // Reconstruct in the user's priority order
       concerns = selectedKeys
         .filter((k) => concernMap.has(k))
         .map((k) => ({ key: k, body: concernMap.get(k)! }));
+      
+      // Log which concerns have full_text for debugging
+      console.log('[generate] Concern data sources:', 
+        cData.map((r: any) => ({
+          key: r.key,
+          hasFullText: !!r.full_text,
+          bodyLength: (r.full_text || r.body).length,
+          usingFullText: !!r.full_text
+        }))
+      );
     } else {
       const file = path.resolve(process.cwd(), `packages/templates/concerns.${version}.json`);
       const fileJson = JSON.parse(await fs.readFile(file, 'utf8')) as Array<{ key: string; body: string }>;

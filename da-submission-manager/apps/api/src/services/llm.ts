@@ -241,7 +241,8 @@ export async function generateSubmission(args: GenerateArgs) {
     ...args.meta,
     approved_facts: args.approvedFacts,
     selected_concerns: args.selectedConcerns,
-    user_style_sample: args.styleSample
+    user_style_sample: args.styleSample,
+    custom_grounds: args.customGrounds || ''  // Include user's custom concerns
   })
     .replace('{{MAX_WORDS}}', String(maxWords));
 

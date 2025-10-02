@@ -1365,12 +1365,11 @@ export default function SubmissionForm() {
               </div>
             ) : (
               <div 
-                className="w-full border border-gray-300 rounded-md px-6 py-4 bg-gray-50"
+                className="w-full border border-gray-300 rounded-md px-6 py-4 bg-gray-50 prose prose-sm md:prose-base max-w-none"
                 style={{ minHeight: '500px', maxHeight: '700px', overflowY: 'auto' }}
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  className="prose prose-sm md:prose-base max-w-none"
                   components={{
                     h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-6 mb-4 text-gray-900" {...props} />,
                     h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-5 mb-3 text-gray-900" {...props} />,
