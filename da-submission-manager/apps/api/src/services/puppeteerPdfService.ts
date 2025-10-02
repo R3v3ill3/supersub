@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import puppeteer, { Browser } from 'puppeteer';
 import { renderMarkdownToHtml } from '../utils/markdownRenderer';
 import { Logger } from '../lib/logger';
@@ -7,7 +8,13 @@ import { Logger } from '../lib/logger';
 export class PuppeteerPdfService {
   private browser: Browser | null = null;
   private readonly logger = new Logger({ namespace: 'PuppeteerPdfService' });
-  private readonly cssPath = path.resolve(__dirname, '../pdf/templates/submission.css');
+  private readonly cssPath: string;
+  private cssContent: string | null = null;
+
+  constructor() {
+    const dirname = path.dirname(fileURLToPath(import.meta.url));
+    this.cssPath = path.resolve(dirname, '../pdf/templates/submission.css');
+  }
 
   async getBrowser(): Promise<Browser> {
     if (this.browser && this.browser.isConnected()) {
@@ -35,7 +42,7 @@ export class PuppeteerPdfService {
 
     try {
       const htmlContent = await renderMarkdownToHtml(markdown);
-      const css = await fs.readFile(this.cssPath, 'utf-8');
+      const css = await this.getCss();
 
       const html = `<!DOCTYPE html>
         <html lang="en">
@@ -70,6 +77,13 @@ export class PuppeteerPdfService {
     } finally {
       await page.close();
     }
+  }
+
+  private async getCss(): Promise<string> {
+    if (!this.cssContent) {
+      this.cssContent = await fs.readFile(this.cssPath, 'utf-8');
+    }
+    return this.cssContent;
   }
 }
 
