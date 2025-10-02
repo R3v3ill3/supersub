@@ -2,7 +2,7 @@ import { getSupabase } from '../lib/supabase';
 import { GoogleDocsService } from './googleDocs';
 import { ActionNetworkClient } from './actionNetwork';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import nodemailer from 'nodemailer';
 import { promises as fs } from 'fs';
 import os from 'os';
@@ -57,7 +57,7 @@ export class HealthCheckService {
       this.checkDatabase(),
       this.checkGoogleDocs(),
       this.checkOpenAI(),
-      this.checkGemini(),
+      this.checkClaude(),
       this.checkActionNetwork(),
       this.checkEmail(),
       this.checkFileSystem(),
@@ -70,7 +70,7 @@ export class HealthCheckService {
       'database',
       'google_docs',
       'openai',
-      'gemini', 
+      'claude', 
       'action_network',
       'email',
       'file_system',
@@ -268,29 +268,32 @@ export class HealthCheckService {
   }
 
   /**
-   * Check Gemini API connectivity
+   * Check Claude API connectivity
    */
-  async checkGemini(): Promise<HealthCheckResult> {
+  async checkClaude(): Promise<HealthCheckResult> {
     const startTime = Date.now();
     
     try {
-      if (!process.env.GEMINI_API_KEY) {
+      if (!process.env.ANTHROPIC_API_KEY) {
         return {
           status: HealthStatus.UNKNOWN,
           timestamp: new Date(),
           responseTime: Date.now() - startTime,
-          message: 'Gemini not configured'
+          message: 'Claude not configured'
         };
       }
 
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       
       // Test with a minimal API call
       const result = await Promise.race([
-        model.generateContent('test'),
+        client.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 10,
+          messages: [{ role: 'user', content: 'test' }]
+        }),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Gemini timeout')), 10000)
+          setTimeout(() => reject(new Error('Claude timeout')), 10000)
         )
       ]) as any;
 
@@ -298,7 +301,7 @@ export class HealthCheckService {
         status: HealthStatus.HEALTHY,
         timestamp: new Date(),
         responseTime: Date.now() - startTime,
-        message: 'Gemini API accessible'
+        message: 'Claude API accessible'
       };
     } catch (error: any) {
       const status = error.message?.includes('rate limit') || error.message?.includes('quota')
@@ -309,7 +312,7 @@ export class HealthCheckService {
         status,
         timestamp: new Date(),
         responseTime: Date.now() - startTime,
-        message: `Gemini API error: ${error.message}`
+        message: `Claude API error: ${error.message}`
       };
     }
   }
@@ -550,7 +553,7 @@ export class HealthCheckService {
    */
   private calculateOverallHealth(checks: Record<string, HealthCheckResult>): HealthStatus {
     const criticalSystems = ['database', 'memory', 'file_system'];
-    const importantSystems = ['google_docs', 'openai', 'gemini', 'email'];
+    const importantSystems = ['google_docs', 'openai', 'claude', 'email'];
     
     // Check critical systems first
     for (const system of criticalSystems) {

@@ -60,7 +60,7 @@ router.get('/api/health/ai-providers', async (_req, res) => {
   try {
     const healthResult = await healthCheckService.performHealthCheck();
     
-    const aiProviders = ['openai', 'gemini'];
+    const aiProviders = ['openai', 'claude'];
     const providers = aiProviders.map(name => ({
       name,
       status: healthResult.checks[name]?.status || 'unknown',
