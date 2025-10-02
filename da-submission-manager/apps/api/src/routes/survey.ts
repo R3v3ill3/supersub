@@ -87,7 +87,10 @@ router.get('/api/survey/templates', standardLimiter, async (req, res) => {
 const postBody = z.object({
   version: z.string().default('v1'),
   selected_keys: z.array(z.string()).min(1),
-  user_style_sample: z.string().min(1)
+  ordered_keys: z.array(z.string()).optional(),
+  user_style_sample: z.string().min(1),
+  custom_grounds: z.string().optional(),
+  submission_track: z.enum(['followup', 'comprehensive', 'single']).optional()
 });
 
 router.post('/api/survey/:submissionId', surveyLimiter, async (req, res) => {
@@ -153,7 +156,10 @@ router.post('/api/survey/:submissionId', surveyLimiter, async (req, res) => {
         submission_id: submissionId,
         version: body.version,
         selected_keys: body.selected_keys,
-        user_style_sample: body.user_style_sample
+        ordered_keys: body.ordered_keys || null,
+        user_style_sample: body.user_style_sample,
+        custom_grounds: body.custom_grounds || null,
+        submission_track: body.submission_track || null
       })
       .select()
       .single();

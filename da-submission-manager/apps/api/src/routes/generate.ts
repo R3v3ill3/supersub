@@ -70,7 +70,9 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
     console.log('[generate] Survey response found', { 
       submissionId, 
       selectedKeysCount: survey.selected_keys?.length || 0,
-      orderedKeysCount: survey.ordered_keys?.length || 0 
+      orderedKeysCount: survey.ordered_keys?.length || 0,
+      hasStyleSample: !!(survey.user_style_sample?.trim()),
+      hasCustomGrounds: !!(survey.custom_grounds?.trim())
     });
 
     // Use ordered_keys if available (user's priority order), otherwise fall back to selected_keys
@@ -127,12 +129,14 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
     ];
 
     // Note: applicant_* fields are the SUBMITTER (objector), not the developer
-    // We don't pass the submitter's name to AI to avoid confusion
+    // The applicant_name is passed for logging/tracking but should NOT be used in grounds text
+    const applicantName = [submission.applicant_first_name, submission.applicant_last_name].filter(Boolean).join(' ').trim();
+    
     const applicationNumber = submission.application_number || undefined;
     const meta = {
       recipient_name: 'Council Assessment Team',
       subject: 'Submission regarding Development Application',
-      applicant_name: '', // Intentionally blank - submitter name should NOT appear in grounds
+      applicant_name: applicantName || 'Submitter', // For logging only - AI instructed not to use this
       application_number: applicationNumber || '',
       site_address: submission.site_address || ''
     } as any;
@@ -153,6 +157,7 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
           approvedFacts,
           selectedConcerns: concerns,
           styleSample: survey.user_style_sample || '',
+          customGrounds: survey.custom_grounds || '',
           allowedLinks
         })
       : await generateSubmissionMock({
@@ -160,6 +165,7 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
           approvedFacts,
           selectedConcerns: concerns,
           styleSample: survey.user_style_sample || '',
+          customGrounds: survey.custom_grounds || '',
           allowedLinks
         });
 

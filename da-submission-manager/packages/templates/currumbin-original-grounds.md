@@ -22,7 +22,7 @@
 **Postcode:** {{postcode}}
 **Email address:** {{email}}
 
-**Postal address (same as above):** Yes ☐ No ☐
+**Postal address (same as above):** Yes [ ] No [ ]
 
 ---
 
@@ -30,7 +30,7 @@
 
 **What is your position on the development application?**
 
-Supporting ☐ **Objecting ☑**
+Supporting [ ] **Objecting [X]**
 
 ---
 

@@ -22,6 +22,11 @@ CRITICAL REQUIREMENTS:
    • DO NOT reduce detail, condense points, or omit examples from concerns
    • DO NOT paraphrase concern content into briefer versions
    • Include ALL facts, citations, specific code references, and policy numbers from APPROVED_FACTS
+   • ADDITIONAL USER INPUT: If provided, incorporate it naturally where relevant:
+     - Add user observations to appropriate concern sections
+     - Include user-specific impacts in introduction or relevant sections
+     - Maintain professional tone (rewrite casual language)
+     - Do not create new sections just for user input - blend it in appropriately
    • PRESERVE ALL SPECIFIC DATA VERBATIM:
      - Measurements (e.g., "12,600 m³ of cut", "2,400 m³ of fill")
      - Distances (e.g., "50 metres", "200m setback")

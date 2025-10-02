@@ -292,9 +292,9 @@ export class PdfGeneratorService {
       .replace(/&lsquo;/g, "'")
       .replace(/&ldquo;/g, '"')
       .replace(/&rdquo;/g, '"')
-      // Checkbox characters - replace with simpler alternatives
-      .replace(/&#x2610;|&#x25A1;|☐/g, '☐')  // Empty checkbox - keep simple version
-      .replace(/&#x2611;|&#9745;|☑/g, '☑')  // Checked checkbox - keep simple version
+      // Checkbox characters - replace with text-based alternatives for better PDF rendering
+      .replace(/&#x2610;|&#x25A1;|☐/g, '[ ]')  // Empty checkbox - text-based version
+      .replace(/&#x2611;|&#9745;|☑/g, '[X]')  // Checked checkbox - text-based version
       .replace(/&#x00AD;/g, '')
       .replace(/&#x00B7;/g, '·')
       .replace(/&#x2212;/g, '-')

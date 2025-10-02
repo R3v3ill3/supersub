@@ -18,6 +18,7 @@ type GenerateArgs = {
   approvedFacts: string;
   selectedConcerns: Array<{ key: string; body: string }>;
   styleSample: string;
+  customGrounds?: string;
   allowedLinks?: string[];
   maxWordsOverride?: number;
 };
@@ -229,7 +230,8 @@ export async function generateSubmission(args: GenerateArgs) {
     ...args.meta,
     approved_facts: args.approvedFacts,
     selected_concerns: args.selectedConcerns,
-    user_style_sample: args.styleSample
+    user_style_sample: args.styleSample,
+    custom_grounds: args.customGrounds || ''
   })
     .replace('{{MAX_WORDS}}', String(maxWords));
 
@@ -329,7 +331,12 @@ export async function generateSubmissionMock(args: GenerateArgs) {
   const maxWords = Number(args.maxWordsOverride ?? process.env.WORD_LIMIT ?? 2500);
   // Compose a safe, plain-text draft strictly from provided inputs.
   const concernText = args.selectedConcerns.map((c) => c.body.trim()).join('\n\n');
-  const parts = [args.approvedFacts.trim(), concernText.trim()].filter(Boolean);
+  const customText = args.customGrounds?.trim() || '';
+  const parts = [
+    args.approvedFacts.trim(), 
+    concernText.trim(),
+    customText ? `\n\nAdditional Concerns:\n\n${customText}` : ''
+  ].filter(Boolean);
   let text = parts.join('\n\n');
   // Enforce word cap via sanitizeAndValidate
   const sanitized = sanitizeAndValidate(text, { maxWords, allowedLinks: args.allowedLinks ?? [] });

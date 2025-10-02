@@ -79,9 +79,9 @@ export class SubmissionFormatterService {
 
     // Postal address
     if (data.postal_address_same !== false) {
-      sections.push('**Postal address (same as above):** Yes ☑ No ☐\n');
+      sections.push('**Postal address (same as above):** Yes [X] No [ ]\n');
     } else {
-      sections.push('**Postal address (same as above):** Yes ☐ No ☑\n');
+      sections.push('**Postal address (same as above):** Yes [ ] No [X]\n');
       sections.push(`**Postal address:** ${data.applicant_postal_address}`);
       sections.push(`**Suburb:** ${data.postal_suburb}`);
       sections.push(`**State:** ${data.postal_state}`);
@@ -97,7 +97,7 @@ export class SubmissionFormatterService {
     // Submission position
     sections.push('## Submission details\n');
     sections.push('**What is your position on the development application?**\n');
-    sections.push('Supporting ☐ **Objecting ☑**\n');
+    sections.push('Supporting [ ] **Objecting [X]**\n');
     sections.push('---\n');
 
     // Grounds header with proper addressing
@@ -127,9 +127,9 @@ export class SubmissionFormatterService {
     // Declaration
     sections.push('## Declaration\n');
     sections.push('I understand and acknowledge that:\n');
-    sections.push('✓ The information provided in this submission is true and correct');
-    sections.push('✓ This submission is NOT confidential and will be displayed through PD Online on the City of Gold Coast\'s website');
-    sections.push('✓ I acknowledge Queensland State Laws will accept this communication as containing my signature within the meaning of the Electronic Transactions (Queensland) Act 2001 which can be found on the Queensland Legislation website\n');
+    sections.push('[X] The information provided in this submission is true and correct');
+    sections.push('[X] This submission is NOT confidential and will be displayed through PD Online on the City of Gold Coast\'s website');
+    sections.push('[X] I acknowledge Queensland State Laws will accept this communication as containing my signature within the meaning of the Electronic Transactions (Queensland) Act 2001 which can be found on the Queensland Legislation website\n');
     sections.push('**By submitting this form electronically, I agree with the declaration above.**\n');
     sections.push(`**Electronic Signature:** ${applicantName}`);
     sections.push(`**Date:** ${submissionDate}`);
