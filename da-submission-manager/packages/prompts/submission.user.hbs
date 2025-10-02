@@ -1,22 +1,42 @@
-RECIPIENT_NAME: {{recipient_name}}
-SUBJECT: {{subject}}
+===== INPUT DATA (DO NOT COPY THESE TO OUTPUT) =====
 
-APPLICATION_NUMBER: {{application_number}}
-SITE_ADDRESS: {{site_address}}
-SUBMISSION_TRACK: {{submission_track}}
+For reference only - use these details if needed in your writing:
+- Recipient: {{recipient_name}}
+- Subject line: {{subject}}
+- Application number: {{application_number}}
+- Site address: {{site_address}}
+- Submission track: {{submission_track}}
 
-APPROVED_FACTS:
+===== APPROVED FACTS (SOURCE MATERIAL) =====
+
 {{{approved_facts}}}
 
-SELECTED_CONCERNS:
+===== SELECTED CONCERNS (SOURCE MATERIAL - USE ALL OF THESE) =====
+
 {{#each selected_concerns}}
-- KEY: {{this.key}}
-  BODY: |
-{{{indent this.body 2}}}
+Concern {{@index}}:
+  Key: {{this.key}}
+  Content: |
+{{{indent this.body 4}}}
+
 {{/each}}
 
-USER_STYLE_SAMPLE:
+===== USER WRITING STYLE SAMPLE =====
+
 {{{user_style_sample}}}
+
+===== END OF SOURCE MATERIAL =====
+
+Now draft the grounds for submission using ALL the concerns above.
+
+OUTPUT FORMAT REQUIREMENT:
+You MUST respond with ONLY this JSON structure (no other fields):
+{
+  "final_text": "your complete grounds for submission text here"
+}
+
+DO NOT output fields like "recipient_name", "subject", "body", etc.
+ONLY output the single field "final_text" containing the full grounds text.
 
 ---
 

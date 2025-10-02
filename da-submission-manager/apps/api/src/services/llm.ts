@@ -59,13 +59,19 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
       
       console.log('[OpenAI] Parsed keys:', Object.keys(parsed));
       console.log('[OpenAI] final_text length:', parsed.final_text?.length ?? 0);
+      console.log('[OpenAI] body length:', parsed.body?.length ?? 0);
       
-      const finalText = String(parsed.final_text ?? '');
+      // OpenAI might return content in "body" or "final_text" field
+      // Try "final_text" first (preferred), fallback to "body"
+      const finalText = String(parsed.final_text || parsed.body || '');
       
       if (!finalText || finalText.length === 0) {
-        console.error('[OpenAI] WARNING: final_text is empty!');
+        console.error('[OpenAI] WARNING: No content found in final_text or body!');
         console.error('[OpenAI] Full parsed object:', JSON.stringify(parsed).substring(0, 500));
+        throw new Error('OpenAI returned empty content');
       }
+      
+      console.log('[OpenAI] Using content from field:', parsed.final_text ? 'final_text' : 'body');
 
       return {
         finalText,
