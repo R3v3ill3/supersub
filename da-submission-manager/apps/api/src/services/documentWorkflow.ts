@@ -8,6 +8,7 @@ import { resolveActiveTemplate } from './templateVersionResolver';
 import { TemplateCombinerService } from './templateCombiner';
 import { UploadService } from './upload';
 import { extractDocxText, extractPdfText } from './templateParser';
+import { SubmissionFormatterService } from './submissionFormatter';
 import { PdfGeneratorService } from './pdfGenerator';
 import { PuppeteerPdfService } from './puppeteerPdfService';
 import Handlebars from 'handlebars';
@@ -863,35 +864,73 @@ Kind regards,
     project: ProjectData,
     submissionData: Record<string, any>
   ): Promise<string> {
+    const disableTemplates = process.env.DISABLE_GROUNDS_TEMPLATES === 'true';
+
+    if (disableTemplates) {
+      const formatter = new SubmissionFormatterService();
+      const postalAddressSame = !submission.applicant_postal_address ||
+        submission.applicant_postal_address === submission.applicant_residential_address;
+
+      const groundsText = submissionData.grounds_content
+        || submission.grounds_text_generated
+        || submissionData.submission_body
+        || 'No grounds content available';
+
+      const formatted = formatter.formatGoldCoastSubmission({
+        lot_number: submission.lot_number || undefined,
+        plan_number: submission.plan_number || undefined,
+        site_address: submission.site_address,
+        application_number: submission.application_number || project.default_application_number || '',
+        applicant_first_name: submission.applicant_first_name,
+        applicant_last_name: submission.applicant_last_name,
+        applicant_residential_address: submission.applicant_residential_address || '',
+        applicant_suburb: submission.applicant_suburb || '',
+        applicant_state: submission.applicant_state || '',
+        applicant_postcode: submission.applicant_postcode || '',
+        applicant_email: submission.applicant_email,
+        postal_address_same: postalAddressSame,
+        applicant_postal_address: submission.applicant_postal_address || submission.applicant_residential_address || '',
+        postal_suburb: submission.postal_suburb || submission.applicant_suburb || '',
+        postal_state: submission.postal_state || submission.applicant_state || '',
+        postal_postcode: submission.postal_postcode || submission.applicant_postcode || '',
+        postal_email: submission.postal_email || submission.applicant_email,
+        grounds_content: groundsText,
+        submission_date: submissionData.submission_date
+          || new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+      });
+
+      this.logger.info('Templates disabled: generated formatted submission', {
+        submissionId: submission.id,
+        length: formatted.length,
+        preview: formatted.substring(0, 300)
+      });
+
+      return formatted;
+    }
+
     const uploadService = new UploadService();
     const templateCombiner = new TemplateCombinerService();
-    const disableTemplates = process.env.DISABLE_GROUNDS_TEMPLATES === 'true';
 
     // 1. Load structure template (submission_format type from template_files)
     let structureTemplate: string;
-    if (!disableTemplates) {
-      try {
-        const structureTemplateData = await resolveActiveTemplate(project.id, 'submission_format');
-        if (structureTemplateData) {
-          const buffer = await uploadService.downloadFromStorage(structureTemplateData.storagePath);
-          structureTemplate = buffer.toString('utf-8');
-          this.logger.info('Loaded submission_format template from project', { projectId: project.id });
-        } else {
-          throw new Error('No submission_format template found');
-        }
-      } catch (error) {
-        this.logger.warn('Project submission_format template not found, using basic template');
-        structureTemplate = '# Submission\n\n## Property Details\n**Property Address:** {{site_address}}\n**Application Number:** {{application_number}}\n\n## Submitter Details\n**Name:** {{applicant_full_name}}\n**Email:** {{applicant_email}}\n\n## Grounds for Submission\n\n{{grounds_content}}';
+    try {
+      const structureTemplateData = await resolveActiveTemplate(project.id, 'submission_format');
+      if (structureTemplateData) {
+        const buffer = await uploadService.downloadFromStorage(structureTemplateData.storagePath);
+        structureTemplate = buffer.toString('utf-8');
+        this.logger.info('Loaded submission_format template from project', { projectId: project.id });
+      } else {
+        throw new Error('No submission_format template found');
       }
-    } else {
-      this.logger.info('Grounds templates disabled via configuration, using basic submission template');
+    } catch (error) {
+      this.logger.warn('Project submission_format template not found, using basic template');
       structureTemplate = '# Submission\n\n## Property Details\n**Property Address:** {{site_address}}\n**Application Number:** {{application_number}}\n\n## Submitter Details\n**Name:** {{applicant_full_name}}\n**Email:** {{applicant_email}}\n\n## Grounds for Submission\n\n{{grounds_content}}';
     }
 
     // 2. Get grounds content based on track (dual-track or single)
     let groundsContent: string;
 
-    if (!disableTemplates && project.is_dual_track && project.dual_track_config) {
+    if (project.is_dual_track && project.dual_track_config) {
       const track = (submission.submission_track || 'comprehensive') as 'followup' | 'comprehensive';
       this.logger.info('Using dual-track template combination', { track });
 
@@ -906,7 +945,7 @@ Kind regards,
         // Fallback to using the generated content directly
         groundsContent = submissionData.grounds_content || 'No grounds content available';
       }
-    } else if (!disableTemplates && project.grounds_template_id) {
+    } else if (project.grounds_template_id) {
       // Single-track: load single grounds template
       this.logger.info('Using single-track grounds template');
       try {
@@ -927,11 +966,7 @@ Kind regards,
         groundsContent = submissionData.grounds_content || 'No grounds content available';
       }
     } else {
-      if (!disableTemplates) {
-        this.logger.warn('No grounds template configured, using generated content directly');
-      } else {
-        this.logger.info('Grounds templates disabled, using generated content directly');
-      }
+      this.logger.warn('No grounds template configured, using generated content directly');
       // Use the generated content directly instead of throwing error
       groundsContent = submissionData.grounds_content || 'No grounds content available';
     }
