@@ -169,7 +169,17 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
           allowedLinks
         });
 
-    const { finalText, usage, model, temperature, provider } = gen;
+    let { finalText, usage, model, temperature, provider } = gen;
+    
+    // Post-process: Remove any instance of "by [Name]" pattern to prevent submitter name appearing
+    // This is a safety measure since AI sometimes includes it despite instructions
+    const namePattern = /\s+by\s+[A-Z][a-z]+\s+[A-Z][a-z]+/g;
+    const cleanedText = finalText.replace(namePattern, '');
+    if (cleanedText !== finalText) {
+      console.log('[generate] Removed name reference from output');
+      finalText = cleanedText;
+    }
+    
     console.log('[generate] LLM generation complete', { 
       submissionId, 
       provider, 
