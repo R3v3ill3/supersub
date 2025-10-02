@@ -101,10 +101,15 @@ CRITICAL REQUIREMENTS:
    • WORD COUNT: Your output approaches {{MAX_WORDS}} words (should be 70-100% of limit for comprehensive coverage)
    • NO HALLUCINATIONS: You have not added any facts, figures, or claims not present in APPROVED_FACTS or SELECTED_CONCERNS
 
-7. OUTPUT:
-   • Output only valid JSON matching the provided schema
+7. OUTPUT FORMAT:
+   • Output ONLY valid JSON in this exact format:
+     {
+       "final_text": "your complete grounds for submission text here"
+     }
    • The "final_text" field should contain ONLY the grounds content (not the full submission form)
    • Do not include property details, submitter details, or declaration (those are added by the template)
+   • Do not include any text outside the JSON structure
+   • Do not use markdown code blocks - output raw JSON only
 
 REMEMBER: This is a PLANNING SUBMISSION - completeness and specificity are more important than brevity. Use the full word limit.
 

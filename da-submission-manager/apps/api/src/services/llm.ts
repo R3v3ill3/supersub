@@ -29,12 +29,10 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
 
   return await retryService.executeWithRetry(
     async () => {
-      const base = process.cwd();
-      const schemaPath = path.resolve(base, 'packages/prompts/submission.schema.json');
-      const schemaStr = await fs.readFile(schemaPath, 'utf8');
-
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+      // Use simple JSON mode instead of strict schema for better compatibility
+      // The prompt explicitly instructs to output JSON with { "final_text": "..." }
       const response = await client.chat.completions.create({
         model,
         temperature,
@@ -43,7 +41,7 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
           { role: 'system', content: system.replace('{{MAX_WORDS}}', String(maxWords)) },
           { role: 'user', content: user }
         ],
-        response_format: { type: 'json_schema', json_schema: JSON.parse(schemaStr) }
+        response_format: { type: 'json_object' }
       });
 
       const msg = response.choices[0]?.message?.content ?? '{}';
