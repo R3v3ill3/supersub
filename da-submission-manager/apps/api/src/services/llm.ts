@@ -238,7 +238,12 @@ export async function generateSubmission(args: GenerateArgs) {
 
   const userTpl = Handlebars.compile(userTplStr, { noEscape: true });
   const user = userTpl({
-    ...args.meta,
+    // Only pass fields actually used in template - exclude applicant_name to prevent AI from echoing it
+    recipient_name: args.meta.recipient_name,
+    subject: args.meta.subject,
+    application_number: args.meta.application_number,
+    site_address: args.meta.site_address,
+    submission_track: args.meta.submission_track || '',
     approved_facts: args.approvedFacts,
     selected_concerns: args.selectedConcerns,
     user_style_sample: args.styleSample,
