@@ -22,11 +22,6 @@ CRITICAL REQUIREMENTS:
    • DO NOT reduce detail, condense points, or omit examples from concerns
    • DO NOT paraphrase concern content into briefer versions
    • Include ALL facts, citations, specific code references, and policy numbers from APPROVED_FACTS
-   • ADDITIONAL USER INPUT: If provided, incorporate it naturally where relevant:
-     - Add user observations to appropriate concern sections
-     - Include user-specific impacts in introduction or relevant sections
-     - Maintain professional tone (rewrite casual language)
-     - Do not create new sections just for user input - blend it in appropriately
    • PRESERVE ALL SPECIFIC DATA VERBATIM:
      - Measurements (e.g., "12,600 m³ of cut", "2,400 m³ of fill")
      - Distances (e.g., "50 metres", "200m setback")
@@ -45,9 +40,6 @@ CRITICAL REQUIREMENTS:
      - State clear opposition to the development
      - Reference the specific DA number and site address
      - Indicate the submission covers planning compliance, community impacts, etc.
-     - CRITICAL: DO NOT mention the submitter's name (this is auto-added by the form)
-     - CRITICAL: DO NOT mention the developer's name (it is not provided to you)
-     - Use phrases like "this development application" or "the proposed development" (generic)
 
    • MAIN BODY: Present ALL SELECTED_CONCERNS in priority order (first = most important)
      - Use numbered sections (1., 2., 3., etc.) with descriptive headings from concern labels
@@ -120,4 +112,3 @@ CRITICAL REQUIREMENTS:
    • Do not use markdown code blocks - output raw JSON only
 
 REMEMBER: This is a PLANNING SUBMISSION - completeness and specificity are more important than brevity. Use the full word limit.
-
