@@ -5,7 +5,6 @@ import { SuccessIcon, BoltIcon } from '@da/ui/icons';
 import { api } from '../lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import SubmissionEditor from '../components/SubmissionEditor';
 import GoogleAddressAutocomplete from '../components/GoogleAddressAutocomplete';
 
 type SubmissionTrack = 'followup' | 'comprehensive';
@@ -1313,8 +1312,8 @@ export default function SubmissionForm() {
           </div>
           <p className="text-gray-600 mb-6">
             {isEditMode 
-              ? 'Edit your applicant details and grounds for submission. Grey text indicates protected structure that cannot be edited.'
-              : 'Review your formatted submission below. Click Edit to make changes to your details or grounds.'}
+              ? 'Edit your submission text directly. You can modify any part of the submission. Click Preview to see the formatted version.'
+              : 'Review your formatted submission below. Click Edit to make changes.'}
           </p>
 
           <div className="mb-6">
@@ -1328,9 +1327,12 @@ export default function SubmissionForm() {
             </div>
             
             {isEditMode ? (
-              <SubmissionEditor 
+              <textarea
                 value={generatedText}
-                onChange={(newValue) => setGeneratedText(newValue)}
+                onChange={(e) => setGeneratedText(e.target.value)}
+                rows={30}
+                className="w-full border border-gray-300 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                style={{ minHeight: '600px' }}
               />
             ) : (
               <div 
