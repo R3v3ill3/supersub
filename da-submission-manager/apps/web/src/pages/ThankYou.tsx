@@ -32,15 +32,6 @@ export default function ThankYou() {
           )}
 
         </div>
-
-        <div className="mt-8 text-center border-t pt-6">
-          <a
-            href="/"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md inline-block"
-          >
-            Submit Another
-          </a>
-        </div>
       </div>
     </div>
   );
