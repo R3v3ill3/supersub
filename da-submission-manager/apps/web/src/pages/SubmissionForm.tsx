@@ -198,8 +198,11 @@ export default function SubmissionForm() {
   const [submissionId, setSubmissionId] = useState<string>('');
   const [actionNetworkResult, setActionNetworkResult] = useState<ActionNetworkSyncResult | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [generatedText, setGeneratedText] = useState<string>('');
-  const [originalGeneratedText, setOriginalGeneratedText] = useState<string>('');
+  // Grounds content (editable by user)
+  const [groundsText, setGroundsText] = useState<string>('');
+  const [originalGroundsText, setOriginalGroundsText] = useState<string>('');
+  // Full preview (for display only - includes headers, declaration, etc.)
+  const [fullPreview, setFullPreview] = useState<string>('');
   const [emailBody, setEmailBody] = useState<string>('');
   const [originalEmailBody, setOriginalEmailBody] = useState<string>('');
   const [emailSubject, setEmailSubject] = useState<string>('');
@@ -353,9 +356,15 @@ export default function SubmissionForm() {
       return response.data;
     },
     onSuccess: (data) => {
-      const preview = data.preview || '';
-      setGeneratedText(preview);
-      setOriginalGeneratedText(preview); // Save original for reset functionality
+      // Set the editable grounds content (what user can edit)
+      const grounds = data.groundsOnly || '';
+      setGroundsText(grounds);
+      setOriginalGroundsText(grounds); // Save original for reset functionality
+      
+      // Set the full formatted preview (for display only)
+      const preview = data.fullPreview || data.preview || '';
+      setFullPreview(preview);
+      
       setStep(4);
     },
   });
@@ -363,7 +372,7 @@ export default function SubmissionForm() {
   // Preview email body mutation
   const previewEmailBodyMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.submissions.previewEmailBody(submissionId, { finalText: generatedText });
+      const response = await api.submissions.previewEmailBody(submissionId, { finalText: groundsText });
       return response.data;
     },
     onSuccess: (data) => {
@@ -378,7 +387,7 @@ export default function SubmissionForm() {
   const submitMutation = useMutation({
     mutationFn: async () => {
       const response = await api.submissions.submit(submissionId, { 
-        finalText: generatedText,
+        finalText: groundsText,  // Send only the grounds content (will be re-formatted on backend)
         emailBody: emailBody 
       });
       return response.data;

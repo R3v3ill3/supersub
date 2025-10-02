@@ -247,7 +247,9 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
 
     const response: any = {
       ok: true,
-      preview: formattedSubmission, // Return the formatted submission
+      preview: formattedSubmission, // Full formatted submission (for backwards compatibility)
+      groundsOnly: finalText,        // Just the AI-generated grounds content (editable)
+      fullPreview: formattedSubmission, // Complete formatted document (for preview)
       submissionId,
       status: 'READY_FOR_REVIEW'
     };
