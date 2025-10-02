@@ -51,7 +51,8 @@ export class PdfGeneratorService {
         doc.moveDown(1.5);
 
         // Normalize content for PDF-safe characters and process line by line
-        const normalizedContent = this.normalizeContent(content);
+        // Trim excessive trailing whitespace to prevent blank pages
+        const normalizedContent = this.normalizeContent(content.trimEnd());
         const lines = normalizedContent.split('\n');
         let inList = false;
         let previousWasHeading = false;
@@ -291,19 +292,23 @@ export class PdfGeneratorService {
       .replace(/&lsquo;/g, "'")
       .replace(/&ldquo;/g, '"')
       .replace(/&rdquo;/g, '"')
-      .replace(/&#x2610;|&#x25A1;/g, '[ ]')
-      .replace(/&#x2611;|&#9745;/g, '[x]')
+      // Checkbox characters - replace with simpler alternatives
+      .replace(/&#x2610;|&#x25A1;|☐/g, '☐')  // Empty checkbox - keep simple version
+      .replace(/&#x2611;|&#9745;|☑/g, '☑')  // Checked checkbox - keep simple version
       .replace(/&#x00AD;/g, '')
       .replace(/&#x00B7;/g, '·')
       .replace(/&#x2212;/g, '-')
       .replace(/&#x2018;/g, "'")
       .replace(/&#x201A;/g, ',')
       .replace(/&#x2032;/g, "'")
-      .replace(/&#x2033;/g, '"');
+      .replace(/&#x2033;/g, '"')
+      // Remove excessive consecutive newlines (more than 3 in a row)
+      .replace(/\n{4,}/g, '\n\n\n');
   }
 
   /**
    * Tokenize text into parts with formatting
+   * Improved to handle edge cases and nested formatting
    */
   private tokenizeText(text: string): Array<{ type: 'normal' | 'bold' | 'italic'; text: string }> {
     const tokens: Array<{ type: 'normal' | 'bold' | 'italic'; text: string }> = [];
@@ -313,37 +318,57 @@ export class PdfGeneratorService {
     while (i < text.length) {
       // Check for bold **text**
       if (text[i] === '*' && text[i + 1] === '*') {
+        // Save any accumulated normal text
         if (current) {
           tokens.push({ type: 'normal', text: current });
           current = '';
         }
-        i += 2;
+        i += 2; // Skip opening **
         let boldText = '';
-        while (i < text.length && !(text[i] === '*' && text[i + 1] === '*')) {
+        // Find the closing **
+        while (i < text.length) {
+          if (text[i] === '*' && text[i + 1] === '*') {
+            // Found closing **
+            if (boldText) {
+              tokens.push({ type: 'bold', text: boldText });
+            }
+            i += 2; // Skip closing **
+            break;
+          }
           boldText += text[i];
           i++;
         }
-        if (boldText) {
-          tokens.push({ type: 'bold', text: boldText });
+        // If we didn't find a closing **, treat the ** as literal text
+        if (i >= text.length && boldText) {
+          tokens.push({ type: 'normal', text: '**' + boldText });
         }
-        i += 2; // Skip closing **
       }
-      // Check for italic *text*
-      else if (text[i] === '*') {
+      // Check for italic *text* (but not **)
+      else if (text[i] === '*' && text[i + 1] !== '*') {
+        // Save any accumulated normal text
         if (current) {
           tokens.push({ type: 'normal', text: current });
           current = '';
         }
-        i++;
+        i++; // Skip opening *
         let italicText = '';
-        while (i < text.length && text[i] !== '*') {
+        // Find the closing *
+        while (i < text.length) {
+          if (text[i] === '*' && text[i + 1] !== '*') {
+            // Found closing *
+            if (italicText) {
+              tokens.push({ type: 'italic', text: italicText });
+            }
+            i++; // Skip closing *
+            break;
+          }
           italicText += text[i];
           i++;
         }
-        if (italicText) {
-          tokens.push({ type: 'italic', text: italicText });
+        // If we didn't find a closing *, treat the * as literal text
+        if (i >= text.length && italicText) {
+          tokens.push({ type: 'normal', text: '*' + italicText });
         }
-        i++; // Skip closing *
       }
       else {
         current += text[i];
@@ -351,6 +376,7 @@ export class PdfGeneratorService {
       }
     }
 
+    // Add any remaining normal text
     if (current) {
       tokens.push({ type: 'normal', text: current });
     }

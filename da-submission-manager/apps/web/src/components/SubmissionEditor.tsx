@@ -58,31 +58,48 @@ export default function SubmissionEditor({ value, onChange }: SubmissionEditorPr
             );
           }
 
-          if (section.type === 'value' && section.editable) {
-            return (
-              <div key={section.key} className="mb-2">
-                <input
-                  type="text"
-                  value={section.content}
-                  onChange={(e) => handleSectionChange(section.key, e.target.value)}
-                  className="w-full border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-            );
+          if (section.type === 'value') {
+            if (section.editable) {
+              return (
+                <div key={section.key} className="mb-2">
+                  <input
+                    type="text"
+                    value={section.content}
+                    onChange={(e) => handleSectionChange(section.key, e.target.value)}
+                    className="w-full border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                </div>
+              );
+            } else {
+              return (
+                <div key={section.key} className="text-sm text-gray-500 mb-2">
+                  {section.content}
+                </div>
+              );
+            }
           }
 
-          if (section.type === 'grounds' && section.editable) {
-            return (
-              <div key={section.key} className="mb-4">
-                <textarea
-                  value={section.content}
-                  onChange={(e) => handleSectionChange(section.key, e.target.value)}
-                  rows={15}
-                  className="w-full border border-blue-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-sans"
-                  placeholder="Enter your grounds for submission..."
-                />
-              </div>
-            );
+          if (section.type === 'grounds') {
+            if (section.editable) {
+              return (
+                <div key={section.key} className="mb-4">
+                  <textarea
+                    value={section.content}
+                    onChange={(e) => handleSectionChange(section.key, e.target.value)}
+                    rows={15}
+                    className="w-full border border-blue-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-sans"
+                    placeholder="Enter your grounds for submission..."
+                  />
+                </div>
+              );
+            } else {
+              // This shouldn't happen, but fallback to grey text
+              return (
+                <div key={section.key} className="text-sm text-gray-500 italic whitespace-pre-wrap mb-4">
+                  {section.content}
+                </div>
+              );
+            }
           }
 
           if (section.type === 'declaration') {
@@ -191,7 +208,7 @@ function parseSubmission(text: string): EditableSection[] {
       // Determine which section we're in based on the header
       if (line.includes('Property Details')) {
         currentSection = 'property';
-      } else if (line.includes('Submitter Details')) {
+      } else if (line.includes('Submitter Details') || line.includes('Postal Address')) {
         currentSection = 'submitter';
       } else if (line.includes('Grounds of Submission') || line.includes('Grounds for Submission')) {
         currentSection = 'grounds';
@@ -199,6 +216,8 @@ function parseSubmission(text: string): EditableSection[] {
       } else if (line.includes('Declaration')) {
         currentSection = 'declaration';
         inDeclaration = true;
+      } else if (line.includes('Submission Details')) {
+        // Stay in current section, don't change
       }
       
       continue;

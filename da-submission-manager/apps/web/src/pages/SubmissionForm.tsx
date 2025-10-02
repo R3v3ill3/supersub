@@ -500,6 +500,11 @@ export default function SubmissionForm() {
 
   const testModeEmail = project.test_submission_email;
   const projectName = project.name || project.slug;
+  const isHighTreesProject = projectSlug === 'high-trees-currumbin-valley';
+  const landingTitle = isHighTreesProject ? 'Currumbin Valley Proposed Development' : projectName;
+  const landingSubtitle = isHighTreesProject
+    ? 'Lodge your submission to the High Trees Currumbin Valley Development Application'
+    : `Submit your objection or support for ${projectName}.`;
 
   if (step === 1) {
     return (
@@ -514,14 +519,14 @@ export default function SubmissionForm() {
                   rel="noreferrer"
                   className="text-blue-600 hover:underline"
                 >
-                  {projectName}
+                  {landingTitle}
                 </a>
               ) : (
-                projectName
+                landingTitle
               )}
             </h1>
             <p className="text-gray-600">
-              Submit your objection or support for {projectName}.
+              {landingSubtitle}
             </p>
           </div>
 
