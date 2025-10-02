@@ -24,14 +24,6 @@ export default function SubmissionEditor({ value, onChange }: SubmissionEditorPr
   useEffect(() => {
     // Parse the markdown into editable and non-editable sections
     const parsed = parseSubmission(value);
-    
-    // Debug: Log all sections to see what's happening
-    console.log('=== PARSED SECTIONS ===');
-    parsed.forEach((section, idx) => {
-      console.log(`[${idx}] ${section.type} (editable: ${section.editable}):`, 
-        section.content.substring(0, 100));
-    });
-    
     setSections(parsed);
   }, [value]);
 
@@ -214,18 +206,26 @@ function parseSubmission(text: string): EditableSection[] {
       });
       
       // Determine which section we're in based on the header
-      if (line.includes('Property Details')) {
+      // ACTUAL headers from SubmissionFormatterService:
+      // ## Application details (property - NOT editable)
+      // ## Submitter details (submitter - editable)
+      // ## Submission details (form position)
+      // ## Grounds of submission: (grounds - editable)
+      // ## Declaration (declaration - editable)
+      
+      if (line.includes('Application details')) {
         currentSection = 'property';
-      } else if (line.includes('Submitter Details') || line.includes('Postal Address')) {
+      } else if (line.includes('Submitter details')) {
         currentSection = 'submitter';
-      } else if (line.includes('Grounds of Submission') || line.includes('Grounds for Submission')) {
+      } else if (line.includes('Grounds of submission')) {
         currentSection = 'grounds';
         inGrounds = true;
       } else if (line.includes('Declaration')) {
         currentSection = 'declaration';
         inDeclaration = true;
-      } else if (line.includes('Submission Details')) {
-        // Stay in current section, don't change
+      } else if (line.includes('Submission details')) {
+        // This is just the position (Objecting/Supporting), treat as property
+        currentSection = 'property';
       }
       
       continue;
@@ -239,13 +239,17 @@ function parseSubmission(text: string): EditableSection[] {
 
     // If we're in grounds section, collect all content
     if (inGrounds) {
-      // Stop collecting if we hit the summary paragraph or declaration
-      if (line.includes('The above grounds focus on') || 
-          line.includes('## Declaration') ||
-          line.includes('I understand and acknowledge')) {
+      // Stop collecting if we hit the footer text that starts with "The above grounds focus on"
+      // This comes after a --- separator in the formatter
+      if (line.includes('The above grounds focus on')) {
+        // Save the grounds content (but don't include the trailing ---)
+        const content = groundsContent.join('\n').trim();
+        // Remove trailing --- if present
+        const cleanContent = content.replace(/\n*---\n*$/, '').trim();
+        
         sections.push({
           type: 'grounds',
-          content: groundsContent.join('\n').trim(),
+          content: cleanContent,
           editable: true,
           key: `grounds-${currentKey++}`
         });
