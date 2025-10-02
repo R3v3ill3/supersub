@@ -96,6 +96,15 @@ const postBody = z.object({
 router.post('/api/survey/:submissionId', surveyLimiter, async (req, res) => {
   try {
     const { submissionId } = req.params;
+    console.log('[survey] Received survey data:', {
+      submissionId,
+      dataKeys: Object.keys(req.body || {}),
+      selectedKeysCount: (req.body?.selected_keys || []).length,
+      hasStyleSample: !!(req.body?.user_style_sample),
+      hasCustomGrounds: !!(req.body?.custom_grounds),
+      hasOrderedKeys: !!(req.body?.ordered_keys)
+    });
+    
     const body = postBody.parse(req.body);
     const supabase = getSupabase();
 
@@ -182,6 +191,13 @@ router.post('/api/survey/:submissionId', surveyLimiter, async (req, res) => {
       status: 'SURVEY_COMPLETED'
     });
   } catch (err: any) {
+    console.error('[survey] ERROR saving survey:', {
+      submissionId: req.params.submissionId,
+      error: err?.message,
+      errorType: err?.constructor?.name,
+      receivedData: req.body,
+      stack: err?.stack?.split('\n').slice(0, 3).join('\n')
+    });
     res.status(400).json({ error: err?.message ?? 'Bad request' });
   }
 });

@@ -1,97 +1,33 @@
-===== INPUT DATA =====
+RECIPIENT_NAME: {{recipient_name}}
+SUBJECT: {{subject}}
 
-CRITICAL: You are writing an OBJECTION to a development application.
-- The submitter (person objecting) will be identified separately - DO NOT mention their name in the grounds
-- The developer/applicant name is UNKNOWN - never state who submitted the DA
-- Application number: {{application_number}}
-- Site address: {{site_address}}
+APPLICATION_NUMBER: {{application_number}}
+SITE_ADDRESS: {{site_address}}
+SUBMISSION_TRACK: {{submission_track}}
 
-NEVER write phrases like:
-✗ "development application by [name]"  
-✗ "proposal by [name]"
-✗ "applicant [name]"
-
-CORRECT phrasing:
-✓ "this development application"
-✓ "the proposed development"  
-✓ "the applicant has not demonstrated..." (generic, not naming them)
-
-===== APPROVED FACTS (SOURCE MATERIAL) =====
-
+APPROVED_FACTS:
 {{{approved_facts}}}
 
-===== SELECTED CONCERNS (SOURCE MATERIAL - USE ALL OF THESE) =====
-
+SELECTED_CONCERNS:
 {{#each selected_concerns}}
-Concern {{@index}}:
-  Key: {{this.key}}
-  Content: |
-{{{indent this.body 4}}}
-
+- KEY: {{this.key}}
+  BODY: |
+{{{indent this.body 2}}}
 {{/each}}
 
-===== USER WRITING STYLE SAMPLE =====
-
-{{{user_style_sample}}}
-
-===== ADDITIONAL USER INPUT (IF PROVIDED) =====
-
 {{#if custom_grounds}}
-The submitter has provided the following additional points or context to incorporate:
-
+ADDITIONAL_GROUNDS_FROM_USER:
 {{{custom_grounds}}}
 
-INSTRUCTIONS FOR USING ADDITIONAL USER INPUT:
-- Incorporate this naturally into the relevant sections where applicable
-- If it relates to a specific concern, add it to that concern's section
-- If it's general commentary, include it in the introduction or conclusion
-- Maintain professional planning language - rewrite casual language if needed
-- DO NOT create new concern sections just for user input
-- DO NOT contradict or duplicate the template concerns
-- DO NOT add facts not stated by the user
-{{else}}
-No additional user input provided.
+Note: Incorporate the above user input naturally into relevant sections. Maintain professional tone.
 {{/if}}
 
-===== END OF SOURCE MATERIAL =====
+USER_STYLE_SAMPLE:
+{{{user_style_sample}}}
 
-Now draft the grounds for submission using ALL the concerns above.
-
-OUTPUT FORMAT REQUIREMENT:
-You MUST respond with ONLY this JSON structure (no other fields):
-{
-  "final_text": "your complete grounds for submission text here"
-}
-
-DO NOT output fields like "recipient_name", "subject", "body", etc.
-ONLY output the single field "final_text" containing the full grounds text.
-
----
-
-EXAMPLE OF CORRECT CONCERN REPRODUCTION:
-
-If SELECTED_CONCERNS contains:
-  KEY: bulk_excavation
-  BODY: |
-    Approximately 12,600 m³ of cut, 2,400 m³ of fill, and 7,000 m³ of soil export, with steep batters and extensive retaining walls causing significant construction impacts and permanent visual scarring.
-
-Your output section should include:
-
-## 4. Bulk Excavation and Earthworks
-
-The proposed development involves extensive earthworks. Approximately 12,600 m³ of cut, 2,400 m³ of fill, and 7,000 m³ of soil export are planned, with steep batters and extensive retaining walls causing significant construction impacts and permanent visual scarring.
-
-CORRECT ELEMENTS:
-✓ All specific measurements preserved: "12,600 m³", "2,400 m³", "7,000 m³"
-✓ All technical terms preserved: "steep batters", "extensive retaining walls"
-✓ All impacts preserved: "construction impacts", "permanent visual scarring"
-✓ Only minimal text added for flow: "The proposed development involves extensive earthworks."
-
-INCORRECT (DO NOT DO THIS):
-✗ "The development involves substantial excavation with significant visual impacts."
-   [This loses all specific measurements and technical details]
-✗ "Approximately 12,000+ m³ of excavation is proposed."
-   [This generalizes and loses the breakdown of cut/fill/export]
-
-REMEMBER: Include ALL data points, measurements, and technical terms from the source verbatim.
+CRITICAL REMINDERS:
+- DO NOT mention the submitter's name in the grounds content
+- Use "this development application" or "the proposed development" (not "application by [name]")
+- Include ALL specific measurements verbatim (e.g., "12,600 m³ of cut, 2,400 m³ of fill")
+- Preserve ALL technical terms and planning code references exactly as written
 

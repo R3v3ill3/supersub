@@ -59,20 +59,31 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
       }
       
       console.log('[OpenAI] Parsed keys:', Object.keys(parsed));
+      console.log('[OpenAI] final_text type:', typeof parsed.final_text);
       console.log('[OpenAI] final_text length:', parsed.final_text?.length ?? 0);
-      console.log('[OpenAI] body length:', parsed.body?.length ?? 0);
+      console.log('[OpenAI] body type:', typeof parsed.body);
+      console.log('[OpenAI] body length:', typeof parsed.body === 'string' ? parsed.body?.length : 'not a string');
       
       // OpenAI might return content in "body" or "final_text" field
-      // Try "final_text" first (preferred), fallback to "body"
-      const finalText = String(parsed.final_text || parsed.body || '');
-      
-      if (!finalText || finalText.length === 0) {
-        console.error('[OpenAI] WARNING: No content found in final_text or body!');
-        console.error('[OpenAI] Full parsed object:', JSON.stringify(parsed).substring(0, 500));
-        throw new Error('OpenAI returned empty content');
+      // Make sure we only accept strings, not objects
+      let finalText = '';
+      if (typeof parsed.final_text === 'string' && parsed.final_text.length > 0) {
+        finalText = parsed.final_text;
+        console.log('[OpenAI] Using final_text field');
+      } else if (typeof parsed.body === 'string' && parsed.body.length > 0) {
+        finalText = parsed.body;
+        console.log('[OpenAI] Using body field');
+      } else {
+        console.error('[OpenAI] ERROR: No valid string content found!');
+        console.error('[OpenAI] final_text:', parsed.final_text);
+        console.error('[OpenAI] body:', parsed.body);
+        console.error('[OpenAI] Full object:', JSON.stringify(parsed).substring(0, 1000));
+        throw new Error('OpenAI returned invalid content type');
       }
       
-      console.log('[OpenAI] Using content from field:', parsed.final_text ? 'final_text' : 'body');
+      if (!finalText || finalText.trim().length === 0) {
+        throw new Error('OpenAI returned empty content');
+      }
 
       return {
         finalText,
