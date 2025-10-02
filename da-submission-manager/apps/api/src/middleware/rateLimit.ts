@@ -20,6 +20,7 @@ export const standardLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  validate: { trustProxy: false }, // We handle Railway proxy correctly
   // Skip rate limiting in development
   skip: (req: Request) => process.env.NODE_ENV === 'development',
   handler: (req: Request, res: Response) => {
@@ -47,6 +48,7 @@ export const submissionLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // We handle Railway proxy correctly
   skip: (req: Request) => process.env.NODE_ENV === 'development',
   keyGenerator: (req: Request) => {
     // Use IP address as the key
@@ -111,6 +113,7 @@ export const surveyLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // We handle Railway proxy correctly
   skip: (req: Request) => process.env.NODE_ENV === 'development',
   handler: (req: Request, res: Response) => {
     console.warn(`Survey rate limit exceeded for IP: ${req.ip}`);
@@ -136,6 +139,7 @@ export const adminLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // We handle Railway proxy correctly
   skip: (req: Request) => process.env.NODE_ENV === 'development',
   keyGenerator: (req: Request) => {
     // Use authenticated user ID if available, otherwise IP
@@ -167,6 +171,7 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // We handle Railway proxy correctly
   skipSuccessfulRequests: true, // Don't count successful logins
   handler: (req: Request, res: Response) => {
     console.warn(`Authentication rate limit exceeded for IP: ${req.ip}`);
