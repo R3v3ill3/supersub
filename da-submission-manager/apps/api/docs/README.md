@@ -31,6 +31,12 @@ Overview of monitoring, status tracking, and health endpoints for the DA Submiss
   - `checkStaleSubmissions(thresholdMinutes?)`
   - `retryFailedOperations(submissionId)`
 
+## Environment Variables
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| PDF_ENGINE | Set to `puppeteer` to enable Chromium-based PDF generation; defaults to `pdfkit`. | No | pdfkit |
+
 ## Database Migration `0016_monitoring_views.sql`
 
 - Tables: `submission_status_events`, `integration_status_logs`.

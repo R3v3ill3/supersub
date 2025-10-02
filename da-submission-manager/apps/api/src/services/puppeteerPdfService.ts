@@ -17,7 +17,7 @@ export class PuppeteerPdfService {
     this.logger.info('Launching puppeteer browser for PDF generation');
     this.browser = await puppeteer.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: 'new'
+      headless: true
     });
     return this.browser;
   }
@@ -52,7 +52,7 @@ export class PuppeteerPdfService {
 
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
-      const buffer = await page.pdf({
+      const pdfBytes = await page.pdf({
         format: 'A4',
         printBackground: true,
         displayHeaderFooter: false,
@@ -64,6 +64,7 @@ export class PuppeteerPdfService {
         }
       });
 
+      const buffer = Buffer.from(pdfBytes);
       this.logger.info('Generated PDF using Puppeteer', { size: buffer.length });
       return buffer;
     } finally {
