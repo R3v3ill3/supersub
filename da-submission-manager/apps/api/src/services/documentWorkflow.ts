@@ -92,6 +92,13 @@ export type DocumentWorkflowResult = {
   reviewDeadline?: string | null;
   reviewStartedAt?: string | null;
   reviewCompletedAt?: string | null;
+  // PDF data for immediate download (avoids database storage/retrieval)
+  pdfData?: {
+    groundsPdf?: Buffer;
+    groundsPdfFilename?: string;
+    coverPdf?: Buffer;
+    coverPdfFilename?: string;
+  };
 };
 
 export type DocumentStatus = 'created' | 'user_editing' | 'finalized' | 'submitted' | 'approved';
@@ -139,14 +146,15 @@ export class DocumentWorkflowService {
   private logger: Logger;
   private static readonly DEFAULT_COUNCIL_EMAIL_BODY = `Dear {{council_name}},
 
+Attention: Tim Baker CEO,
+
 Please find attached the development application submission for {{site_address}}.
 
-Applicant: {{applicant_full_name}}
 Email: {{applicant_email}}
 {{application_number_line}}
 
 Kind regards,
-{{sender_name}}`;
+{{applicant_full_name}}`;
 
   constructor() {
     this.googleDocs = new GoogleDocsService();
@@ -384,7 +392,7 @@ Kind regards,
   /**
    * Process a complete submission workflow based on the submission pathway
    */
-  async processSubmission(submissionId: string, generatedContent?: string, customEmailBody?: string): Promise<DocumentWorkflowResult> {
+  async processSubmission(submissionId: string, generatedContent?: string, customEmailBody?: string, downloadPdf: boolean = true): Promise<DocumentWorkflowResult> {
     const supabase = getSupabase();
     if (!supabase) {
       throw new Error('Database not configured');
@@ -418,7 +426,7 @@ Kind regards,
     try {
       switch (submissionData.submission_pathway) {
         case 'direct':
-          return await this.processDirectSubmission(submissionData, projectData, generatedContent, customEmailBody);
+          return await this.processDirectSubmission(submissionData, projectData, generatedContent, customEmailBody, downloadPdf);
         
         case 'review':
           return await this.processReviewSubmission(submissionData, projectData, generatedContent);
@@ -450,7 +458,8 @@ Kind regards,
     submission: SubmissionData,
     project: ProjectData,
     generatedContent?: string,
-    customEmailBody?: string
+    customEmailBody?: string,
+    downloadPdf: boolean = true
   ): Promise<DocumentWorkflowResult> {
     const supabase = this.getClient();
 
@@ -503,7 +512,7 @@ Kind regards,
       coverBodyHtml
     );
 
-    // Update submission and store PDF for download
+    // Update submission status (don't store PDF in database for direct downloads)
     const submittedAt = new Date().toISOString();
 
     await supabase
@@ -513,20 +522,24 @@ Kind regards,
         status: 'SUBMITTED',
         submitted_to_council_at: submittedAt,
         council_confirmation_id: emailResult.messageId,
-        // Supabase JS client requires BYTEA data to be base64-encoded
-        grounds_pdf_data: groundsFile.toString('base64'),
-        grounds_pdf_filename: groundsFileName
+        updated_at: submittedAt
       } as any)
       .eq('id', submission.id);
 
     // No Google Docs created for direct pathway, so no document records to save
-    // Only grounds PDF is attached to email and stored in submissions table
+    // Return PDF data for immediate frontend download instead of storing in database
     // Cover letter content is used as the email body
 
     return {
       submissionId: submission.id,
       emailSent: true,
-      status: 'SUBMITTED'
+      status: 'SUBMITTED',
+      ...(downloadPdf && {
+        pdfData: {
+          groundsPdf: groundsFile,
+          groundsPdfFilename: groundsFileName
+        }
+      })
     };
   }
 

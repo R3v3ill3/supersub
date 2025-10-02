@@ -117,17 +117,18 @@ I understand and acknowledge that:
 
 const goldCoastEmailTemplate = `Dear {{council_name}},
 
+Attention: Tim Baker CEO,
+
 Please find attached our development application submission in response to Application {{application_number}}.
 
 Property: {{site_address}}
-Applicant: {{applicant_full_name}}
 Email: {{applicant_email}}
 Position: OBJECTING
 
 This submission outlines community concerns regarding the proposed development and its compliance with the Gold Coast City Plan.
 
 Kind regards,
-{{sender_name}}`;
+{{applicant_full_name}}`;
 
 export function GoldCoastDefaultSelector({
   selectedDefault,

@@ -277,7 +277,7 @@ router.post('/api/submissions', submissionLimiter, async (req, res) => {
 router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const { finalText, emailBody } = req.body;
+    const { finalText, emailBody, downloadPdf = true } = req.body;
 
     if (!finalText || typeof finalText !== 'string') {
       return res.status(400).json({ error: 'Final text is required' });
@@ -323,23 +323,41 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
     // Trigger document workflow to generate PDFs and send emails
     // This will handle the submission based on the project's submission_pathway
     const documentWorkflow = new DocumentWorkflowService();
-    logger.info(`[submissions] Processing document workflow for submission ${submissionId}`);
-    
-    const workflowResult = await documentWorkflow.processSubmission(submissionId, finalText, emailBody);
-    
-    logger.info(`[submissions] Document workflow completed`, { 
-      submissionId, 
+    logger.info(`[submissions] Processing document workflow for submission ${submissionId}`, { downloadPdf });
+
+    const workflowResult = await documentWorkflow.processSubmission(submissionId, finalText, emailBody, downloadPdf);
+
+    logger.info(`[submissions] Document workflow completed`, {
+      submissionId,
       emailSent: workflowResult.emailSent,
-      status: workflowResult.status 
+      status: workflowResult.status,
+      hasPdfData: !!workflowResult.pdfData
     });
 
-    res.json({
+    // Prepare response with PDF data for immediate download
+    const response: any = {
       ok: true,
       submissionId,
       status: workflowResult.status,
       emailSent: workflowResult.emailSent,
       documentId: workflowResult.documentId
-    });
+    };
+
+    // Include PDF data if available (convert Buffer to base64 for JSON transport)
+    // Only include if user opted for download
+    if (workflowResult.pdfData && downloadPdf) {
+      response.pdfData = {};
+      if (workflowResult.pdfData.groundsPdf) {
+        response.pdfData.groundsPdf = workflowResult.pdfData.groundsPdf.toString('base64');
+        response.pdfData.groundsPdfFilename = workflowResult.pdfData.groundsPdfFilename;
+      }
+      if (workflowResult.pdfData.coverPdf) {
+        response.pdfData.coverPdf = workflowResult.pdfData.coverPdf.toString('base64');
+        response.pdfData.coverPdfFilename = workflowResult.pdfData.coverPdfFilename;
+      }
+    }
+
+    res.json(response);
   } catch (error: any) {
     logger.error('[submissions] Error processing submission', { 
       submissionId: req.params.submissionId, 
@@ -375,12 +393,11 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
     }
 
     // Helper function to decode PDF data from Supabase BYTEA column
-    // Supabase may store data as hex-encoded JSON-serialized Buffer
     const decodePdfData = (data: any): Buffer => {
       if (Buffer.isBuffer(data)) {
         return data;
       }
-      
+
       if (typeof data === 'string') {
         // Check if it's hex-encoded (starts with \x)
         if (data.startsWith('\\x')) {
@@ -389,23 +406,40 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
             const hexData = data.slice(2);
             const hexBuffer = Buffer.from(hexData, 'hex');
             const jsonString = hexBuffer.toString('utf8');
-            
+
             // Check if it's JSON-serialized Buffer
             if (jsonString.startsWith('{"type":"Buffer"')) {
               const bufferJson = JSON.parse(jsonString);
               return Buffer.from(bufferJson.data);
             }
-            
+
             return hexBuffer;
           } catch (e) {
             // Fall through to base64
           }
         }
-        
-        // Try base64 decode
-        return Buffer.from(data, 'base64');
+
+        // Clean the base64 string (remove any whitespace or newlines)
+        const cleanBase64 = data.replace(/[\s\r\n]/g, '');
+
+        try {
+          // Try base64 decode
+          return Buffer.from(cleanBase64, 'base64');
+        } catch (e) {
+          // If base64 decode fails, try to decode as if it's already a buffer string
+          try {
+            // Sometimes Supabase returns the data as a string representation of the buffer
+            if (cleanBase64.startsWith('{"type":"Buffer"')) {
+              const bufferJson = JSON.parse(cleanBase64);
+              return Buffer.from(bufferJson.data);
+            }
+          } catch (parseError) {
+            // Ignore parse error and throw original error
+          }
+          throw new Error(`Invalid base64 data: ${e instanceof Error ? e.message : 'Unknown error'}`);
+        }
       }
-      
+
       throw new Error('Unsupported PDF data format');
     };
 
@@ -413,18 +447,56 @@ router.get('/api/submissions/:submissionId/download/:fileType', async (req, res)
       if (!submission.cover_pdf_data) {
         return res.status(404).json({ error: 'Cover letter PDF not found' });
       }
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${submission.cover_pdf_filename || 'cover_letter.pdf'}"`);
-      return res.send(decodePdfData(submission.cover_pdf_data));
+
+      try {
+        const pdfBuffer = decodePdfData(submission.cover_pdf_data);
+
+        // Ensure we have a valid PDF buffer
+        if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+          return res.status(500).json({ error: 'Invalid PDF data retrieved from database' });
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${submission.cover_pdf_filename || 'cover_letter.pdf'}"`);
+        res.setHeader('Content-Length', pdfBuffer.length.toString());
+        res.setHeader('Cache-Control', 'no-cache');
+
+        return res.send(pdfBuffer);
+      } catch (decodeError: any) {
+        logger.error('[submissions] Cover PDF decode error', {
+          submissionId: req.params.submissionId,
+          error: decodeError.message
+        });
+        return res.status(500).json({ error: 'Failed to process PDF for download' });
+      }
     }
 
     if (fileType === 'grounds') {
       if (!submission.grounds_pdf_data) {
         return res.status(404).json({ error: 'Grounds PDF not found' });
       }
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${submission.grounds_pdf_filename || 'submission.pdf'}"`);
-      return res.send(decodePdfData(submission.grounds_pdf_data));
+
+      try {
+        const pdfBuffer = decodePdfData(submission.grounds_pdf_data);
+
+        // Ensure we have a valid PDF buffer
+        if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+          return res.status(500).json({ error: 'Invalid PDF data retrieved from database' });
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${submission.grounds_pdf_filename || 'submission.pdf'}"`);
+        res.setHeader('Content-Length', pdfBuffer.length.toString());
+        res.setHeader('Cache-Control', 'no-cache');
+
+        return res.send(pdfBuffer);
+      } catch (decodeError: any) {
+        logger.error('[submissions] PDF decode error', {
+          submissionId: req.params.submissionId,
+          error: decodeError.message
+        });
+        return res.status(500).json({ error: 'Failed to process PDF for download' });
+      }
     }
 
     // For 'both', we need to combine or zip them

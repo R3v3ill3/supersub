@@ -278,7 +278,7 @@ export default function CreateProject() {
     cover_template_id: '',
     grounds_template_id: '',
     council_subject_template: 'Development application submission opposing application number {{application_number}}',
-    council_email_body_template: 'Dear {{council_name}},\n\nPlease find attached the development application submission for {{site_address}}.\n\nApplicant: {{applicant_full_name}}\nEmail: {{applicant_email}}\n{{application_number_line}}\n\nKind regards,\n{{sender_name}}',
+    council_email_body_template: 'Dear {{council_name}},\n\nAttention: Tim Baker CEO,\n\nPlease find attached the development application submission for {{site_address}}.\n\nEmail: {{applicant_email}}\n{{application_number_line}}\n\nKind regards,\n{{applicant_full_name}}',
     from_email: '',
     from_name: '',
     default_application_number: '',

@@ -93,14 +93,15 @@ const characterCountStyle: CSSProperties = {
 
 const defaultEmailTemplate = `Dear {{council_name}},
 
+Attention: Tim Baker CEO,
+
 Please find attached the development application submission for {{site_address}}.
 
-Applicant: {{applicant_full_name}}
 Email: {{applicant_email}}
 {{application_number_line}}
 
 Kind regards,
-{{sender_name}}`;
+{{applicant_full_name}}`;
 
 const MERGE_FIELDS = [
   { field: '{{council_name}}', description: 'Council name from project config' },

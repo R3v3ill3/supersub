@@ -210,6 +210,7 @@ export default function SubmissionForm() {
   const [isEmailEditMode, setIsEmailEditMode] = useState<boolean>(false);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
   const [showEmailResetConfirm, setShowEmailResetConfirm] = useState<boolean>(false);
+  const [downloadPdf, setDownloadPdf] = useState<boolean>(true); // Default to true for auto-download
 
   const {
     data: projectResponse,
@@ -386,20 +387,41 @@ export default function SubmissionForm() {
   // Submit final submission mutation
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.submissions.submit(submissionId, { 
+      const response = await api.submissions.submit(submissionId, {
         finalText: groundsText,  // Send only the grounds content (will be re-formatted on backend)
-        emailBody: emailBody 
+        emailBody: emailBody,
+        downloadPdf: downloadPdf  // Include download preference
       });
       return response.data;
     },
-    onSuccess: () => {
-      navigate('/thank-you', { 
-        state: { 
+    onSuccess: (data) => {
+      // Check if PDF data is included and user opted for download
+      if (data.pdfData?.groundsPdf && downloadPdf) {
+        // Convert base64 back to blob for download
+        const byteCharacters = atob(data.pdfData.groundsPdf);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.pdfData.groundsPdfFilename || 'DA_Submission.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
+
+      navigate('/thank-you', {
+        state: {
           submissionId,
           applicantEmail: formData.applicant_email,
           applicantName: `${formData.applicant_first_name} ${formData.applicant_last_name}`,
           siteAddress: formData.site_address
-        } 
+        }
       });
     },
     onError: (error: any) => {
@@ -1523,6 +1545,28 @@ export default function SubmissionForm() {
             <p className="text-sm text-blue-800">
               <strong>📎 Attachment:</strong> Your submission document will be attached as a PDF to this email.
             </p>
+          </div>
+
+          {/* PDF Download Option */}
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mb-6">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={downloadPdf}
+                onChange={(e) => setDownloadPdf(e.target.checked)}
+                className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900">
+                  Download PDF automatically
+                </span>
+                <p className="text-sm text-gray-600">
+                  {downloadPdf
+                    ? "The PDF will be downloaded to your device when you submit."
+                    : "The PDF will be sent via email only. You can download it later from the thank you page."}
+                </p>
+              </div>
+            </label>
           </div>
 
           <div className="flex items-center justify-between">
