@@ -85,7 +85,29 @@ export default function SubmissionEditor({ value, onChange }: SubmissionEditorPr
             );
           }
 
-          if (section.type === 'declaration' || section.type === 'text') {
+          if (section.type === 'declaration') {
+            if (section.editable) {
+              return (
+                <div key={section.key} className="mb-4">
+                  <textarea
+                    value={section.content}
+                    onChange={(e) => handleSectionChange(section.key, e.target.value)}
+                    rows={8}
+                    className="w-full border border-blue-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-sans"
+                    placeholder="Declaration text..."
+                  />
+                </div>
+              );
+            } else {
+              return (
+                <div key={section.key} className="text-sm text-gray-500 italic whitespace-pre-wrap">
+                  {section.content}
+                </div>
+              );
+            }
+          }
+
+          if (section.type === 'text') {
             return (
               <div key={section.key} className="text-sm text-gray-500 italic whitespace-pre-wrap">
                 {section.content}
@@ -140,6 +162,7 @@ function parseSubmission(text: string): EditableSection[] {
   let groundsContent: string[] = [];
   let inDeclaration = false;
   let declarationContent: string[] = [];
+  let currentSection: 'property' | 'submitter' | 'grounds' | 'declaration' | 'other' = 'other';
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -165,19 +188,23 @@ function parseSubmission(text: string): EditableSection[] {
         key: `header-${currentKey++}`
       });
       
-      // Check if this is the Grounds of Submission header
-      if (line.includes('Grounds of Submission') || line.includes('Grounds for Submission')) {
+      // Determine which section we're in based on the header
+      if (line.includes('Property Details')) {
+        currentSection = 'property';
+      } else if (line.includes('Submitter Details')) {
+        currentSection = 'submitter';
+      } else if (line.includes('Grounds of Submission') || line.includes('Grounds for Submission')) {
+        currentSection = 'grounds';
         inGrounds = true;
-      }
-      
-      // Check if this is Declaration
-      if (line.includes('Declaration')) {
+      } else if (line.includes('Declaration')) {
+        currentSection = 'declaration';
         inDeclaration = true;
       }
+      
       continue;
     }
 
-    // If we're in declaration section
+    // If we're in declaration section, collect and make editable
     if (inDeclaration) {
       declarationContent.push(line);
       continue;
@@ -223,10 +250,13 @@ function parseSubmission(text: string): EditableSection[] {
         key: `label-${currentKey++}`
       });
       
+      // Property Details fields are NOT editable, Submitter Details ARE editable
+      const isEditable = currentSection === 'submitter';
+      
       sections.push({
         type: 'value',
         content: valueText,
-        editable: true,
+        editable: isEditable,
         key: `value-${currentKey++}`
       });
       continue;
@@ -265,7 +295,7 @@ function parseSubmission(text: string): EditableSection[] {
     sections.push({
       type: 'declaration',
       content: declarationContent.join('\n').trim(),
-      editable: false,
+      editable: true, // Make declaration editable
       key: `declaration-${currentKey++}`
     });
   }

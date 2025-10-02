@@ -21,9 +21,8 @@ export default function ThankYou() {
       setDownloading('grounds');
       const response = await api.submissions.downloadPdf(state.submissionId, 'grounds');
       
-      // Create a blob and download link
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
+      // response.data is already a Blob when using responseType: 'blob'
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       link.download = 'DA_Submission.pdf';

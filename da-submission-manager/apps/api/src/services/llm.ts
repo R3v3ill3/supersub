@@ -111,7 +111,7 @@ async function generateWithClaude(args: GenerateArgs, system: string, user: stri
     throw new Error('ANTHROPIC_API_KEY not configured');
   }
 
-  const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+  const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
   const temperature = Number(process.env.ANTHROPIC_TEMPERATURE || 0.05);
 
   return await retryService.executeWithRetry(

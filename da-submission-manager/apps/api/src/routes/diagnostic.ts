@@ -42,7 +42,7 @@ router.get('/api/diagnostic/ai-config', async (req, res) => {
         enabledCheck: process.env.ANTHROPIC_ENABLED !== 'false',
         hasApiKey: !!process.env.ANTHROPIC_API_KEY,
         apiKeyPrefix: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 8) + '...' : 'NOT SET',
-        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022 (default)',
+        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929 (default)',
         temperature: process.env.ANTHROPIC_TEMPERATURE || '0.05 (default)',
         maxTokens: process.env.ANTHROPIC_MAX_TOKENS || '4000 (default)'
       },

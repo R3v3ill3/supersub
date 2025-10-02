@@ -9,9 +9,11 @@ Users could edit **too much** in the final draft submission interface:
 
 ## Solution
 Created a structured editor that:
-- ✅ **Allows editing** of applicant details (name, address, email, etc.)
-- ✅ **Allows editing** of grounds for submission content
-- ❌ **Prevents editing** of headers, labels, declaration text, and structure
+- ✅ **Allows editing** of submitter/applicant details (name, address, email, etc.)
+- ✅ **Allows editing** of grounds for submission content (the main submission text)
+- ✅ **Allows editing** of declaration text and checkmarks
+- ❌ **Prevents editing** of property details (lot number, plan number, property address, application number)
+- ❌ **Prevents editing** of headers, labels, and structural elements
 - 👁️ **Visual indication** - grey text for protected elements, white input fields for editable content
 
 ## Changes Made
@@ -65,17 +67,29 @@ Modified the Step 4 (review submission) interface:
 ├─────────────────────────────────────────────────────────────┤
 │ # Gold Coast Council - DA Submission        │ ← Grey (protected)
 │ ## Property Details                         │ ← Grey (protected)
-│ **Lot Number:** [123          ]             │ ← Label grey, value editable
-│ **Plan Number:** [SP456789    ]             │ ← Label grey, value editable
+│ **Lot Number:** 123                         │ ← Grey (NOT editable)
+│ **Plan Number:** SP456789                   │ ← Grey (NOT editable)
+│ **Property Address:** 123 Main St           │ ← Grey (NOT editable)
+│ **Application Number:** COM/2025/271        │ ← Grey (NOT editable)
+│                                              │
+│ ## Submitter Details                        │ ← Grey (protected)
+│ **First Name:** [John          ]            │ ← Label grey, value editable
+│ **Surname:** [Smith         ]               │ ← Label grey, value editable
+│ **Email:** [john@example.com]               │ ← Label grey, value editable
+│ **Residential Address:** [123 Main St]      │ ← Label grey, value editable
 │                                              │
 │ ## Grounds of Submission                    │ ← Grey (protected)
 │ ┌─────────────────────────────────────────┐ │
 │ │ [Large textarea for grounds content]    │ │ ← White (editable)
-│ │                                         │ │
+│ │ This is where the main submission       │ │
+│ │ arguments and planning objections go... │ │
 │ └─────────────────────────────────────────┘ │
 │                                              │
 │ ## Declaration                               │ ← Grey (protected)
-│ I understand and acknowledge...             │ ← Grey (protected)
+│ ┌─────────────────────────────────────────┐ │
+│ │ [Textarea for declaration content]      │ │ ← White (editable)
+│ │ ✓ I understand and acknowledge...       │ │
+│ └─────────────────────────────────────────┘ │
 └─────────────────────────────────────────────┘
 ```
 
