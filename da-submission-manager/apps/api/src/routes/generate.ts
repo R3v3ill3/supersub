@@ -207,6 +207,16 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
 
     // Format the grounds into proper Gold Coast submission structure
     const formatter = new SubmissionFormatterService();
+    const postalAddressSame = (
+      (!submission.applicant_postal_address && !submission.postal_suburb && !submission.postal_state && !submission.postal_postcode) ||
+      (
+        (submission.applicant_postal_address || '').trim() === (submission.applicant_residential_address || '').trim() &&
+        (submission.postal_suburb || '').trim() === (submission.applicant_suburb || '').trim() &&
+        (submission.postal_state || '').trim() === (submission.applicant_state || '').trim() &&
+        (submission.postal_postcode || '').trim() === (submission.applicant_postcode || '').trim()
+      )
+    );
+
     const formattedSubmission = formatter.formatGoldCoastSubmission({
       lot_number: submission.lot_number || undefined,
       plan_number: submission.plan_number || undefined,
@@ -219,11 +229,11 @@ router.post('/api/generate/:submissionId', aiGenerationLimiter, async (req, res)
       applicant_state: submission.applicant_state,
       applicant_postcode: submission.applicant_postcode,
       applicant_email: submission.applicant_email,
-      postal_address_same: submission.applicant_postal_address ? false : true,
-      applicant_postal_address: submission.applicant_postal_address || undefined,
-      postal_suburb: submission.postal_suburb || undefined,
-      postal_state: submission.postal_state || undefined,
-      postal_postcode: submission.postal_postcode || undefined,
+      postal_address_same: postalAddressSame,
+      applicant_postal_address: postalAddressSame ? submission.applicant_residential_address : submission.applicant_postal_address || undefined,
+      postal_suburb: postalAddressSame ? submission.applicant_suburb : submission.postal_suburb || undefined,
+      postal_state: postalAddressSame ? submission.applicant_state : submission.postal_state || undefined,
+      postal_postcode: postalAddressSame ? submission.applicant_postcode : submission.postal_postcode || undefined,
       postal_email: submission.postal_email || undefined,
       grounds_content: finalText,
       submission_date: new Date().toLocaleDateString('en-AU', {
