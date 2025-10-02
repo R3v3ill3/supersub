@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import Handlebars from 'handlebars';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { sanitizeAndValidate } from './contentRules';
 import { retryService } from './retryService';
 import { errorHandler, ErrorType, ErrorCode } from './errorHandler';
@@ -45,13 +45,27 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
       });
 
       const msg = response.choices[0]?.message?.content ?? '{}';
+      console.log('[OpenAI] Raw response length:', msg.length);
+      console.log('[OpenAI] Raw response preview:', msg.substring(0, 200));
+      
       let parsed: any;
       try {
         parsed = JSON.parse(msg);
-      } catch {
+      } catch (e) {
+        console.error('[OpenAI] JSON parse error:', e);
+        console.error('[OpenAI] Failed to parse:', msg.substring(0, 500));
         throw new Error('OpenAI returned invalid JSON');
       }
+      
+      console.log('[OpenAI] Parsed keys:', Object.keys(parsed));
+      console.log('[OpenAI] final_text length:', parsed.final_text?.length ?? 0);
+      
       const finalText = String(parsed.final_text ?? '');
+      
+      if (!finalText || finalText.length === 0) {
+        console.error('[OpenAI] WARNING: final_text is empty!');
+        console.error('[OpenAI] Full parsed object:', JSON.stringify(parsed).substring(0, 500));
+      }
 
       return {
         finalText,
@@ -85,78 +99,77 @@ async function generateWithOpenAI(args: GenerateArgs, system: string, user: stri
   );
 }
 
-async function generateWithGemini(args: GenerateArgs, system: string, user: string, maxWords: number) {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function generateWithClaude(args: GenerateArgs, system: string, user: string, maxWords: number) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
+    throw new Error('ANTHROPIC_API_KEY not configured');
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const temperature = Number(process.env.GEMINI_TEMPERATURE || 0.05);
+  const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+  const temperature = Number(process.env.ANTHROPIC_TEMPERATURE || 0.05);
 
   return await retryService.executeWithRetry(
     async () => {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const geminiModel = genAI.getGenerativeModel({ 
+      const client = new Anthropic({ apiKey });
+
+      const response = await client.messages.create({
         model,
-        generationConfig: {
-          temperature,
-          maxOutputTokens: Number(process.env.GEMINI_MAX_TOKENS || 4000),
-        }
+        max_tokens: Number(process.env.ANTHROPIC_MAX_TOKENS || 4000),
+        temperature,
+        system: system.replace('{{MAX_WORDS}}', String(maxWords)),
+        messages: [
+          {
+            role: 'user',
+            content: user + '\n\nPlease respond with ONLY valid JSON in this exact format:\n{\n  "final_text": "your generated submission text here"\n}'
+          }
+        ]
       });
 
-      // Combine system and user prompts for Gemini
-      const prompt = `${system.replace('{{MAX_WORDS}}', String(maxWords))}
+      const content = response.content[0];
+      if (content.type !== 'text') {
+        throw new Error('Claude returned non-text response');
+      }
 
-${user}
+      const text = content.text;
 
-Please respond with ONLY valid JSON in this exact format:
-{
-  "final_text": "your generated submission text here"
-}`;
-
-      const result = await geminiModel.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      // Extract JSON from response (Gemini might include extra text)
+      // Extract JSON from response (Claude is good at following instructions but be safe)
       let jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('Gemini did not return valid JSON format');
+        throw new Error('Claude did not return valid JSON format');
       }
 
       let parsed: any;
       try {
         parsed = JSON.parse(jsonMatch[0]);
       } catch {
-        throw new Error('Gemini returned invalid JSON');
+        throw new Error('Claude returned invalid JSON');
       }
       
       const finalText = String(parsed.final_text ?? '');
       if (!finalText) {
-        throw new Error('Gemini response missing final_text field');
+        throw new Error('Claude response missing final_text field');
       }
 
       return {
         finalText,
         usage: {
-          prompt: null, // Gemini doesn't provide token counts in the same way
-          completion: null
+          prompt: response.usage.input_tokens,
+          completion: response.usage.output_tokens
         },
         model,
         temperature,
-        provider: 'gemini'
+        provider: 'claude'
       };
     },
     {
-      operationName: 'gemini_generate',
+      operationName: 'claude_generate',
       retryConfig: {
         maxRetries: 2,
         initialDelayMs: 1000,
         maxDelayMs: 8000
       },
       errorContext: {
-        operation: 'generate_submission_gemini',
+        operation: 'generate_submission_claude',
         metadata: { 
           model,
           temperature,
@@ -173,16 +186,16 @@ export async function generateSubmission(args: GenerateArgs) {
 
   // Check if AI generation is enabled
   const openaiEnabled = process.env.OPENAI_ENABLED !== 'false';
-  const geminiEnabled = process.env.GEMINI_ENABLED !== 'false';
+  const claudeEnabled = process.env.ANTHROPIC_ENABLED !== 'false';
   
-  if (!openaiEnabled && !geminiEnabled) {
+  if (!openaiEnabled && !claudeEnabled) {
     const error = await errorHandler.handleError(
       ErrorType.SYSTEM,
       ErrorCode.CONFIGURATION_ERROR,
-      'Both OpenAI and Gemini are disabled',
+      'Both OpenAI and Claude are disabled',
       {
         operation: 'generate_submission',
-        metadata: { openaiEnabled, geminiEnabled }
+        metadata: { openaiEnabled, claudeEnabled }
       }
     );
     throw error;
@@ -245,25 +258,25 @@ export async function generateSubmission(args: GenerateArgs) {
     }
   }
 
-  // Fallback to Gemini if OpenAI failed (and Gemini is enabled)
-  if (!result && geminiEnabled && process.env.GEMINI_API_KEY) {
+  // Fallback to Claude if OpenAI failed (and Claude is enabled)
+  if (!result && claudeEnabled && process.env.ANTHROPIC_API_KEY) {
     try {
-      console.log('🤖 Falling back to Gemini...');
-      result = await generateWithGemini(args, system, user, maxWords);
-      console.log(`✅ Gemini generation successful with ${result.model}`);
+      console.log('🤖 Falling back to Claude...');
+      result = await generateWithClaude(args, system, user, maxWords);
+      console.log(`✅ Claude generation successful with ${result.model}`);
     } catch (error: any) {
-      console.warn('⚠️ Gemini generation failed:', error.message);
+      console.warn('⚠️ Claude generation failed:', error.message);
       
-      // Log Gemini specific error
+      // Log Claude specific error
       await errorHandler.handleError(
         ErrorType.INTEGRATION,
-        ErrorCode.GEMINI_API_ERROR,
-        `Gemini generation failed: ${error.message}`,
+        ErrorCode.OPENAI_API_ERROR, // Reuse OPENAI_API_ERROR code for now
+        `Claude generation failed: ${error.message}`,
         {
-          operation: 'generate_submission_gemini',
+          operation: 'generate_submission_claude',
           metadata: { 
             applicantName: args.meta.applicant_name,
-            model: process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+            model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
           }
         },
         error
@@ -277,8 +290,7 @@ export async function generateSubmission(args: GenerateArgs) {
   if (!result) {
     const error = await errorHandler.handleError(
       ErrorType.INTEGRATION,
-      openaiEnabled && geminiEnabled ? ErrorCode.OPENAI_API_ERROR : 
-        (openaiEnabled ? ErrorCode.OPENAI_API_ERROR : ErrorCode.GEMINI_API_ERROR),
+      ErrorCode.OPENAI_API_ERROR,
       `All AI providers failed. Last error: ${lastError?.message || 'Unknown error'}`,
       {
         operation: 'generate_submission',
@@ -286,9 +298,9 @@ export async function generateSubmission(args: GenerateArgs) {
         metadata: { 
           applicantName: args.meta.applicant_name,
           openaiEnabled,
-          geminiEnabled,
+          claudeEnabled,
           openaiKey: !!process.env.OPENAI_API_KEY,
-          geminiKey: !!process.env.GEMINI_API_KEY
+          claudeKey: !!process.env.ANTHROPIC_API_KEY
         }
       },
       lastError || new Error('All AI providers failed')

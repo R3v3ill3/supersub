@@ -25,13 +25,13 @@ OPENAI_TEMPERATURE=0.05
 OPENAI_MAX_TOKENS=4000
 OPENAI_ENABLED=true
 
-# AI Configuration - Google Gemini (Fallback Provider)
-# Get your API key from: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-1.5-flash
-GEMINI_TEMPERATURE=0.05
-GEMINI_MAX_TOKENS=4000
-GEMINI_ENABLED=true
+# AI Configuration - Anthropic Claude (Fallback Provider)
+# Get your API key from: https://console.anthropic.com/
+ANTHROPIC_API_KEY=your_anthropic_api_key
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_TEMPERATURE=0.05
+ANTHROPIC_MAX_TOKENS=4000
+ANTHROPIC_ENABLED=true
 
 # Global AI Settings
 WORD_LIMIT=2500

@@ -37,14 +37,14 @@ router.get('/api/diagnostic/ai-config', async (req, res) => {
         maxTokens: process.env.OPENAI_MAX_TOKENS || '4000 (default)'
       },
       
-      gemini: {
-        enabled: process.env.GEMINI_ENABLED,
-        enabledCheck: process.env.GEMINI_ENABLED !== 'false',
-        hasApiKey: !!process.env.GEMINI_API_KEY,
-        apiKeyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 8) + '...' : 'NOT SET',
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash (default)',
-        temperature: process.env.GEMINI_TEMPERATURE || '0.05 (default)',
-        maxTokens: process.env.GEMINI_MAX_TOKENS || '4000 (default)'
+      claude: {
+        enabled: process.env.ANTHROPIC_ENABLED,
+        enabledCheck: process.env.ANTHROPIC_ENABLED !== 'false',
+        hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+        apiKeyPrefix: process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 8) + '...' : 'NOT SET',
+        model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022 (default)',
+        temperature: process.env.ANTHROPIC_TEMPERATURE || '0.05 (default)',
+        maxTokens: process.env.ANTHROPIC_MAX_TOKENS || '4000 (default)'
       },
       
       generation: {
@@ -53,10 +53,10 @@ router.get('/api/diagnostic/ai-config', async (req, res) => {
       },
       
       willUseAI: (process.env.OPENAI_ENABLED !== 'false' && !!process.env.OPENAI_API_KEY) || 
-                 (process.env.GEMINI_ENABLED !== 'false' && !!process.env.GEMINI_API_KEY),
+                 (process.env.ANTHROPIC_ENABLED !== 'false' && !!process.env.ANTHROPIC_API_KEY),
       
       primaryProvider: process.env.OPENAI_ENABLED !== 'false' && !!process.env.OPENAI_API_KEY ? 'OpenAI' : 
-                       process.env.GEMINI_ENABLED !== 'false' && !!process.env.GEMINI_API_KEY ? 'Gemini' : 
+                       process.env.ANTHROPIC_ENABLED !== 'false' && !!process.env.ANTHROPIC_API_KEY ? 'Claude (Anthropic)' : 
                        'MOCK MODE (No valid AI provider configured)'
     };
     
