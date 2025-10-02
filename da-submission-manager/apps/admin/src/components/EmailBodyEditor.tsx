@@ -97,6 +97,8 @@ Attention: Tim Baker CEO,
 
 Please find attached the development application submission for {{site_address}}.
 
+Name: {{applicant_full_name}}
+Residential Address: {{applicant_residential_address}}, {{applicant_suburb}} {{applicant_state}} {{applicant_postcode}}
 Email: {{applicant_email}}
 {{application_number_line}}
 

@@ -32,6 +32,8 @@ Attention: Tim Baker CEO,
 
 Please find attached the development application submission for {{site_address}}.
 
+Name: {{applicant_full_name}}
+Residential Address: {{applicant_residential_address}}, {{applicant_suburb}} {{applicant_state}} {{applicant_postcode}}
 Email: {{applicant_email}}
 {{application_number_line}}
 
@@ -45,6 +47,8 @@ Attention: Tim Baker CEO,
 Please find attached our development application submission in response to Application {{application_number}}.
 
 Property: {{site_address}}
+Name: {{applicant_full_name}}
+Residential Address: {{applicant_residential_address}}, {{applicant_suburb}} {{applicant_state}} {{applicant_postcode}}
 Email: {{applicant_email}}
 Position: OBJECTING
 

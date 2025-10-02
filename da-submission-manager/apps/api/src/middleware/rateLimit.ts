@@ -34,13 +34,14 @@ export const standardLimiter = rateLimit({
 });
 
 /**
- * Strict limiter for submission creation (public-facing)
- * 5 requests per 15 minutes per IP
- * Prevents spam and abuse of AI generation
+ * Limiter for submission creation (public-facing)
+ * 150 requests per 15 minutes per IP
+ * Allows for community campaigns with many users from same network
+ * Still prevents extreme abuse
  */
 export const submissionLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 submissions per 15 minutes
+  max: 150, // Limit each IP to 150 submissions per 15 minutes (handles ~100 users from same network)
   message: {
     error: 'Submission limit exceeded. Please wait before creating another submission.',
     code: 'SUBMISSION_RATE_LIMIT_EXCEEDED',
