@@ -323,8 +323,8 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
     // Trigger document workflow to generate PDFs and send emails
     // This will handle the submission based on the project's submission_pathway
     const documentWorkflow = new DocumentWorkflowService();
-    logger.info(`[submissions] Processing document workflow for submission ${submissionId}`, { downloadPdf });
-
+    logger.info(`[submissions] Starting document workflow`, { submissionId, downloadPdf });
+    
     const workflowResult = await documentWorkflow.processSubmission(submissionId, finalText, emailBody, downloadPdf);
 
     logger.info(`[submissions] Document workflow completed`, {
@@ -361,7 +361,9 @@ router.post('/api/submissions/:submissionId/submit', submissionLimiter, async (r
   } catch (error: any) {
     logger.error('[submissions] Error processing submission', { 
       submissionId: req.params.submissionId, 
-      error: error.message 
+      error: error.message,
+      stack: error.stack,
+      errorName: error.name
     });
     res.status(400).json({ error: error.message });
   }
