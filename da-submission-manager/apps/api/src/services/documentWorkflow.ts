@@ -498,18 +498,23 @@ Kind regards,
     // Send email directly to council with cover as body and only grounds as attachment
     const emailRecipient = project.test_submission_email || project.council_email;
 
+    // Enhanced sender name: "John Smith (via DA Submission Manager)"
+    const applicantName = `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim();
+    const organizationName = project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager';
+    const enhancedFromName = `${applicantName} (via ${organizationName})`;
+
     const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
       submission.id,
       emailRecipient,
       project.from_email || process.env.DEFAULT_FROM_EMAIL!,
-      project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager',
+      enhancedFromName,
       subject,
       coverBodyText,
       [
         { filename: groundsFileName, buffer: groundsFile }
       ],
       {
-        name: `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim(),
+        name: applicantName,
         email: submission.applicant_email,
         siteAddress: submission.site_address,
         postalAddress: submission.applicant_postal_address,
@@ -1164,20 +1169,25 @@ This draft submission has been prepared to help you participate in the planning 
 
     const emailContent = this.buildCouncilEmailContent(submissionData, project);
 
+    // Enhanced sender name: "John Smith (via DA Submission Manager)"
+    const applicantName = `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim();
+    const organizationName = project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager';
+    const enhancedFromName = `${applicantName} (via ${organizationName})`;
+
     const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
       submissionId,
       project.test_submission_email || project.council_email,
       project.from_email || process.env.DEFAULT_FROM_EMAIL!,
-      project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager',
+      enhancedFromName,
       this.processTemplate(project.council_subject_template || project.subject_template || 'Development Application Submission - {{site_address}}', {
         site_address: submissionData.site_address,
         application_number: submissionData.application_number || project.default_application_number || '',
-        applicant_name: `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim(),
+        applicant_name: applicantName,
       }),
       emailContent.bodyText,
       [],
       {
-        name: `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim(),
+        name: applicantName,
         email: submissionData.applicant_email,
         siteAddress: submissionData.site_address,
         postalAddress: submissionData.applicant_postal_address,

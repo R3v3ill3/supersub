@@ -1,14 +1,20 @@
-# Reply-To Implementation Summary
+# Email Improvements Implementation Summary
 
-## ✅ Implementation Complete
+## ✅ Phase 1 + Phase 2 Complete
 
-All submission emails now include a `Reply-To` header set to the applicant's email address. When council staff reply to the submission email, their response will go directly to the submitter instead of bouncing back to the system email.
+All submission emails now include:
+1. **Reply-To header** set to the applicant's email address (Phase 1)
+2. **Enhanced sender name** including the applicant's name (Phase 2)
+
+When council staff receive emails, they see "John Smith (via DA Submission Manager)" as the sender, and when they reply, their response goes directly to the submitter instead of bouncing back to the system email.
 
 ---
 
 ## Changes Made
 
-### 1. Updated Email Service Type Definition
+### Phase 1: Reply-To Header
+
+#### 1. Updated Email Service Type Definition
 **File**: `apps/api/src/services/email.ts`
 
 Added `replyTo` field to `SendEmailOptions`:
@@ -24,7 +30,7 @@ export type SendEmailOptions = {
 };
 ```
 
-### 2. Updated Email Sending Logic
+#### 2. Updated Email Sending Logic
 **File**: `apps/api/src/services/email.ts` (line ~150)
 
 Modified `sendEmail()` method to include Reply-To header:
@@ -38,7 +44,7 @@ const info = await this.transporter.sendMail({
 });
 ```
 
-### 3. Updated Direct Submission Method
+#### 3. Updated Direct Submission Method
 **File**: `apps/api/src/services/email.ts` (line ~435)
 
 Added `replyToEmail` parameter to `sendDirectSubmissionWithAttachments()`:
@@ -57,10 +63,10 @@ async sendDirectSubmissionWithAttachments(
 }
 ```
 
-### 4. Updated Call Sites in Document Workflow
+#### 4. Updated Call Sites in Document Workflow
 **File**: `apps/api/src/services/documentWorkflow.ts`
 
-#### Direct Pathway (line ~501)
+**Direct Pathway** (line ~501)
 ```typescript
 const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
   // ... existing parameters
@@ -70,13 +76,54 @@ const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
 );
 ```
 
-#### Review Pathway Submit (line ~1167)
+**Review Pathway Submit** (line ~1167)
 ```typescript
 const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
   // ... existing parameters
   undefined, // bodyHtml
   true, // ccApplicant
   submissionData.applicant_email // ← NEW: replyToEmail - council replies go directly to applicant
+);
+```
+
+---
+
+### Phase 2: Enhanced Sender Name
+
+#### 5. Enhanced Sender Name in Direct Pathway
+**File**: `apps/api/src/services/documentWorkflow.ts` (line ~501)
+
+```typescript
+// Enhanced sender name: "John Smith (via DA Submission Manager)"
+const applicantName = `${submission.applicant_first_name} ${submission.applicant_last_name}`.trim();
+const organizationName = project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager';
+const enhancedFromName = `${applicantName} (via ${organizationName})`;
+
+const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
+  submission.id,
+  emailRecipient,
+  project.from_email || process.env.DEFAULT_FROM_EMAIL!,
+  enhancedFromName,  // ← NEW: Shows applicant name in sender
+  subject,
+  // ... rest
+);
+```
+
+#### 6. Enhanced Sender Name in Review Pathway
+**File**: `apps/api/src/services/documentWorkflow.ts` (line ~1172)
+
+```typescript
+// Enhanced sender name: "John Smith (via DA Submission Manager)"
+const applicantName = `${submissionData.applicant_first_name} ${submissionData.applicant_last_name}`.trim();
+const organizationName = project.from_name || process.env.DEFAULT_FROM_NAME || 'DA Submission Manager';
+const enhancedFromName = `${applicantName} (via ${organizationName})`;
+
+const emailResult = await this.emailService.sendDirectSubmissionWithAttachments(
+  submissionId,
+  project.test_submission_email || project.council_email,
+  project.from_email || process.env.DEFAULT_FROM_EMAIL!,
+  enhancedFromName,  // ← NEW: Shows applicant name in sender
+  // ... rest
 );
 ```
 
@@ -94,10 +141,19 @@ CC: john.smith@gmail.com
 Subject: Development application submission opposing application number COM/2025/271
 ```
 
-**After:**
+**After Phase 1:**
 ```
 From: DA Submission Manager <noreply@yourorganization.org>
 Reply-To: john.smith@gmail.com  ← NEW: Council replies go here
+To: mail@goldcoast.qld.gov.au
+CC: john.smith@gmail.com
+Subject: Development application submission opposing application number COM/2025/271
+```
+
+**After Phase 1 + Phase 2:**
+```
+From: John Smith (via DA Submission Manager) <noreply@yourorganization.org>  ← ENHANCED: Shows applicant name
+Reply-To: john.smith@gmail.com
 To: mail@goldcoast.qld.gov.au
 CC: john.smith@gmail.com
 Subject: Development application submission opposing application number COM/2025/271
@@ -173,39 +229,56 @@ The `Reply-To` header is a standard email header (RFC 822) supported by all emai
 
 ## Benefits
 
-### ✅ Improved User Experience
+### Phase 1: Reply-To Header
+
+#### ✅ Improved User Experience
 - Council staff can reply directly to submitters
 - No "undeliverable" bounces from noreply addresses
 - More natural communication flow
 
-### ✅ Better Email Reputation
+#### ✅ Better Email Reputation
 - Shows emails are from real people (even if sent via system)
 - Less likely to be flagged as bulk/automated mail
 - Demonstrates legitimate correspondence
 
-### ✅ Reduced Support Burden
+#### ✅ Reduced Support Burden
 - Users don't need to contact you to get council responses
 - Council doesn't need to manually copy user emails for replies
 - Cleaner inbox management
 
-### ✅ Zero Risk Implementation
+#### ✅ Zero Risk Implementation
 - **No breaking changes** - fully backward compatible
 - **No infrastructure changes** needed
 - **No new dependencies**
 - **Works with existing email setup**
+
+### Phase 2: Enhanced Sender Name
+
+#### ✅ Appears More Personal
+- Council sees a **real person's name** first (not just "DA Submission Manager")
+- Clearly indicates it's from a constituent (John Smith)
+- Still shows it's facilitated by your organization
+
+#### ✅ Better Legitimacy
+- Not just system name (looks automated)
+- **"John Smith (via DA Submission Manager)"** looks like genuine constituent correspondence
+- Reduces appearance of bulk/spam email
+
+#### ✅ Improved Filtering Bypass
+- Spam filters see a personal name, not just organization
+- Email reputation tied to individuals, not just system
+- Less likely to be caught by automated filters
+
+#### ✅ Maintains Transparency
+- Clear that it's **"via"** your system (not deceptive)
+- Council knows it's a facilitated submission
+- Organization name still visible for context
 
 ---
 
 ## Next Steps (Optional Enhancements)
 
 If you still experience deliverability issues after monitoring for a few weeks, consider:
-
-### Phase 2: Enhanced Sender Name
-Make the sender name more personal:
-```typescript
-const fromName = `${applicant_first_name} ${applicant_last_name} (via ${project_name})`;
-// Results in: "John Smith (via DA Submission Manager) <noreply@example.org>"
-```
 
 ### Phase 3: OAuth Integration
 See `EMAIL_FROM_USER_ADDRESS_OPTIONS.md` for full analysis of OAuth implementation.
@@ -243,5 +316,6 @@ If you encounter any issues:
 
 **Implementation Date**: October 3, 2025  
 **Developer**: AI Assistant  
-**Status**: ✅ Complete & Ready for Testing
+**Phases Implemented**: Phase 1 (Reply-To) + Phase 2 (Enhanced Sender Name)  
+**Status**: ✅ Complete & Ready for Deployment
 
