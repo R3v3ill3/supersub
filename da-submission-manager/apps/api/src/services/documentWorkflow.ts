@@ -515,7 +515,9 @@ Kind regards,
         postalAddress: submission.applicant_postal_address,
         applicationNumber
       },
-      coverBodyHtml
+      coverBodyHtml,
+      true, // ccApplicant
+      submission.applicant_email // replyToEmail - council replies go directly to applicant
     );
 
     // Update submission status (don't store PDF in database for direct downloads)
@@ -1180,7 +1182,10 @@ This draft submission has been prepared to help you participate in the planning 
         siteAddress: submissionData.site_address,
         postalAddress: submissionData.applicant_postal_address,
         applicationNumber: submissionData.application_number || project.default_application_number || undefined,
-      }
+      },
+      undefined, // bodyHtml
+      true, // ccApplicant
+      submissionData.applicant_email // replyToEmail - council replies go directly to applicant
     );
 
     const now = new Date().toISOString();

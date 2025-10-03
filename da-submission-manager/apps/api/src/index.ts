@@ -16,6 +16,7 @@ import integrationsRoutes from './routes/integrations';
 import monitoringRoutes from './routes/monitoring';
 import healthRoutes from './routes/health';
 import diagnosticRoutes from './routes/diagnostic';
+import bulkEmailRoutes from './routes/bulkEmail';
 import { EmailQueueService } from './services/emailQueue';
 import { errorHandler } from './services/errorHandler';
 import { corsOptions } from './config/cors';
@@ -77,6 +78,7 @@ app.use(integrationsRoutes);
 app.use(monitoringRoutes);
 app.use(healthRoutes);
 app.use(diagnosticRoutes);
+app.use(bulkEmailRoutes);
 app.use('/api/templates', templatesRoutes);
 
 // Sentry error handler (must be before other error handlers)

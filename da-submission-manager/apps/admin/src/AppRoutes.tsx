@@ -11,6 +11,7 @@ import Templates from './pages/Templates';
 import Settings from './pages/Settings';
 import SystemHealth from './pages/SystemHealth';
 import Analytics from './pages/Analytics';
+import BulkEmail from './pages/BulkEmail';
 import LoginPage from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -42,6 +43,7 @@ export default function AppRoutes() {
                     <Route path="/projects/:id" element={<ProjectDetail />} />
                     <Route path="/submissions" element={<Submissions />} />
                     <Route path="/templates" element={<Templates />} />
+                    <Route path="/bulk-email" element={<BulkEmail />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/system-health" element={<SystemHealth />} />
                     <Route path="/analytics" element={<Analytics />} />

@@ -16,6 +16,7 @@ export type SendEmailOptions = {
   to: string;
   from: string;
   fromName?: string;
+  replyTo?: string;
   cc?: string | string[];
   subject: string;
   text?: string;
@@ -149,6 +150,7 @@ export class EmailService {
       // 2. Send email
       const info = await this.transporter.sendMail({
         from: options.fromName ? `"${options.fromName}" <${options.from}>` : options.from,
+        replyTo: options.replyTo,
         to: options.to,
         cc: options.cc,
         subject: options.subject,
@@ -446,13 +448,15 @@ export class EmailService {
       applicationNumber?: string;
     },
     bodyHtml?: string,
-    ccApplicant: boolean = true
+    ccApplicant: boolean = true,
+    replyToEmail?: string
   ): Promise<EmailResult> {
     // Send immediately, don't queue (attachments are too large for DB queue)
     return await this.sendEmail({
       to: councilEmail,
       from: fromEmail,
       fromName: fromName,
+      replyTo: replyToEmail || applicantDetails.email,
       cc: ccApplicant ? applicantDetails.email : undefined,
       subject: subject,
       text: bodyText,

@@ -8,6 +8,7 @@ import {
   FormIcon,
   HeartIcon,
   ChartBarIcon,
+  EmailIcon,
 } from '@da/ui/icons';
 import { useAuth } from '../hooks/useAuth';
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Submissions', href: '/submissions', icon: FormIcon },
+  { name: 'Bulk Email', href: '/bulk-email', icon: EmailIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Templates', href: '/templates', icon: DocumentIcon },
   { name: 'System Health', href: '/system-health', icon: HeartIcon },
